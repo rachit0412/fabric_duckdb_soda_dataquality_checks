@@ -1,0 +1,8 @@
+checks for sample_data:
+  - row_count > 0
+  - missing_count(CustomerID) = 0
+  - duplicate_count(CustomerID) = 0
+  - invalid_count(Email) = 0:
+      valid format: email
+
+ 

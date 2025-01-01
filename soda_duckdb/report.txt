@@ -1,0 +1,13 @@
+INFO   | Soda Core 3.4.3
+INFO   | Using DefaultSampler
+INFO   | Scan summary:
+INFO   | 3/4 checks PASSED: 
+INFO   |     sample_data in duckdb
+INFO   |       row_count > 0 [PASSED]
+INFO   |       missing_count(CustomerID) = 0 [PASSED]
+INFO   |       duplicate_count(CustomerID) = 0 [PASSED]
+INFO   | 1/4 checks FAILED: 
+INFO   |     sample_data in duckdb
+INFO   |       invalid_count(Email) = 0 [FAILED]
+INFO   |         check_value: 66
+INFO   | Oops! 1 failures. 0 warnings. 0 errors. 3 pass.

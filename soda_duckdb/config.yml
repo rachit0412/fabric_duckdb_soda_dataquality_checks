@@ -1,0 +1,4 @@
+data_source myduckdb:
+  type: duckdb
+  connection:
+    database: my_database.myduckdb
