@@ -1,4 +1,128 @@
 #!/usr/bin/env pwsh
+# Quick Start Script for Data Quality Platform
+# Handles Docker Desktop startup and container launch
+
+Write-Output ""
+Write-Output "🚀 Data Quality Platform - Quick Start"
+Write-Output "======================================"
+Write-Output ""
+
+# Step 1: Check if Docker Desktop is running
+Write-Output "1️⃣  Checking Docker Desktop..."
+try {
+    docker version | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Output "   ✅ Docker is already running"
+    } else {
+        throw "Docker not responding"
+    }
+} catch {
+    Write-Output "   ⚠️  Docker not running, attempting to start..."
+    
+    $dockerPath = "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+    if (Test-Path $dockerPath) {
+        Start-Process $dockerPath
+        Write-Output "   ⏳ Waiting for Docker Desktop to start (30 seconds)..."
+        Start-Sleep -Seconds 30
+        
+        # Check again
+        try {
+            docker version | Out-Null
+            Write-Output "   ✅ Docker started successfully"
+        } catch {
+            Write-Output "   ❌ Docker failed to start. Please start Docker Desktop manually."
+            Write-Output ""
+            Write-Output "Manual steps:"
+            Write-Output "  1. Search for 'Docker Desktop' in Windows"
+            Write-Output "  2. Start Docker Desktop"
+            Write-Output "  3. Wait for Docker icon in system tray"
+            Write-Output "  4. Run this script again"
+            exit 1
+        }
+    } else {
+        Write-Output "   ❌ Docker Desktop not found at: $dockerPath"
+        Write-Output "   Please install Docker Desktop: https://www.docker.com/products/docker-desktop"
+        exit 1
+    }
+}
+
+# Step 2: Run validation
+Write-Output ""
+Write-Output "2️⃣  Running pre-flight validation..."
+.\validate-docker.ps1
+if ($LASTEXITCODE -ne 0) {
+    Write-Output "   ❌ Validation failed. Fix errors above and try again."
+    exit 1
+}
+
+# Step 3: Build and start containers
+Write-Output ""
+Write-Output "3️⃣  Building and starting containers..."
+Write-Output "   This may take 2-5 minutes on first run..."
+Write-Output ""
+
+docker compose up -d --build
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Output ""
+    Write-Output "✅ Platform started successfully!"
+    Write-Output ""
+    Write-Output "📊 Container Status:"
+    docker compose ps
+    
+    Write-Output ""
+    Write-Output "🌐 Access Points:"
+    Write-Output "   Dashboard:    http://localhost:8000"
+    Write-Output "   API Docs:     http://localhost:8000/docs"
+    Write-Output "   Health Check: http://localhost:8000/api/health"
+    Write-Output ""
+    Write-Output "📋 Useful Commands:"
+    Write-Output "   View logs:    docker compose logs -f data-quality-api"
+    Write-Output "   Stop:         docker compose down"
+    Write-Output "   Restart:      docker compose restart"
+    Write-Output ""
+    
+    # Wait for health check
+    Write-Output "⏳ Waiting for services to be healthy (up to 60 seconds)..."
+    $maxWait = 60
+    $waited = 0
+    $healthy = $false
+    
+    while ($waited -lt $maxWait) {
+        try {
+            $response = Invoke-WebRequest -Uri "http://localhost:8000/api/health" -UseBasicParsing -ErrorAction SilentlyContinue
+            if ($response.StatusCode -eq 200) {
+                $healthy = $true
+                break
+            }
+        } catch {
+            # Not ready yet
+        }
+        Start-Sleep -Seconds 2
+        $waited += 2
+    }
+    
+    if ($healthy) {
+        Write-Output "✅ All services are healthy!"
+        Write-Output ""
+        Write-Output "🎉 Opening dashboard in browser..."
+        Start-Sleep -Seconds 2
+        Start-Process "http://localhost:8000"
+    } else {
+        Write-Output "⚠️  Services started but health check timeout."
+        Write-Output "   Check logs: docker compose logs -f"
+    }
+    
+} else {
+    Write-Output ""
+    Write-Output "❌ Failed to start containers"
+    Write-Output "   Check logs: docker compose logs"
+    exit 1
+}
+
+Write-Output ""
+Write-Output "✨ Platform is ready! Enjoy!"
+Write-Output ""
 # Quick Start - Containerized Data Quality Platform
 # One-command setup for the entire platform
 
