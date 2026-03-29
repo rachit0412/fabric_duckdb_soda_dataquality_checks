@@ -350,13 +350,19 @@ def generate_dynamic_config_yaml(table_name: str, data_source_config: Optional[D
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve the dashboard UI"""
-    ui_path = Path(__file__).parent.parent / "ui" / "dashboard.html"
-    if ui_path.exists():
-        return FileResponse(ui_path)
-    else:
-        # Fallback to simple page
-        return HTMLResponse(
+    """API root endpoint"""
+    return HTMLResponse("""
+    <html>
+        <head>
+            <title>Data Quality Platform API</title>
+        </head>
+        <body>
+            <h1>Data Quality Platform API</h1>
+            <p>API is running. Access the frontend at: <a href="http://localhost:3000">http://localhost:3000</a></p>
+            <p>API Documentation: <a href="/docs">/docs</a></p>
+        </body>
+    </html>
+    """)
             """
             <html>
                 <head>

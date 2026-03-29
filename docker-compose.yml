@@ -1,7 +1,9 @@
+# Enterprise Microservices Architecture
 # Production-ready containerized setup
 # Run with: docker compose up -d
+# Access Frontend: http://localhost:3000
 # Access API: http://localhost:8000
-# Access Swagger docs: http://localhost:8000/docs
+# Access API Docs: http://localhost:8000/docs
 
 services:
   # PostgreSQL Database
@@ -34,12 +36,12 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Data Quality Platform API & Scheduler
+  # Data Quality Platform API Service
   data-quality-api:
     build:
-      context: .
+      context: ./services/api
       dockerfile: Dockerfile
-    image: data-quality-platform:latest
+    image: data-quality-api:latest
     container_name: dq-platform-api
     restart: unless-stopped
     ports:
@@ -48,6 +50,91 @@ services:
       # Application settings
       ENVIRONMENT: ${ENVIRONMENT:-production}
       PYTHONUNBUFFERED: 1
+      # Database settings
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test123}
+      POSTGRES_DB: data_quality
+      # Storage backend
+      STORAGE_BACKEND: postgresql
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - dq-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # React Frontend Service
+  data-quality-frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+    image: data-quality-frontend:latest
+    container_name: dq-platform-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+      NODE_ENV: production
+    depends_on:
+      data-quality-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - dq-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Nginx Reverse Proxy (Optional - for production routing)
+  nginx:
+    image: nginx:alpine
+    container_name: dq-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./infrastructure/docker/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - data-quality-frontend
+      - data-quality-api
+    networks:
+      - dq-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  dq-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
       
       # Storage backend
       STORAGE_BACKEND: postgresql
