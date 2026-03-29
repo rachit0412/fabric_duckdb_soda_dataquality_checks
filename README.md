@@ -1,24 +1,49 @@
 # 🎯 Enterprise Data Quality Platform
 
-> **Transform your data quality monitoring with an enterprise-grade platform powered by AI, real-time analytics, and multi-channel alerting**
+> **Transform your data quality monitoring with an enterprise-grade platform powered by AI, real-time analytics, and a professional web UI**
 
 [![CI/CD](https://github.com/your-org/data-quality-platform/workflows/CI%2FCD/badge.svg)](https://github.com/your-org/data-quality-platform/actions)
 [![Coverage](https://codecov.io/gh/your-org/data-quality-platform/branch/main/graph/badge.svg)](https://codecov.io/gh/your-org/data-quality-platform)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+## 🎨 **NEW: Professional Web Dashboard UI!**
+
+Access a beautiful, modern web interface to monitor your data quality in real-time:
+
+- ✅ **Real-time Dashboard** with live metrics and charts
+- ✅ **Interactive Visualizations** powered by Chart.js
+- ✅ **Mobile Responsive** design for monitoring on-the-go
+- ✅ **Auto-Refresh** data every 30 seconds
+- ✅ **Table-by-Table Analysis** with drill-down capabilities
+
+**Access the UI**: Start the platform and open http://localhost:8000
+
+[📖 Complete UI Guide](UI_GUIDE.md) | [🎨 UI Preview](src/ui/UI_PREVIEW.md)
+
+---
+
 ## 🚀 Overview
 
-The Enterprise Data Quality Platform is a **next-generation solution** that revolutionizes data quality monitoring on Microsoft Fabric. Built for enterprise scale, it combines:
+The Enterprise Data Quality Platform is a **next-generation solution** that revolutionizes data quality monitoring. Built for enterprise scale, it combines:
 
+- **🎨 Professional Web UI** - Modern dashboard for real-time monitoring and analysis
 - **🤖 AI-Powered Anomaly Detection** - Automatically identify data quality issues before they impact your business
 - **📊 Interactive Dashboards** - Beautiful, real-time HTML reports with Chart.js visualizations
 - **🔔 Multi-Channel Alerting** - Instant notifications via Email, Microsoft Teams, and Slack
-- **🗄️ Historical Tracking** - Azure Cosmos DB integration for trend analysis and compliance
+- **🗄️ Historical Tracking** - PostgreSQL/CosmosDB integration for trend analysis and compliance
 - **🌐 REST API** - Seamless integration with your existing data pipelines
 - **📈 Advanced Profiling** - Deep statistical analysis and data profiling
 - **⚡ High Performance** - Optimized DuckDB queries for massive datasets
+- **🐳 Fully Containerized** - Docker-based deployment with one-command setup
 
 ## ✨ Key Features
+
+### User Interface
+- ✅ **Professional Web Dashboard** with real-time updates
+- ✅ **Interactive Charts** (trends, distributions, pass rates)
+- ✅ **Mobile-Responsive Design** for anywhere access
+- ✅ **Table Management UI** with history and trends
+- ✅ **Recent Activity Feed** showing latest scans
 
 ### Enterprise Capabilities
 - ✅ **Automated Data Quality Checks** with Soda Core
@@ -27,13 +52,14 @@ The Enterprise Data Quality Platform is a **next-generation solution** that revo
 - ✅ **Compliance Reporting** with audit trails
 - ✅ **Role-Based Access Control** ready
 - ✅ **Multi-Environment Support** (Dev, Staging, Production)
+- ✅ **PostgreSQL & Cosmos DB** storage options
 
 ### Integration & Extensibility
 - ✅ **FastAPI REST API** for programmatic access
-- ✅ **Azure Cosmos DB** for NoSQL storage and historical analysis
+- ✅ **PostgreSQL/Azure Cosmos DB** for NoSQL storage and historical analysis
 - ✅ **Microsoft Fabric** native integration
 - ✅ **CI/CD Pipelines** (Azure DevOps & GitHub Actions)
-- ✅ **Docker Support** for containerized deployments
+- ✅ **Full Docker Support** for containerized deployments
 - ✅ **Webhook Support** for custom integrations
 
 ## 🏗️ Architecture

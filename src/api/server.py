@@ -3,11 +3,14 @@ FastAPI REST API for enterprise integration
 """
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
 import logging
 from datetime import datetime
 import uvicorn
+import os
+from pathlib import Path
 
 from ..core.scanner import EnhancedDataQualityScanner, ScanResult
 from ..storage.postgres_repository import PostgreSQLRepository
@@ -59,66 +62,63 @@ class ScanResponse(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """API landing page"""
-    return """
-    <html>
-        <head>
-            <title>Data Quality Platform</title>
-            <style>
-                body {
-                    font-family: 'Segoe UI', sans-serif;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    height: 100vh;
-                    margin: 0;
-                }
-                .container {
-                    background: white;
-                    padding: 60px;
-                    border-radius: 20px;
-                    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-                    text-align: center;
-                    max-width: 600px;
-                }
-                h1 {
-                    color: #667eea;
-                    margin-bottom: 20px;
-                }
-                p {
-                    color: #666;
-                    font-size: 1.1em;
-                    line-height: 1.6;
-                }
-                a {
-                    display: inline-block;
-                    margin: 10px;
-                    padding: 15px 30px;
-                    background: #667eea;
-                    color: white;
-                    text-decoration: none;
-                    border-radius: 10px;
-                    transition: all 0.3s;
-                }
-                a:hover {
-                    background: #764ba2;
-                    transform: translateY(-2px);
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🎯 Enterprise Data Quality Platform</h1>
-                <p>Enterprise-grade data quality monitoring for Microsoft Fabric</p>
-                <p>
-                    <a href="/api/docs">📚 API Documentation</a>
-                    <a href="/api/health">❤️ Health Check</a>
-                </p>
-            </div>
-        </body>
-    </html>
-    """
+    """Serve the dashboard UI"""
+    ui_path = Path(__file__).parent.parent / "ui" / "dashboard.html"
+    if ui_path.exists():
+        return FileResponse(ui_path)
+    else:
+        # Fallback to simple page
+        return HTMLResponse(
+            """
+            <html>
+                <head>
+                    <title>Data Quality Platform</title>
+                    <style>
+                        body {
+                            font-family: 'Segoe UI', sans-serif;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100vh;
+                            margin: 0;
+                        }
+                        .container {
+                            background: white;
+                            padding: 60px;
+                            border-radius: 20px;
+                            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                            text-align: center;
+                            max-width: 600px;
+                        }
+                        h1 { color: #667eea; margin-bottom: 20px; }
+                        p { color: #666; font-size: 1.1em; line-height: 1.6; }
+                        a {
+                            display: inline-block;
+                            margin: 10px;
+                            padding: 15px 30px;
+                            background: #667eea;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 10px;
+                            transition: all 0.3s;
+                        }
+                        a:hover { background: #764ba2; transform: translateY(-2px); }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>🎯 Enterprise Data Quality Platform</h1>
+                        <p>Enterprise-grade data quality monitoring</p>
+                        <p>
+                            <a href="/api/docs">📚 API Documentation</a>
+                            <a href="/api/health">❤️ Health Check</a>
+                        </p>
+                    </div>
+                </body>
+            </html>
+            """
+        )
 
 
 @app.get("/api/health")
@@ -165,13 +165,13 @@ async def run_scan(request: ScanRequest, background_tasks: BackgroundTasks):
             config_path=request.config_path or config.soda_config_path
         )
         
-        # Generate database (async)
-        if storage_repo:
-            background_tasks.add_task(storageort_{scan_result.scan_id}.html"
+        # Generate report
+        report_path = f"/tmp/reports/report_{scan_result.scan_id}.html"
         html_generator.generate_report(scan_result, report_path)
         
-        # Store in Cosmos DB (async)
-        background_tasks.add_task(cosmos_repo.save_scan_result, scan_result)
+        # Store in database (async)
+        if storage_repo:
+            background_tasks.add_task(storage_repo.save_scan_result, scan_result)
         
         # Send alerts if enabled
         if request.send_alerts:
@@ -224,17 +224,52 @@ async def get_trends(table_name: str, days: int = 7):
 
 @app.get("/api/summary")
 async def get_summary():
-    """Get summary of all monitored tables"""
+    """Get summary of all monitored tables and recent scans"""
     if not storage_repo:
-        raise HTTPException(status_code=503, detail="Storage backend not available")
+        return {
+            "total_tables": 0,
+            "total_scans": 0,
+            "average_pass_rate": 0,
+            "failed_scans": 0,
+            "tables": [],
+            "recent_scans": [],
+            "storage_backend": config.storage_backend,
+            "storage_available": False
+        }
     
     try:
-        summary = storage_repo.get_all_tables_summary()
+        tables = storage_repo.get_all_tables_summary()
+        
+        # Calculate overall statistics
+        total_scans = sum(t.get('scan_count', 0) for t in tables)
+        total_pass_rate = sum(t.get('avg_pass_rate', 0) * t.get('scan_count', 0) for t in tables)
+        avg_pass_rate = (total_pass_rate / total_scans) if total_scans > 0 else 0
+        
+        # Get recent scans across all tables (last 20)
+        recent_scans = []
+        for table in tables:
+            try:
+                history = storage_repo.get_scan_history(table['table_name'], days=7)
+                recent_scans.extend(history[:5])  # Get last 5 from each table
+            except:
+                pass
+        
+        # Sort by timestamp and get latest 20
+        recent_scans.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        recent_scans = recent_scans[:20]
+        
+        # Count failed scans
+        failed_scans = sum(1 for scan in recent_scans if scan.get('status') == 'FAILED')
+        
         return {
-            "table_count": len(summary),
-            "tables": summary,
-            "storage_backend": config.storage_backendn(summary),
-            "tables": summary
+            "total_tables": len(tables),
+            "total_scans": total_scans,
+            "average_pass_rate": avg_pass_rate / 100,  # Convert to decimal
+            "failed_scans": failed_scans,
+            "tables": tables,
+            "recent_scans": recent_scans,
+            "storage_backend": config.storage_backend,
+            "storage_available": True
         }
     except Exception as e:
         logger.error(f"Error retrieving summary: {str(e)}")
