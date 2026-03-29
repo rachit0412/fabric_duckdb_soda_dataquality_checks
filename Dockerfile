@@ -20,8 +20,8 @@ COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code from services/api
-COPY services/api/src/ ./src/
+# Copy application code
+COPY src/ ./src/
 COPY soda_duckdb/ ./soda_duckdb/
 
 # Create necessary directories

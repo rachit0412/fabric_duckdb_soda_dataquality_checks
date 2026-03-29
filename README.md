@@ -18,7 +18,7 @@ Access a beautiful, modern web interface to monitor your data quality in real-ti
 
 **Access the UI**: Start the platform and open http://localhost:8000
 
-[📖 Complete UI Guide](UI_GUIDE.md) | [🎨 UI Preview](src/ui/UI_PREVIEW.md)
+**See**: [📖 UI Guide](docs/guides/UI_GUIDE.md)
 
 ---
 
@@ -193,18 +193,21 @@ python -m src.api.server
 
 ## 📚 Documentation
 
-### 📖 Comprehensive Guides
-
 | Document | Description |
 |----------|-------------|
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Complete system architecture, design patterns, and technical details |
-| **[FOLDER_STRUCTURE.md](FOLDER_STRUCTURE.md)** | Enterprise-grade repository structure and organization |
-| **[UI_GUIDE.md](UI_GUIDE.md)** | Web dashboard usage, customization, and API integration |
-| **[CONTAINERIZATION.md](CONTAINERIZATION.md)** | Docker deployment, container orchestration, and management |
-| **[TESTING.md](TESTING.md)** | Testing strategy, test cases, and quality assurance |
-| **[POSTGRES_SETUP.md](POSTGRES_SETUP.md)** | PostgreSQL configuration and database setup |
-| **[STORAGE_OPTIONS.md](STORAGE_OPTIONS.md)** | Storage backend comparison and selection guide |
-| **[PORT_FIX_SUMMARY.md](PORT_FIX_SUMMARY.md)** | Port configuration and architecture clarification |
+| **[README.md](README.md)** | This file - Project overview and quick start |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | System architecture, components, and design patterns |
+| **[CONTRIBUTING.md](CONTRIBUTING.md)** | Developer guide for contributing to the project |
+| **[docs/deployment/](docs/deployment/)** | Deployment guides (Docker, PostgreSQL, storage) |
+| **[docs/guides/](docs/guides/)** | User guides (UI, testing, best practices) |
+
+### Quick Links
+- 🚀 **Getting Started**: See [Quick Start](#quick-start) below
+- 🐳 **Docker Deployment**: [docs/deployment/CONTAINERIZATION.md](docs/deployment/CONTAINERIZATION.md)
+- 🗄️ **Database Setup**: [docs/deployment/POSTGRES_SETUP.md](docs/deployment/POSTGRES_SETUP.md)
+- 🎨 **Dashboard Guide**: [docs/guides/UI_GUIDE.md](docs/guides/UI_GUIDE.md)
+- 🧪 **Testing**: [docs/guides/TESTING.md](docs/guides/TESTING.md)
+- 📖 **API Docs**: http://localhost:8000/docs (when running)
 
 ### API Endpoints
 
