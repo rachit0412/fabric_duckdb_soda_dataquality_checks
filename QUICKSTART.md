@@ -80,5 +80,5 @@ docker-compose up -d
 
 ## Need Help?
 
-📧 data-quality-team@kpmg.com
+📧 support@your-company.com
 📚 See full documentation in README.md

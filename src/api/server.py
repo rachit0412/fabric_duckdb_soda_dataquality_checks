@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="KPMG Data Quality Platform API",
+    title="Data Quality Platform API",
     description="Enterprise-grade data quality monitoring and alerting",
     version="1.0.0",
     docs_url="/api/docs",
@@ -56,7 +56,7 @@ async def root():
     return """
     <html>
         <head>
-            <title>KPMG Data Quality Platform</title>
+            <title>Data Quality Platform</title>
             <style>
                 body {
                     font-family: 'Segoe UI', sans-serif;
@@ -102,7 +102,7 @@ async def root():
         </head>
         <body>
             <div class="container">
-                <h1>🎯 KPMG Data Quality Platform</h1>
+                <h1>🎯 Enterprise Data Quality Platform</h1>
                 <p>Enterprise-grade data quality monitoring for Microsoft Fabric</p>
                 <p>
                     <a href="/api/docs">📚 API Documentation</a>

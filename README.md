@@ -1,4 +1,4 @@
-# 🎯 KPMG Enterprise Data Quality Platform
+# 🎯 Enterprise Data Quality Platform
 
 > **Transform your data quality monitoring with an enterprise-grade platform powered by AI, real-time analytics, and multi-channel alerting**
 
@@ -8,7 +8,7 @@
 
 ## 🚀 Overview
 
-The KPMG Enterprise Data Quality Platform is a **next-generation solution** that revolutionizes data quality monitoring on Microsoft Fabric. Built for enterprise scale, it combines:
+The Enterprise Data Quality Platform is a **next-generation solution** that revolutionizes data quality monitoring on Microsoft Fabric. Built for enterprise scale, it combines:
 
 - **🤖 AI-Powered Anomaly Detection** - Automatically identify data quality issues before they impact your business
 - **📊 Interactive Dashboards** - Beautiful, real-time HTML reports with Chart.js visualizations
@@ -274,7 +274,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Documentation**: [Full documentation](docs/)
 - **Issues**: [GitHub Issues](https://github.com/your-org/data-quality-platform/issues)
-- **Email**: data-quality-team@kpmg.com
+- **Email**: support@your-company.com
 
 ## 🌟 Roadmap
 
@@ -287,4 +287,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ by KPMG Data Engineering Team**
+**Made with ❤️ by Data Engineering Team**

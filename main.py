@@ -20,7 +20,7 @@ from src.config import config
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
-        description="KPMG Enterprise Data Quality Platform",
+        description="Enterprise Data Quality Platform",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -87,7 +87,7 @@ Examples:
 
 def run_scan(args):
     """Run data quality scan"""
-    print("🎯 KPMG Data Quality Platform")
+    print("🎯 Enterprise Data Quality Platform")
     print("=" * 60)
     
     # Initialize services

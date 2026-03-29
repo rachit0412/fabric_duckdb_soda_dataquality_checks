@@ -22,7 +22,7 @@ Welcome to the **enterprise-ready** version of the Data Quality Platform! Here's
 - **Interactive Charts**: Chart.js powered visualizations
 - **Real-time Metrics**: Pass rates, check distributions, anomaly highlights
 - **Data Profiling**: Deep statistical insights per column
-- **Professional Branding**: KPMG-themed reports ready for stakeholder presentation
+- **Professional Branding**: Clean, professional reports ready for stakeholder presentation
 
 ### 4. 🗄️ Azure Cosmos DB Integration
 - **Historical Tracking**: Store every scan result for compliance
@@ -226,7 +226,7 @@ python examples/usage_examples.py
 
 ## 🤝 Getting Help
 
-- **Email**: data-quality-team@kpmg.com
+- **Email**: support@your-company.com
 - **Teams**: Data Quality Champions channel
 - **Wiki**: Internal documentation portal
 - **Office Hours**: Every Friday 2-3 PM

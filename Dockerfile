@@ -2,7 +2,7 @@
 FROM python:3.11-slim
 
 # Metadata
-LABEL maintainer="KPMG Data Quality Team <data-quality-team@kpmg.com>"
+LABEL maintainer="Data Quality Team <support@your-company.com>"
 LABEL version="1.0.0"
 LABEL description="Enterprise Data Quality Platform for Microsoft Fabric"
 

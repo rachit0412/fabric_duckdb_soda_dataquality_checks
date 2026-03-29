@@ -194,7 +194,7 @@ class AlertingService:
                     </p>
                 </div>
                 <div class="footer">
-                    <p>KPMG Enterprise Data Quality Platform</p>
+                    <p>Enterprise Data Quality Platform</p>
                     <p>Powered by Soda Core & Microsoft Fabric</p>
                 </div>
             </div>

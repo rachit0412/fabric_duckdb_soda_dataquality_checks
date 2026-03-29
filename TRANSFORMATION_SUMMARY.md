@@ -35,7 +35,7 @@ Your basic data quality solution has been transformed into a **production-ready,
 - ✅ Real-time metrics dashboards
 - ✅ Anomaly highlighting
 - ✅ Data profiling views
-- ✅ KPMG-branded templates
+- ✅ Professional branded templates
 
 ### 3. **Enterprise Integration**
 - ✅ **FastAPI REST API** with auto-generated docs
@@ -347,6 +347,6 @@ You now have an **enterprise-grade data quality platform** that:
 
 ---
 
-**Made with ❤️ by KPMG Data Engineering Team**
+**Made with ❤️ by Data Engineering Team**
 
 *Ready to impress stakeholders and transform your data quality monitoring!* 🚀

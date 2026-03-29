@@ -188,7 +188,7 @@ def example_comprehensive():
 
 
 if __name__ == "__main__":
-    print("🎯 KPMG Data Quality Platform - Examples")
+    print("🎯 Enterprise Data Quality Platform - Examples")
     print("=" * 60)
     
     # Run examples
