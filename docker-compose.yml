@@ -1,5 +1,10 @@
 version: '3.8'
 
+# Production-ready containerized setup
+# Run with: docker compose up -d
+# Access API: http://localhost:8000
+# Access Swagger docs: http://localhost:8000/docs
+
 services:
   # PostgreSQL Database
   postgres:
@@ -8,41 +13,79 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: test123
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test123}
       POSTGRES_DB: data_quality
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+      TZ: UTC
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - dq-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # Data Quality Platform API
+  # Data Quality Platform API & Scheduler
   data-quality-api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: data-quality-platform:latest
     container_name: dq-platform-api
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     environment:
-      - ENVIRONMENT=production
-      - STORAGE_BACKEND=postgresql
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=data_quality
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=test123
-      - ALERTING_ENABLED=true
-      - LOG_LEVEL=INFO
+      # Application settings
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      PYTHONUNBUFFERED: 1
+      
+      # Storage backend
+      STORAGE_BACKEND: postgresql
+      
+      # PostgreSQL connection
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: data_quality
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test123}
+      POSTGRES_SSLMODE: prefer
+      
+      # Soda configuration
+      SODA_CONFIG_PATH: /app/soda_duckdb/config.yml
+      SODA_CHECKS_PATH: /app/soda_duckdb/checks.yml
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FILE: /app/logs/data_quality.log
+      
+      # Alerting (optional)
+      ALERTING_ENABLED: ${ALERTING_ENABLED:-false}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      TEAMS_ENABLED: ${TEAMS_ENABLED:-false}
+      
+      # API settings
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
     volumes:
+      # Persistent storage for logs and reports
       - ./logs:/app/logs
       - ./reports:/app/reports
-      - ./soda_duckdb:/app/soda_duckdb
-    restart: unless-stopped
+      # Mount data directory for scanning
+      - ./data:/app/data:ro
+      # Configuration (read-only)
+      - ./soda_duckdb:/app/soda_duckdb:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,11 +97,44 @@ services:
       start_period: 40s
     networks:
       - dq-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: dq-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@company.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - dq-network
+    profiles:
+      - admin
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
 volumes:
   postgres_data:
+    driver: local
+  pgadmin_data:
     driver: local
 
 networks:
   dq-network:
     driver: bridge
+    name: dq-network

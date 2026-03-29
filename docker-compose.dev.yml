@@ -1,0 +1,98 @@
+version: '3.8'
+
+# Development setup with hot-reload
+# Run with: docker compose -f docker-compose.dev.yml up
+# Code changes will automatically reload
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: dq-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: test123
+      POSTGRES_DB: data_quality
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dq-network
+
+  # Data Quality Platform API (Development mode)
+  data-quality-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: data-quality-platform:dev
+    container_name: dq-platform-api-dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: development
+      STORAGE_BACKEND: postgresql
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: data_quality
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: test123
+      LOG_LEVEL: DEBUG
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      # Enable hot reload
+      RELOAD: "true"
+    volumes:
+      # Mount source code for hot reload
+      - ./src:/app/src
+      - ./soda_duckdb:/app/soda_duckdb
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dq-network
+    command: >
+      uvicorn src.api.server:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --reload-dir /app/src
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: dq-pgadmin-dev
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@company.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_dev_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - dq-network
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  pgadmin_dev_data:
+    driver: local
+
+networks:
+  dq-network:
+    driver: bridge
+    name: dq-network-dev
