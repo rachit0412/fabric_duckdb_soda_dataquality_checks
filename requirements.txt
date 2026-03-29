@@ -25,6 +25,7 @@ plotly==5.24.0
 # HTTP requests
 requests==2.32.0
 httpx==0.28.0
+python-multipart==0.0.9
 
 # Configuration and environment
 python-dotenv==1.0.0
