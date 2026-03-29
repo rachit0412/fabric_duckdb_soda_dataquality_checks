@@ -1,10 +1,10 @@
-# Enterprise Dockerfile for Data Quality Platform
+# Enterprise Dockerfile for Data Quality API Service
 FROM python:3.11-slim
 
 # Metadata
 LABEL maintainer="Data Quality Team <support@your-company.com>"
-LABEL version="1.0.0"
-LABEL description="Enterprise Data Quality Platform for Microsoft Fabric"
+LABEL version="2.0.0"
+LABEL description="Data Quality API Service for Microsoft Fabric"
 
 # Set working directory
 WORKDIR /app
@@ -20,9 +20,11 @@ COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code from services/api
-COPY services/api/src/ ./src/
-COPY soda_duckdb/ ./soda_duckdb/
+# Copy application code
+COPY src/ ./src/
+
+# Copy soda config from parent
+COPY ../soda_duckdb ./soda_duckdb/
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/reports /tmp/reports
@@ -31,12 +33,16 @@ RUN mkdir -p /app/logs /app/reports /tmp/reports
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
+# Run as non-root user
+RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
+USER app
+
 # Expose API port
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-# Run the API server
+# Start the application
 CMD ["python", "-m", "src.api.server"]

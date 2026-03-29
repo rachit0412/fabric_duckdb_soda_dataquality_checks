@@ -39,7 +39,7 @@ services:
   # Data Quality Platform API Service
   data-quality-api:
     build:
-      context: ./services/api
+      context: .
       dockerfile: Dockerfile
     image: data-quality-api:latest
     container_name: dq-platform-api
@@ -125,70 +125,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-volumes:
-  postgres_data:
-    driver: local
-
-networks:
-  dq-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
-      
-      # Storage backend
-      STORAGE_BACKEND: postgresql
-      
-      # PostgreSQL connection
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: data_quality
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test123}
-      POSTGRES_SSLMODE: prefer
-      
-      # Soda configuration
-      SODA_CONFIG_PATH: /app/soda_duckdb/config.yml
-      SODA_CHECKS_PATH: /app/soda_duckdb/checks.yml
-      
-      # Logging
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      LOG_FILE: /app/logs/data_quality.log
-      
-      # Alerting (optional)
-      ALERTING_ENABLED: ${ALERTING_ENABLED:-false}
-      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
-      TEAMS_ENABLED: ${TEAMS_ENABLED:-false}
-      
-      # API settings
-      API_HOST: 0.0.0.0
-      API_PORT: 8000
-    volumes:
-      # Persistent storage for logs and reports
-      - ./logs:/app/logs
-      - ./reports:/app/reports
-      # Mount data directory for scanning
-      - ./data:/app/data:ro
-      # Configuration (read-only)
-      - ./soda_duckdb:/app/soda_duckdb:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - dq-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # Optional: pgAdmin for database management
+  # pgAdmin for database management (optional)
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: dq-pgadmin
@@ -199,14 +136,12 @@ networks:
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
       - "${PGADMIN_PORT:-5050}:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
+    profiles:
+      - admin
     depends_on:
       - postgres
     networks:
       - dq-network
-    profiles:
-      - admin
     logging:
       driver: "json-file"
       options:
@@ -216,10 +151,10 @@ networks:
 volumes:
   postgres_data:
     driver: local
-  pgadmin_data:
-    driver: local
 
 networks:
   dq-network:
     driver: bridge
-    name: dq-network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
