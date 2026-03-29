@@ -1,7 +1,7 @@
 # Enterprise Data Quality Checks Configuration
 # Enhanced checks for comprehensive data validation
 
-checks for sample_data:
+checks for customers:
   # Volume Checks
   - row_count > 0
   - row_count < 100000000  # Maximum expected rows

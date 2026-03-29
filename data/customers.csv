@@ -1,0 +1,16 @@
+CustomerID,Name,Email,Age,SignupDate,IsActive
+1,Customer_1,user1@example.com,25,2024-03-15,true
+2,Customer_2,user2@example.com,30,2024-04-20,false
+3,Customer_3,user3@example.com,45,2024-01-10,true
+4,Customer_4,user4@example.com,28,2024-06-05,true
+5,Customer_5,user5@example.com,52,2024-02-28,false
+6,Customer_6,user6@example.com,33,2024-07-12,true
+7,Customer_7,user7@example.com,41,2024-05-08,true
+8,Customer_8,user8@example.com,29,2024-08-22,false
+9,Customer_9,user9@example.com,38,2024-09-14,true
+10,,user10@example.com,26,2024-10-01,true
+11,Customer_11,user11@invalid,31,2024-11-18,false
+12,Customer_12,user12@example.com,,2024-12-05,true
+13,Customer_13,user13@example.com,47,2024-01-25,false
+14,Customer_14,user14@example.com,22,2024-02-14,true
+15,Customer_15,user15@example.com,36,2024-03-30,true

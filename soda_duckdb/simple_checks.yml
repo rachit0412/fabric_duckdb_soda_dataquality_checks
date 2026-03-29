@@ -1,0 +1,3 @@
+checks for customers:
+  - row_count > 0
+  - missing_count(CustomerID) = 0
