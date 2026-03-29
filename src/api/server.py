@@ -10,6 +10,7 @@ from datetime import datetime
 import uvicorn
 
 from ..core.scanner import EnhancedDataQualityScanner, ScanResult
+from ..storage.postgres_repository import PostgreSQLRepository
 from ..storage.cosmos_repository import CosmosDBRepository
 from ..reporting.html_generator import HTMLReportGenerator
 from ..notifications.alerting import AlertingService
@@ -26,8 +27,14 @@ app = FastAPI(
     redoc_url="/api/redoc"
 )
 
-# Initialize services
-cosmos_repo = CosmosDBRepository()
+# Initialize services - use PostgreSQL by default, fallback to Cosmos DB
+if config.storage_backend == "postgresql":
+    storage_repo = PostgreSQLRepository()
+elif config.storage_backend == "cosmosdb":
+    storage_repo = CosmosDBRepository()
+else:
+    storage_repo = None
+
 html_generator = HTMLReportGenerator()
 alerting_service = AlertingService()
 
@@ -122,7 +129,11 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0",
         "services": {
-            "cosmos_db": cosmos_repo.client is not None,
+            "storage_backend": config.storage_backend,
+            "storage_available": storage_repo is not None and (
+                hasattr(storage_repo, 'connection') and storage_repo.connection is not None or
+                hasattr(storage_repo, 'client') and storage_repo.client is not None
+            ),
             "alerting": config.alerting_config.enabled
         }
     }
@@ -154,8 +165,9 @@ async def run_scan(request: ScanRequest, background_tasks: BackgroundTasks):
             config_path=request.config_path or config.soda_config_path
         )
         
-        # Generate HTML report
-        report_path = f"/tmp/reports/report_{scan_result.scan_id}.html"
+        # Generate database (async)
+        if storage_repo:
+            background_tasks.add_task(storageort_{scan_result.scan_id}.html"
         html_generator.generate_report(scan_result, report_path)
         
         # Store in Cosmos DB (async)
@@ -180,9 +192,11 @@ async def run_scan(request: ScanRequest, background_tasks: BackgroundTasks):
 
 @app.get("/api/history/{table_name}")
 async def get_history(table_name: str, days: int = 30):
-    """Get scan history for a table"""
+    if not storage_repo:
+        raise HTTPException(status_code=503, detail="Storage backend not available")
+    
     try:
-        history = cosmos_repo.get_scan_history(table_name, days=days)
+        history = storage_repo.get_scan_history(table_name, days=days)
         return {
             "table_name": table_name,
             "period_days": days,
@@ -197,8 +211,11 @@ async def get_history(table_name: str, days: int = 30):
 @app.get("/api/trends/{table_name}")
 async def get_trends(table_name: str, days: int = 7):
     """Get trend analysis for a table"""
+    if not storage_repo:
+        raise HTTPException(status_code=503, detail="Storage backend not available")
+    
     try:
-        trends = cosmos_repo.get_trend_analysis(table_name, days=days)
+        trends = storage_repo.get_trend_analysis(table_name, days=days)
         return trends
     except Exception as e:
         logger.error(f"Error retrieving trends: {str(e)}")
@@ -208,10 +225,15 @@ async def get_trends(table_name: str, days: int = 7):
 @app.get("/api/summary")
 async def get_summary():
     """Get summary of all monitored tables"""
+    if not storage_repo:
+        raise HTTPException(status_code=503, detail="Storage backend not available")
+    
     try:
-        summary = cosmos_repo.get_all_tables_summary()
+        summary = storage_repo.get_all_tables_summary()
         return {
             "table_count": len(summary),
+            "tables": summary,
+            "storage_backend": config.storage_backendn(summary),
             "tables": summary
         }
     except Exception as e:

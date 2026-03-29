@@ -33,6 +33,28 @@ class CosmosDBConfig:
 
 
 @dataclass
+class PostgreSQLConfig:
+    """PostgreSQL configuration for historical data tracking"""
+    host: str
+    port: int = 5432
+    database: str = "data_quality"
+    user: str = ""
+    password: str = ""
+    sslmode: str = "prefer"
+    
+    @classmethod
+    def from_env(cls):
+        return cls(
+            host=os.getenv("POSTGRES_HOST", "localhost"),
+            port=int(os.getenv("POSTGRES_PORT", "5432")),
+            database=os.getenv("POSTGRES_DB", "data_quality"),
+            user=os.getenv("POSTGRES_USER", ""),
+            password=os.getenv("POSTGRES_PASSWORD", ""),
+            sslmode=os.getenv("POSTGRES_SSLMODE", "prefer")
+        )
+
+
+@dataclass
 class AlertingConfig:
     """Alerting configuration"""
     enabled: bool = True
@@ -65,7 +87,11 @@ class DataQualityConfig:
     soda_config_path: str
     soda_checks_path: str
     cosmos_config: CosmosDBConfig
+    postgres_config: PostgreSQLConfig
     alerting_config: AlertingConfig
+    
+    # Storage backend selection
+    storage_backend: str = "postgresql"  # Options: postgresql, cosmosdb, none
     
     # Thresholds
     critical_failure_threshold: float = 0.95  # 95% pass rate minimum
@@ -87,7 +113,9 @@ class DataQualityConfig:
             soda_config_path=os.getenv("SODA_CONFIG_PATH", "/lakehouse/default/Files/soda_duckdb/config.yml"),
             soda_checks_path=os.getenv("SODA_CHECKS_PATH", "/lakehouse/default/Files/soda_duckdb/checks.yml"),
             cosmos_config=CosmosDBConfig.from_env(),
+            postgres_config=PostgreSQLConfig.from_env(),
             alerting_config=AlertingConfig.from_env(),
+            storage_backend=os.getenv("STORAGE_BACKEND", "postgresql").lower(),
             critical_failure_threshold=float(os.getenv("CRITICAL_FAILURE_THRESHOLD", "0.95")),
             warning_threshold=float(os.getenv("WARNING_THRESHOLD", "0.98")),
             enable_anomaly_detection=os.getenv("ENABLE_ANOMALY_DETECTION", "true").lower() == "true",

@@ -76,7 +76,7 @@ def example_with_reporting():
 def example_with_cosmos_db():
     """Example: Scan with Cosmos DB storage"""
     print("\n" + "=" * 60)
-    print("Example 3: Scan with Cosmos DB Storage")
+    print("Example 3: Scan with Database Storage (PostgreSQL/Cosmos DB)")
     print("=" * 60)
     
     setup_logging(log_level="INFO")
@@ -90,18 +90,22 @@ def example_with_cosmos_db():
         config_path="soda_duckdb/config.yml"
     )
     
-    # Save to Cosmos DB
-    cosmos_repo = CosmosDBRepository()
-    if cosmos_repo.save_scan_result(result):
-        print("\n💾 Scan result saved to Cosmos DB")
+    # Save to database (PostgreSQL by default)
+    from src.storage.postgres_repository import PostgreSQLRepository
+    
+    storage_repo = PostgreSQLRepository()
+    if storage_repo.save_scan_result(result):
+        print("\n💾 Scan result saved to database")
         
         # Get historical data
-        history = cosmos_repo.get_scan_history("sample_data", days=7)
+        history = storage_repo.get_scan_history("sample_data", days=7)
         print(f"📈 Historical scans: {len(history)}")
         
         # Get trend analysis
-        trends = cosmos_repo.get_trend_analysis("sample_data", days=7)
+        trends = storage_repo.get_trend_analysis("sample_data", days=7)
         print(f"📊 Trend: {trends.get('trend', 'N/A')}")
+        
+        storage_repo.close()
     
     scanner.close()
 
@@ -143,7 +147,11 @@ def example_comprehensive():
     # Initialize all services
     scanner = EnhancedDataQualityScanner()
     report_generator = HTMLReportGenerator()
-    cosmos_repo = CosmosDBRepository()
+    
+    # Use PostgreSQL by default (can also use Cosmos DB)
+    from src.storage.postgres_repository import PostgreSQLRepository
+    storage_repo = PostgreSQLRepository()
+    
     alerting_service = AlertingService()
     
     # Run scan
@@ -160,9 +168,9 @@ def example_comprehensive():
     # Generate report
     print("\n2️⃣ Generating HTML report...")
     report_path = f"reports/report_{result.scan_id}.html"
-    report_generator.generate_report(result, report_path)
-    print(f"✅ Report saved: {report_path}")
-    
+    report_generator.generadatabase...")
+    if storage_repo.save_scan_result(result):
+        print("✅ Saved to database
     # Save to Cosmos DB
     print("\n3️⃣ Saving to Cosmos DB...")
     if cosmos_repo.save_scan_result(result):

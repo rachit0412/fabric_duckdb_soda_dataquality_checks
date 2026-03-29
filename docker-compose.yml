@@ -1,6 +1,28 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: dq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: test123
+      POSTGRES_DB: data_quality
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dq-network
+
+  # Data Quality Platform API
   data-quality-api:
     build: .
     container_name: dq-platform-api
@@ -8,8 +30,12 @@ services:
       - "8000:8000"
     environment:
       - ENVIRONMENT=production
-      - COSMOS_ENDPOINT=${COSMOS_ENDPOINT}
-      - COSMOS_KEY=${COSMOS_KEY}
+      - STORAGE_BACKEND=postgresql
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=data_quality
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=test123
       - ALERTING_ENABLED=true
       - LOG_LEVEL=INFO
     volumes:
@@ -17,6 +43,9 @@ services:
       - ./reports:/app/reports
       - ./soda_duckdb:/app/soda_duckdb
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
@@ -25,6 +54,10 @@ services:
       start_period: 40s
     networks:
       - dq-network
+
+volumes:
+  postgres_data:
+    driver: local
 
 networks:
   dq-network:

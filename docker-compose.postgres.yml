@@ -1,0 +1,38 @@
+version: '3.8'
+
+# PostgreSQL Only - Lightweight setup for local development
+# Use this when you want to run your Python code locally but use PostgreSQL in Docker
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: test123
+      POSTGRES_DB: data_quality
+      # Optional: Set timezone
+      TZ: America/New_York
+    ports:
+      - "5432:5432"
+    volumes:
+      # Persistent data storage
+      - postgres_data:/var/lib/postgresql/data
+      # Optional: Custom init scripts
+      # - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dq-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  dq-network:
+    driver: bridge

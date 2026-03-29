@@ -123,10 +123,24 @@ def run_scan(args):
     
     # Save to Cosmos DB
     if not args.no_cosmos:
-        print(f"\n💾 Saving to Cosmos DB...")
-        cosmos_repo = CosmosDBRepository()
-        if cosmos_repo.save_scan_result(result):
-            print("✅ Saved to Cosmos DB")
+        print(f"\n💾 Saving to database...")
+        
+        # Import dynamically based on config
+        from src.config import config
+        
+        if config.storage_backend == "postgresql":
+            from src.storage.postgres_repository import PostgreSQLRepository
+            storage_repo = PostgreSQLRepository()
+        elif config.storage_backend == "cosmosdb":
+            from src.storage.cosmos_repository import CosmosDBRepository
+            storage_repo = PostgreSQLRepository()
+        else:
+            storage_repo = None
+        
+        if storage_repo and storage_repo.save_scan_result(result):
+            print(f"✅ Saved to {config.storage_backend}")
+            if hasattr(storage_repo, 'close'):
+                storage_repo.close()
     
     # Send alerts
     if not args.no_alerts:
@@ -155,8 +169,19 @@ def start_api(args):
 
 def view_history(args):
     """View scan history"""
-    cosmos_repo = CosmosDBRepository()
-    history = cosmos_repo.get_scan_history(args.table, days=args.days)
+    from src.config import config
+    
+    if config.storage_backend == "postgresql":
+        from src.storage.postgres_repository import PostgreSQLRepository
+        storage_repo = PostgreSQLRepository()
+    elif config.storage_backend == "cosmosdb":
+        from src.storage.cosmos_repository import CosmosDBRepository
+        storage_repo = CosmosDBRepository()
+    else:
+        print("❌ No storage backend configured")
+        return
+    
+    history = storage_repo.get_scan_history(args.table, days=args.days)
     
     print(f"📈 Scan History for {args.table}")
     print(f"Last {args.days} days: {len(history)} scans")
@@ -164,12 +189,26 @@ def view_history(args):
     
     for scan in history[:10]:  # Show last 10
         print(f"  {scan['timestamp']} - {scan['status']} - {scan['pass_rate']:.1%}")
+    
+    if hasattr(storage_repo, 'close'):
+        storage_repo.close()
 
 
 def view_trends(args):
     """View trends"""
-    cosmos_repo = CosmosDBRepository()
-    trends = cosmos_repo.get_trend_analysis(args.table, days=args.days)
+    from src.config import config
+    
+    if config.storage_backend == "postgresql":
+        from src.storage.postgres_repository import PostgreSQLRepository
+        storage_repo = PostgreSQLRepository()
+    elif config.storage_backend == "cosmosdb":
+        from src.storage.cosmos_repository import CosmosDBRepository
+        storage_repo = CosmosDBRepository()
+    else:
+        print("❌ No storage backend configured")
+        return
+    
+    trends = storage_repo.get_trend_analysis(args.table, days=args.days)
     
     print(f"📊 Trend Analysis for {args.table}")
     print(f"Period: {trends.get('period_days', 0)} days")
@@ -177,6 +216,9 @@ def view_trends(args):
     print(f"Average Pass Rate: {trends.get('average_pass_rate', 0):.1%}")
     print(f"Latest Pass Rate: {trends.get('latest_pass_rate', 0):.1%}")
     print(f"Trend: {trends.get('trend', 'N/A')}")
+    
+    if hasattr(storage_repo, 'close'):
+        storage_repo.close()
 
 
 if __name__ == "__main__":
