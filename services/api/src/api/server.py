@@ -358,7 +358,7 @@ async def root():
         </head>
         <body>
             <h1>Data Quality Platform API</h1>
-            <p>API is running. Access the frontend at: <a href="http://localhost:3000">http://localhost:3000</a></p>
+            <p>API is running. Access the dashboard at: <a href="http://localhost:8000">http://localhost:8000</a></p>
             <p>API Documentation: <a href="/docs">/docs</a></p>
         </body>
     </html>

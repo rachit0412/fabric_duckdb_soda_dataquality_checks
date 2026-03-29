@@ -69,13 +69,13 @@ graph TB
 
 ## Service Components
 
-### 1. Frontend Service
-- **Technology**: React.js, Node.js
-- **Port**: 3000
+### 1. Web Dashboard (Embedded in API)
+- **Technology**: HTML5, Tailwind CSS, Alpine.js, Chart.js
+- **Port**: 8000 (served by FastAPI)
 - **Responsibilities**:
   - User interface for data quality management
-  - File upload interface
-  - Dashboard and reporting views
+  - Interactive dashboard with real-time metrics
+  - Reporting views and visualizations
   - Real-time status monitoring
 
 ### 2. API Service

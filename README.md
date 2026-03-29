@@ -193,6 +193,19 @@ python -m src.api.server
 
 ## 📚 Documentation
 
+### 📖 Comprehensive Guides
+
+| Document | Description |
+|----------|-------------|
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Complete system architecture, design patterns, and technical details |
+| **[FOLDER_STRUCTURE.md](FOLDER_STRUCTURE.md)** | Enterprise-grade repository structure and organization |
+| **[UI_GUIDE.md](UI_GUIDE.md)** | Web dashboard usage, customization, and API integration |
+| **[CONTAINERIZATION.md](CONTAINERIZATION.md)** | Docker deployment, container orchestration, and management |
+| **[TESTING.md](TESTING.md)** | Testing strategy, test cases, and quality assurance |
+| **[POSTGRES_SETUP.md](POSTGRES_SETUP.md)** | PostgreSQL configuration and database setup |
+| **[STORAGE_OPTIONS.md](STORAGE_OPTIONS.md)** | Storage backend comparison and selection guide |
+| **[PORT_FIX_SUMMARY.md](PORT_FIX_SUMMARY.md)** | Port configuration and architecture clarification |
+
 ### API Endpoints
 
 #### Run Data Quality Scan
