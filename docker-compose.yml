@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Production-ready containerized setup
 # Run with: docker compose up -d
 # Access API: http://localhost:8000

@@ -1,7 +1,7 @@
 # Core dependencies
 soda-core==3.4.3
 soda-core-duckdb==3.4.3
-duckdb==1.1.0
+duckdb==1.0.0
 pandas==2.2.0
 numpy==1.26.4
 
@@ -11,7 +11,7 @@ psycopg2-binary==2.9.9  # PostgreSQL (default)
 # Azure integrations (optional)
 azure-cosmos==4.7.0
 azure-identity==1.19.0
-azure-monitor-opentelemetry==1.7.0
+# azure-monitor-opentelemetry==1.7.0
 
 # API and web
 fastapi==0.115.0
