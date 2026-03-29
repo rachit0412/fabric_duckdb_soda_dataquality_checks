@@ -1,0 +1,35 @@
+# Core dependencies
+soda-core==3.4.3
+soda-core-duckdb==3.4.3
+duckdb==1.1.0
+pandas==2.2.0
+numpy==1.26.4
+
+# Azure integrations
+azure-cosmos==4.7.0
+azure-identity==1.19.0
+azure-monitor-opentelemetry==1.7.0
+
+# API and web
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.10.0
+
+# Data analysis and visualization
+scipy==1.14.0
+plotly==5.24.0
+
+# HTTP requests
+requests==2.32.0
+httpx==0.28.0
+
+# Configuration and environment
+python-dotenv==1.0.0
+pyyaml==6.0.2
+
+# Logging and monitoring
+python-json-logger==3.2.0
+opencensus-ext-azure==1.1.13
+
+# Utilities
+python-dateutil==2.9.0

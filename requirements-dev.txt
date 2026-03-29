@@ -1,0 +1,25 @@
+# Development and testing dependencies
+pytest==8.3.0
+pytest-cov==6.0.0
+pytest-asyncio==0.24.0
+pytest-mock==3.14.0
+
+# Code quality
+pylint==3.3.0
+flake8==7.1.0
+black==24.10.0
+mypy==1.13.0
+isort==5.13.0
+
+# Security scanning
+bandit==1.8.0
+safety==3.2.0
+
+# Documentation
+mkdocs==1.6.0
+mkdocs-material==9.5.0
+mkdocstrings[python]==0.26.0
+
+# Type stubs
+types-requests==2.32.0
+types-PyYAML==6.0.12

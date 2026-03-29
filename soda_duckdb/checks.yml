@@ -1,8 +1,54 @@
+# Enterprise Data Quality Checks Configuration
+# Enhanced checks for comprehensive data validation
+
 checks for sample_data:
+  # Volume Checks
   - row_count > 0
+  - row_count < 100000000  # Maximum expected rows
+  
+  # Completeness Checks
   - missing_count(CustomerID) = 0
-  - duplicate_count(CustomerID) = 0
+  - missing_percent(Email) < 5
+  - missing_percent(Name) < 2
+  
+  # Uniqueness Checks
+  - duplicate_count(CustomerID) = 0:
+      name: Ensure CustomerID is unique
+  
+  # Validity Checks
   - invalid_count(Email) = 0:
       valid format: email
+      name: Validate email format
+  
+  # Freshness Checks (if you have a timestamp column)
+  # - freshness(CreatedDate) < 1d
+  
+  # Statistical Checks
+  - avg(Age) between 18 and 100:
+      name: Age should be reasonable
+  
+  # Range Checks
+  - min(Age) >= 0
+  - max(Age) <= 150
+  
+  # Pattern Checks
+  - invalid_percent(PhoneNumber) < 1:
+      valid regex: '^\d{3}-\d{3}-\d{4}$'
+      name: Phone number format validation
+  
+  # Custom SQL Checks
+  - failed rows:
+      name: Check for future dates
+      fail query: |
+        SELECT COUNT(*)
+        FROM sample_data
+        WHERE CAST(CreatedDate AS DATE) > CURRENT_DATE
 
- 
+# Schema Validation
+schema:
+  name: Check table structure
+  fail:
+    when required column missing: [CustomerID, Email]
+    when wrong column type:
+      CustomerID: integer
+      Email: varchar

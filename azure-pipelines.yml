@@ -1,0 +1,125 @@
+# Azure DevOps Pipeline for Data Quality Platform
+# Enterprise CI/CD with automated testing, quality gates, and deployment
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - src/**
+      - tests/**
+      - requirements.txt
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  pythonVersion: '3.10'
+  azureSubscription: 'YOUR_AZURE_SUBSCRIPTION'
+  cosmosDbAccount: 'YOUR_COSMOS_DB_ACCOUNT'
+
+stages:
+  - stage: Build
+    displayName: 'Build and Test'
+    jobs:
+      - job: BuildJob
+        displayName: 'Build and Unit Test'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(pythonVersion)'
+            displayName: 'Use Python $(pythonVersion)'
+
+          - script: |
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+              pip install -r requirements-dev.txt
+            displayName: 'Install dependencies'
+
+          - script: |
+              pip install pytest pytest-cov pytest-asyncio
+              pytest tests/ --cov=src --cov-report=xml --cov-report=html
+            displayName: 'Run unit tests with coverage'
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFiles: '**/test-*.xml'
+              testRunTitle: 'Python $(pythonVersion)'
+            displayName: 'Publish test results'
+
+          - task: PublishCodeCoverageResults@2
+            inputs:
+              codeCoverageTool: 'Cobertura'
+              summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+            displayName: 'Publish code coverage'
+
+  - stage: QualityGate
+    displayName: 'Quality Gates'
+    dependsOn: Build
+    jobs:
+      - job: CodeQuality
+        displayName: 'Code Quality Checks'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(pythonVersion)'
+
+          - script: |
+              pip install pylint flake8 black mypy
+              pylint src/ --exit-zero
+              flake8 src/ --max-line-length=120
+              black --check src/
+              mypy src/ --ignore-missing-imports
+            displayName: 'Run code quality checks'
+
+      - job: SecurityScan
+        displayName: 'Security Scanning'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(pythonVersion)'
+
+          - script: |
+              pip install bandit safety
+              bandit -r src/ -f json -o bandit-report.json
+              safety check --json
+            displayName: 'Run security scans'
+
+  - stage: Deploy
+    displayName: 'Deploy to Production'
+    dependsOn: QualityGate
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployJob
+        displayName: 'Deploy Data Quality Platform'
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: UsePythonVersion@0
+                  inputs:
+                    versionSpec: '$(pythonVersion)'
+
+                - script: |
+                    pip install -r requirements.txt
+                  displayName: 'Install dependencies'
+
+                - task: AzureCLI@2
+                  inputs:
+                    azureSubscription: '$(azureSubscription)'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      # Deploy to Azure Container Instances or App Service
+                      echo "Deploying Data Quality Platform..."
+                      # Add deployment commands here
+                  displayName: 'Deploy to Azure'
+
+                - script: |
+                    # Run smoke tests
+                    pytest tests/smoke/ --production
+                  displayName: 'Run smoke tests'

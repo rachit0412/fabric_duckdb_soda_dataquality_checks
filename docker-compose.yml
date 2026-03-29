@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  data-quality-api:
+    build: .
+    container_name: dq-platform-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - COSMOS_ENDPOINT=${COSMOS_ENDPOINT}
+      - COSMOS_KEY=${COSMOS_KEY}
+      - ALERTING_ENABLED=true
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./soda_duckdb:/app/soda_duckdb
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - dq-network
+
+networks:
+  dq-network:
+    driver: bridge
