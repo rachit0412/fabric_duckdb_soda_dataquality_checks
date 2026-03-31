@@ -1,0 +1,47 @@
+#!/usr/bin/env pwsh
+# Pre-commit hook for automatic documentation updates
+# Runs before each commit to ensure docs are synchronized with code
+#
+# Installation:
+#   git config core.hooksPath .githooks
+
+Write-Host "🔍 Pre-commit: Checking documentation..." -ForegroundColor Cyan
+
+# Check if Python source files changed
+$changedFiles = git diff --cached --name-only --diff-filter=ACM
+
+$pythonChanged = $changedFiles | Where-Object { $_ -match '\.py$' }
+$apiChanged = $changedFiles | Where-Object { $_ -match 'src/api/server\.py' }
+$versionChanged = $changedFiles | Where-Object { $_ -match 'src/__init__\.py' }
+
+if ($pythonChanged -or $apiChanged -or $versionChanged) {
+    Write-Host "📝 Python files changed. Regenerating documentation..." -ForegroundColor Yellow
+    
+    # Run documentation generator
+    try {
+        & .\generate-docs.ps1
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "✅ Documentation updated successfully" -ForegroundColor Green
+            
+            # Stage the generated documentation files
+            git add docs/API_REFERENCE.md
+            git add docs/COMPONENTS.md
+            git add docs/QUICK_REFERENCE.md
+            git add README.md
+            
+            Write-Host "✅ Generated docs staged for commit" -ForegroundColor Green
+        } else {
+            Write-Host "⚠️  Documentation generation had warnings (proceeding)" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "❌ Error generating documentation: $_" -ForegroundColor Red
+        Write-Host "⚠️  Commit proceeding anyway (fix docs manually)" -ForegroundColor Yellow
+        # Don't block commit, just warn
+    }
+} else {
+    Write-Host "✅ No Python changes detected, skipping doc generation" -ForegroundColor Green
+}
+
+Write-Host ""
+exit 0

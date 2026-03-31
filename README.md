@@ -1,203 +1,309 @@
 # 🎯 Enterprise Data Quality Platform
 
-> **Transform your data quality monitoring with an enterprise-grade platform powered by AI, real-time analytics, and a professional web UI**
+> **Production-ready data quality monitoring with AI anomaly detection, professional web UI, and enterprise security**
 
-[![CI/CD](https://github.com/your-org/data-quality-platform/workflows/CI%2FCD/badge.svg)](https://github.com/your-org/data-quality-platform/actions)
-[![Coverage](https://codecov.io/gh/your-org/data-quality-platform/branch/main/graph/badge.svg)](https://codecov.io/gh/your-org/data-quality-platform)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-
-## 🎨 **NEW: Professional Web Dashboard UI!**
-
-Access a beautiful, modern web interface to monitor your data quality in real-time:
-
-- ✅ **Real-time Dashboard** with live metrics and charts
-- ✅ **Interactive Visualizations** powered by Chart.js
-- ✅ **Mobile Responsive** design for monitoring on-the-go
-- ✅ **Auto-Refresh** data every 30 seconds
-- ✅ **Table-by-Table Analysis** with drill-down capabilities
-
-**Access the UI**: Start the platform and open http://localhost:8000
-
-**See**: [📖 UI Guide](docs/guides/UI_GUIDE.md)
+**Version:** 1.0.0 | **Generated:** 2026-03-31 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ---
 
-## 🚀 Overview
+## 🚀 Quick Start (60 seconds to running)
 
-The Enterprise Data Quality Platform is a **next-generation solution** that revolutionizes data quality monitoring. Built for enterprise scale, it combines:
+```powershell
+# 1. Start Docker Desktop (if not running)
 
-- **🎨 Professional Web UI** - Modern dashboard for real-time monitoring and analysis
-- **🤖 AI-Powered Anomaly Detection** - Automatically identify data quality issues before they impact your business
-- **📊 Interactive Dashboards** - Beautiful, real-time HTML reports with Chart.js visualizations
-- **🔔 Multi-Channel Alerting** - Instant notifications via Email, Microsoft Teams, and Slack
-- **🗄️ Historical Tracking** - PostgreSQL/CosmosDB integration for trend analysis and compliance
-- **🌐 REST API** - Seamless integration with your existing data pipelines
-- **📈 Advanced Profiling** - Deep statistical analysis and data profiling
-- **⚡ High Performance** - Optimized DuckDB queries for massive datasets
-- **🐳 Fully Containerized** - Docker-based deployment with one-command setup
+# 2. Deploy the platform (all-in-one command)
+.\quick-start.ps1
 
-## ✨ Key Features
-
-### User Interface
-- ✅ **Professional Web Dashboard** with real-time updates
-- ✅ **Interactive Charts** (trends, distributions, pass rates)
-- ✅ **Mobile-Responsive Design** for anywhere access
-- ✅ **Table Management UI** with history and trends
-- ✅ **Recent Activity Feed** showing latest scans
-
-### Enterprise Capabilities
-- ✅ **Automated Data Quality Checks** with Soda Core
-- ✅ **Statistical Anomaly Detection** (Z-score, IQR, pattern analysis)
-- ✅ **Machine Learning Ready** architecture
-- ✅ **Compliance Reporting** with audit trails
-- ✅ **Role-Based Access Control** ready
-- ✅ **Multi-Environment Support** (Dev, Staging, Production)
-- ✅ **PostgreSQL & Cosmos DB** storage options
-
-### Integration & Extensibility
-- ✅ **FastAPI REST API** for programmatic access
-- ✅ **PostgreSQL/Azure Cosmos DB** for NoSQL storage and historical analysis
-- ✅ **Microsoft Fabric** native integration
-- ✅ **CI/CD Pipelines** (Azure DevOps & GitHub Actions)
-- ✅ **Full Docker Support** for containerized deployments
-- ✅ **Webhook Support** for custom integrations
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Data Quality Platform                   │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │   Data       │───▶│   Scanner    │───▶│   Reporter   │  │
-│  │   Ingestion  │    │   Engine     │    │   Generator  │  │
-│  └──────────────┘    └──────────────┘    └──────────────┘  │
-│         │                   │                     │          │
-│         │                   ▼                     ▼          │
-│         │           ┌──────────────┐    ┌──────────────┐    │
-│         │           │   Anomaly    │    │   Cosmos DB  │    │
-│         │           │   Detector   │    │   Storage    │    │
-│         │           └──────────────┘    └──────────────┘    │
-│         │                   │                     │          │
-│         └───────────────────┴─────────────────────┘          │
-│                             │                                │
-│                             ▼                                │
-│                   ┌──────────────────┐                       │
-│                   │ Alerting Service │                       │
-│                   └──────────────────┘                       │
-│                     │      │      │                          │
-│                     ▼      ▼      ▼                          │
-│                 Email  Teams  Webhooks                       │
-└─────────────────────────────────────────────────────────────┘
+# 3. Access the dashboard
+# Open: http://localhost:8000
 ```
 
-## 📋 Prerequisites
+**That's it!** The platform is now running with:
+- ✅ Professional web dashboard
+- ✅ PostgreSQL database for scan history
+- ✅ Fully secured containers (non-root, read-only filesystem)
+- ✅ REST API with interactive docs
 
-- Python 3.9 or higher
-- Microsoft Fabric workspace
-- Azure Cosmos DB account (optional, for historical tracking)
-- SMTP server or Microsoft Teams webhook (optional, for alerting)
+---
 
-## 🚀 Quick Start
+## ⚡ What You Get
 
-### 1. Installation
+### 🎨 Professional Web Interface
+Modern, responsive dashboard with real-time updates (auto-refresh every 30s)
+- **Visual Analytics**: Charts, trends, pass rates
+- **Table Management**: Scan history, drill-down analysis
+- **Mobile Ready**: Monitor from anywhere
 
-```bash
-# Clone the repository
-git clone https://github.com/your-org/data-quality-platform.git
-cd data-quality-platform
+**Access:** http://localhost:8000
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+### 🤖 Enterprise-Grade Capabilities
+- **AI Anomaly Detection** (Z-score, IQR, pattern analysis)
+- **DuckDB Engine** for high-performance CSV processing
+- **Soda Core Integration** for declarative quality checks
+- **PostgreSQL Storage** for historical tracking and trends
+- **Multi-Channel Alerts** (Email, Teams, Webhooks)
+- **HTML/PDF Reports** with interactive visualizations
+- **REST API** for programmatic access
 
-# Install dependencies
-pip install -r requirements.txt
+### 🔐 Production Security
+- Non-root container execution (UID 1000)
+- Read-only root filesystem
+- Dropped Linux capabilities
+- Resource limits (CPU, memory)
+- Network isolation
+- No host system compromise even if hacked
+
+**See:** [SECURITY.md](SECURITY.md) for attack scenarios and protections
+
+---
+
+## 📊 Architecture
+
+```
+┌──────────────────────────────────────────────────┐
+│           FastAPI Server (Port 8000)             │
+│   ┌────────────┐  ┌──────────┐  ┌──────────┐   │
+│   │  Scanner   │→│ Profiler │→│ Anomaly  │    │
+│   │  (Soda)    │  │          │  │ Detector │    │
+│   └─────┬──────┘  └────┬─────┘  └────┬─────┘   │
+│         │              │             │          │
+│         └──────────────┼─────────────┘          │
+│                        ↓                        │
+│              ┌─────────────────┐                │
+│              │    DuckDB       │                │
+│              │  (In-Memory)    │                │
+│              └────────┬────────┘                │
+│                       ↓                         │
+│              ┌─────────────────┐                │
+│              │  PostgreSQL     │                │
+│              │  (History)      │                │
+│              └─────────────────┘                │
+└──────────────────────────────────────────────────┘
 ```
 
-### 2. Configuration
+**Key Design:**
+- **DuckDB** = PRIMARY engine (CSV processing, Soda checks)
+- **PostgreSQL** = SECONDARY storage (scan history only, NOT user data)
+- **Container-first** with defense-in-depth security
 
-Create a `.env` file in the project root:
+---
 
-```env
-# Environment
-ENVIRONMENT=production
+## 🛠️ Usage Examples
 
-# Azure Cosmos DB (Optional)
-COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/
-COSMOS_KEY=your-cosmos-key
-COSMOS_DB_NAME=data_quality
-COSMOS_CONTAINER_NAME=scan_results
+### Via Web UI (Easiest)
+1. Open http://localhost:8000
+2. Upload CSV or specify path
+3. Configure checks (or use defaults)
+4. Click "Run Scan"
+5. View results, charts, and trends
 
-# Alerting Configuration
-ALERTING_ENABLED=true
-EMAIL_ALERTS_ENABLED=true
-SMTP_SERVER=smtp.office365.com
-SMTP_PORT=587
-SENDER_EMAIL=alerts@your-company.com
-RECIPIENT_EMAILS=team@your-company.com,manager@your-company.com
+### Via REST API
+```python
+import requests
 
-# Microsoft Teams (Optional)
-TEAMS_WEBHOOK_URL=https://your-webhook-url
+# Run scan
+response = requests.post('http://localhost:8000/api/scan', json={
+    "table_name": "customers",
+    "csv_path": "data/customers.csv"
+})
 
-# Quality Thresholds
-CRITICAL_FAILURE_THRESHOLD=0.95
-WARNING_THRESHOLD=0.98
-
-# Feature Flags
-ENABLE_ANOMALY_DETECTION=true
-ENABLE_DATA_PROFILING=true
-ENABLE_HISTORICAL_ANALYSIS=true
+result = response.json()
+print(f"Status: {result['status']}")
+print(f"Pass Rate: {result['checks_passed']}/{result['total_checks']}")
 ```
 
-### 3. Run Your First Scan
-
+### Via Python SDK
 ```python
 from src.core.scanner import EnhancedDataQualityScanner
-from src.reporting.html_generator import HTMLReportGenerator
-from src.utils.logging import setup_logging
 
-# Setup logging
-setup_logging(log_level="INFO")
-
-# Initialize scanner
 scanner = EnhancedDataQualityScanner()
-
-# Run comprehensive scan
 result = scanner.execute_comprehensive_scan(
-    csv_path="/lakehouse/default/Files/your_data.csv",
-    table_name="customer_data",
-    checks_path="soda_duckdb/checks.yml",
-    config_path="soda_duckdb/config.yml"
+    csv_path="data/customers.csv",
+    table_name="customers"
 )
 
-# Generate beautiful HTML report
-report_generator = HTMLReportGenerator()
-report_generator.generate_report(result, "report.html")
-
-print(f"✅ Scan completed with {result.status} status!")
-print(f"📊 Pass Rate: {result.pass_rate:.1%}")
+print(f"✅ {result.checks_passed} checks passed")
+print(f"❌ {result.checks_failed} checks failed")
 ```
 
-### 4. Start the REST API
+---
+
+## 📁 Project Structure
+
+```
+├── src/                      # Application source code
+│   ├── api/                  # FastAPI server + endpoints
+│   ├── core/                 # Scanner, profiler, anomaly detection
+│   ├── storage/              # PostgreSQL, Cosmos DB repositories
+│   ├── notifications/        # Alerting service
+│   └── reporting/            # HTML report generator
+├── data/                     # CSV input files (read-only in container)
+├── reports/                  # Generated HTML reports (writable)
+├── logs/                     # Application logs (writable)
+├── docs/                     # Documentation
+│   ├── API_REFERENCE.md      # (Auto-generated)
+│   ├── COMPONENTS.md         # (Auto-generated)
+│   └── QUICK_REFERENCE.md    # (Auto-generated)
+├── ARCHITECTURE.md           # System design
+├── SECURITY.md               # Security guide
+├── docker-compose.yml        # Container orchestration
+├── Dockerfile                # Container image definition
+├── .env.example              # Configuration template
+├── quick-start.ps1           # One-command deployment
+├── validate-docker.ps1       # Pre-deployment validation
+└── test-security.ps1         # Security compliance testing
+```
+
+---
+
+## 🐳 Docker Commands
 
 ```bash
-# Start the FastAPI server
-python -m src.api.server
+# Start platform
+docker compose up -d
 
-# API will be available at:
-# - http://localhost:8000
-# - API Docs: http://localhost:8000/api/docs
+# View logs
+docker compose logs -f data-quality-api
+
+# Restart services
+docker compose restart
+
+# Stop platform
+docker compose down
+
+# Run security tests
+.\test-security.ps1
 ```
 
-## 📚 Documentation
+---
 
-| Document | Description |
-|----------|-------------|
-| **[README.md](README.md)** | This file - Project overview and quick start |
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | System architecture, components, and design patterns |
-| **[CONTRIBUTING.md](CONTRIBUTING.md)** | Developer guide for contributing to the project |
+## 📖 Documentation
+
+| Document | Description | Auto-Generated |
+|----------|-------------|----------------|
+| [README.md](README.md) | This file - Quick start and overview | 🟢 |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design and components | ⚪ Manual |
+| [SECURITY.md](SECURITY.md) | Security features and hardening | ⚪ Manual |
+| [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | REST API endpoints and examples | 🟢 |
+| [docs/COMPONENTS.md](docs/COMPONENTS.md) | Component architecture | 🟢 |
+| [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) | Command reference card | 🟢 |
+
+**🔄 Update Documentation:**
+```powershell
+.\generate-docs.ps1
+```
+
+---
+
+## ⚙️ Configuration
+
+Copy `.env.example` to `.env` and customize:
+
+```env
+# Database (PostgreSQL - default)
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=data_quality
+POSTGRES_USER=dq_user
+POSTGRES_PASSWORD=secure_password_here
+
+# API
+API_PORT=8000
+API_HOST=0.0.0.0
+
+# Alerting (optional)
+ENABLE_EMAIL_ALERTS=false
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+
+# Features
+ENABLE_ANOMALY_DETECTION=true
+ENABLE_DATA_PROFILING=true
+```
+
+For Docker, use `.env.docker` (auto-configured).
+
+---
+
+## 🧪 Testing & Validation
+
+```powershell
+# Pre-deployment validation
+.\validate-docker.ps1
+
+# Security compliance
+.\test-security.ps1
+
+# Unit tests (development)
+pytest tests/
+```
+
+---
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Development setup
+- Code style guidelines
+- Testing requirements
+- Pull request process
+
+---
+
+## 🔧 Maintenance
+
+### Auto-Update Documentation
+```powershell
+# Generate latest API docs from code
+.\generate-docs.ps1
+```
+
+### Cleanup Old Scans
+```python
+from src.storage.postgres_repository import PostgreSQLRepository
+
+repo = PostgreSQLRepository()
+deleted = repo.delete_old_scans(days=90)
+print(f"Deleted {deleted} old scans")
+```
+
+### Backup Database
+```bash
+docker compose exec postgres pg_dump -U dq_user data_quality > backup.sql
+```
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file
+
+---
+
+## 🆘 Troubleshooting
+
+**Port 8000 already in use:**
+```powershell
+# Stop conflicting service or change API_PORT in .env
+```
+
+**Docker not starting:**
+```powershell
+# Check Docker Desktop is running
+# Run: .\validate-docker.ps1
+```
+
+**Database connection failed:**
+```powershell
+# Check PostgreSQL container: docker compose logs postgres
+# Verify credentials in .env.docker
+```
+
+**More help:** See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) or open an issue.
+
+---
+
+**🌟 Ready to ensure data quality? Run `.\quick-start.ps1` now!**
 | **[docs/deployment/](docs/deployment/)** | Deployment guides (Docker, PostgreSQL, storage) |
 | **[docs/guides/](docs/guides/)** | User guides (UI, testing, best practices) |
 
@@ -330,3 +436,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Made with ❤️ by Data Engineering Team**
+
