@@ -23,9 +23,9 @@ RUN npm install -g serve
 # Expose port
 EXPOSE 3000
 
-# Health check
+# Health check using Node
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000 || exit 1
+  CMD node -e "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
 
 # Start the application
 CMD ["serve", "-s", "build", "-l", "3000"]
