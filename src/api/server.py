@@ -363,56 +363,6 @@ async def root():
         </body>
     </html>
     """)
-            """
-            <html>
-                <head>
-                    <title>Data Quality Platform</title>
-                    <style>
-                        body {
-                            font-family: 'Segoe UI', sans-serif;
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            height: 100vh;
-                            margin: 0;
-                        }
-                        .container {
-                            background: white;
-                            padding: 60px;
-                            border-radius: 20px;
-                            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-                            text-align: center;
-                            max-width: 600px;
-                        }
-                        h1 { color: #667eea; margin-bottom: 20px; }
-                        p { color: #666; font-size: 1.1em; line-height: 1.6; }
-                        a {
-                            display: inline-block;
-                            margin: 10px;
-                            padding: 15px 30px;
-                            background: #667eea;
-                            color: white;
-                            text-decoration: none;
-                            border-radius: 10px;
-                            transition: all 0.3s;
-                        }
-                        a:hover { background: #764ba2; transform: translateY(-2px); }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <h1>🎯 Enterprise Data Quality Platform</h1>
-                        <p>Enterprise-grade data quality monitoring</p>
-                        <p>
-                            <a href="/api/docs">📚 API Documentation</a>
-                            <a href="/api/health">❤️ Health Check</a>
-                        </p>
-                    </div>
-                </body>
-            </html>
-            """
-        )
 
 
 @app.get("/api/health")
