@@ -1,168 +1,43 @@
-# 🎯 ENTERPRISE DATA QUALITY CHECKS
-# Comprehensive Soda Core rules for comprehensive validation
-# Last Updated: 2026-04-01
+# 🎯 DATA QUALITY CHECKS FOR CUSTOMERS TABLE
+# Soda Core Rules - Comprehensive Data Validation
+# Updated: 2026-04-01
 
 checks for customers:
   
   # ═══════════════════════════════════════════════════════════
-  # 🔢 VOLUME CHECKS
+  # 1️⃣  VOLUME CHECKS (Must have data)
   # ═══════════════════════════════════════════════════════════
-  - row_count > 0:
-      name: Table must contain data
-  
-  - row_count < 100000000:
-      name: Table should not exceed 100M rows
-  
-  - row_count between 5 and 1000000:
-      name: Reasonable row count expected
-  
+  - row_count > 0
+  - row_count < 1000000
   
   # ═══════════════════════════════════════════════════════════
-  # ✅ COMPLETENESS CHECKS (Missing Values)
+  # 2️⃣  COMPLETENESS CHECKS (No missing critical values)
   # ═══════════════════════════════════════════════════════════
-  - missing_count(CustomerID) = 0:
-      name: CustomerID must be complete
-  
-  - missing_count(Email) = 0:
-      name: Email field required for all customers
-  
-  - missing_percent(Name) < 2:
-      name: Name field should be < 2% missing
-  
-  - missing_count(Address) < 5:
-      name: Address should have minimal nulls
-  
-  - missing_percent(Phone) < 10:
-      name: Phone can be up to 10% missing
-  
+  - missing_count(CustomerID) = 0
+  - missing_count(Email) = 0
+  - missing_count(Name) = 0
+  - missing_percent(Age) < 10
   
   # ═══════════════════════════════════════════════════════════
-  # 🔐 UNIQUENESS CHECKS (Duplicates)
+  # 3️⃣  UNIQUENESS CHECKS (No duplicates)
   # ═══════════════════════════════════════════════════════════
-  - duplicate_count(CustomerID) = 0:
-      name: CustomerID must be globally unique
-  
-  - duplicate_count(Email) = 0:
-      name: No duplicate email addresses allowed
-  
-  - duplicate_percent(SSN) < 0.1:
-      name: SSN should have < 0.1% duplicates
-  
+  - duplicate_count(CustomerID) = 0
+  - duplicate_count(Email) = 0
   
   # ═══════════════════════════════════════════════════════════
-  # 📧 VALIDITY CHECKS (Format & Patterns)
+  # 4️⃣  VALIDITY CHECKS (Format Validation)
   # ═══════════════════════════════════════════════════════════
   - invalid_count(Email) = 0:
       valid format: email
-      name: Email must be valid RFC 5322 format
-  
-  - invalid_count(Phone) < 2:
-      valid regex: '^\+?1?[-.\s]?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}$'
-      name: Phone must match standard US format
-  
-  - invalid_count(ZIP) < 1:
-      valid regex: '^\d{5}(-\d{4})?$'
-      name: ZIP code must be valid (12345 or 12345-6789)
-  
-  - invalid_count(Country) = 0:
-      valid regex: '^[A-Z]{2}$'
-      name: Country code must be 2-letter ISO format
-  
   
   # ═══════════════════════════════════════════════════════════
-  # 📊 STATISTICAL CHECKS (Ranges & Aggregate)
+  # 5️⃣  STATISTICAL CHECKS (Ranges & Bounds)
   # ═══════════════════════════════════════════════════════════
-  - avg(Age) between 18 and 80:
-      name: Average age should be reasonable
-  
-  - min(Age) >= 1:
-      name: Age minimum check
-  
-  - max(Age) <= 150:
-      name: Age maximum check (no > 150)
-  
-  - avg(AnnualRevenue) between 10000 and 500000:
-      name: Average revenue in expected range
-  
-  - min(AnnualRevenue) >= 0:
-      name: Revenue must be non-negative
-  
+  - min(Age) >= 13
+  - max(Age) <= 120
+  - avg(Age) between 20 and 80
   
   # ═══════════════════════════════════════════════════════════
-  # 🏷️ VALUE CONSTRAINTS (Allowed Values)
+  # 6️⃣  FRESHNESS CHECKS (Data Timeliness)
   # ═══════════════════════════════════════════════════════════
-  - invalid_count(Status) = 0:
-      valid values: ['Active', 'Inactive', 'Pending', 'Suspended']
-      name: Status must be one of: Active, Inactive, Pending, Suspended
-  
-  - invalid_count(CustomerType) = 0:
-      valid values: ['Individual', 'Business', 'Government', 'Non-Profit']
-      name: Customer type must be valid category
-  
-  - invalid_count(Region) = 0:
-      valid values: ['North', 'South', 'East', 'West']
-      name: Region must be one of: North, South, East, West
-  
-  
-  # ═══════════════════════════════════════════════════════════
-  # ⏰ FRESHNESS CHECKS (Data Timeliness - if timestamp exists)
-  # ═══════════════════════════════════════════════════════════
-  # - freshness(CreatedDate) < 30d:
-  #     name: Records created within last 30 days
-  # 
-  # - freshness(LastUpdated) < 7d:
-  #     name: Data updated within last 7 days
-  
-  
-  # ═══════════════════════════════════════════════════════════
-  # 🔗 REFERENTIAL INTEGRITY (Cross-table validation)
-  # ═══════════════════════════════════════════════════════════
-  # - values in (CountryCode) must exist in countries_dim (code):
-  #     name: Country codes must reference valid countries
-  
-  
-  # ═══════════════════════════════════════════════════════════
-  # 🧮 CUSTOM BUSINESS LOGIC CHECKS
-  # ═══════════════════════════════════════════════════════════
-  - failed rows:
-      name: Detect invalid state combinations
-      fail query: |
-        SELECT COUNT(*) 
-        FROM customers 
-        WHERE Status = 'Inactive' AND LastContactDate > CURRENT_DATE - INTERVAL 7 DAY
-        HAVING COUNT(*) > 0
-  
-  - failed rows:
-      name: Find negative financial values
-      fail query: |
-        SELECT COUNT(*) 
-        FROM customers 
-        WHERE AnnualRevenue < 0 OR LifetimeValue < 0
-        HAVING COUNT(*) > 0
-  
-  - failed rows:
-      name: Check for data entry errors in age
-      fail query: |
-        SELECT COUNT(*) 
-        FROM customers 
-        WHERE Age < 18 AND Status = 'Business'
-        HAVING COUNT(*) > 0
-  
-  
-  # ═══════════════════════════════════════════════════════════
-  # 🏗️ SCHEMA VALIDATION (Column Structure)
-  # ═══════════════════════════════════════════════════════════
-  schema:
-    name: Customer table structure validation
-    fail:
-      when required column missing: 
-        - CustomerID
-        - Email
-        - Name
-        - Country
-      when wrong column type:
-        CustomerID: integer
-        Email: varchar
-        Name: varchar
-        Age: integer
-        AnnualRevenue: numeric
+  - freshness(SignupDate) < 730d

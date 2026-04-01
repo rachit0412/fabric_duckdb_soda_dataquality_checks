@@ -1,4 +1,5 @@
-data_source myduckdb:
+data_source duckdb:
   type: duckdb
   connection:
+    host: localhost
     database: my_database.myduckdb
