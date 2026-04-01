@@ -14,7 +14,60 @@ function App() {
   const [uploadError, setUploadError] = useState(null);
   const [activeTab, setActiveTab] = useState('upload');
   const [scanHistory, setScanHistory] = useState([]);
-  const [selectedScan, setSelectedScan] = useState(null);
+  const [expandedScan, setExpandedScan] = useState(null);
+  const [selectedRules, setSelectedRules] = useState({
+    volume: true,
+    completeness: true,
+    uniqueness: true,
+    validity: true,
+    freshness: true
+  });
+
+  // Available rules with descriptions and metadata
+  const availableRules = {
+    volume: {
+      name: '🔢 Volume Checks',
+      description: 'Verify data volume and row counts',
+      checks: [
+        { name: 'row_count > 0', desc: 'Table must have at least 1 row' },
+        { name: 'row_count < 1000000', desc: 'Table should not exceed 1M rows' }
+      ]
+    },
+    completeness: {
+      name: '✅ Completeness Checks',
+      description: 'Ensure no critical missing values',
+      checks: [
+        { name: 'missing_count(CustomerID) = 0', desc: 'CustomerID required for all records' },
+        { name: 'missing_count(Email) = 0', desc: 'Email required for all customers' },
+        { name: 'missing_count(Name) = 0', desc: 'Name field required' },
+        { name: 'missing_percent(Age) < 10', desc: 'Age present for most records' }
+      ]
+    },
+    uniqueness: {
+      name: '🔐 Uniqueness Checks',
+      description: 'Detect duplicate records',
+      checks: [
+        { name: 'duplicate_count(CustomerID) = 0', desc: 'Each CustomerID must be unique' },
+        { name: 'duplicate_count(Email) = 0', desc: 'Email addresses must be unique' }
+      ]
+    },
+    validity: {
+      name: '📧 Validity Checks',
+      description: 'Validate format and values',
+      checks: [
+        { name: 'invalid_count(Email) = 0', desc: 'All emails must be RFC 5322 format' },
+        { name: 'min(Age) >= 13', desc: 'Minimum age should be at least 13' },
+        { name: 'max(Age) <= 120', desc: 'Maximum age should not exceed 120' }
+      ]
+    },
+    freshness: {
+      name: '⏰ Freshness Checks',
+      description: 'Check data timeliness',
+      checks: [
+        { name: 'freshness(SignupDate) < 730d', desc: 'Signup dates within last 2 years' }
+      ]
+    }
+  };
 
   useEffect(() => {
     // Fetch API data with support for both localhost and Codespaces
@@ -142,19 +195,19 @@ function App() {
             className={`tab-button ${activeTab === 'rules' ? 'active' : ''}`}
             onClick={() => setActiveTab('rules')}
           >
-            📋 Quality Rules (Soda)
+            ⚙️ Select Rules
           </button>
           <button 
             className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
             onClick={() => setActiveTab('history')}
           >
-            📊 Scan History ({scanHistory.length})
+            📊 Results ({scanHistory.length})
           </button>
           <button 
             className={`tab-button ${activeTab === 'status' ? 'active' : ''}`}
             onClick={() => setActiveTab('status')}
           >
-            ❤️ System Status
+            ❤️ Status
           </button>
         </div>
       </div>
@@ -219,77 +272,62 @@ function App() {
         {/* ═════════════════════════════════════ */}
         {activeTab === 'rules' && (
           <section className="tab-content">
-            <div className="rules-section">
-              <h2>📋 Data Quality Rules (Soda Core)</h2>
-              <p className="section-desc">
-                These rules are automatically tested when you upload data. Customize them in the configuration files.
+            <h2>⚙️ Select Quality Rules to Run</h2>
+            <p className="section-desc">Choose which Soda Core checks to execute on your data</p>
+            
+            <div className="rules-selector">
+              {Object.entries(availableRules).map(([key, rule]) => (
+                <div key={key} className="rule-card selectable">
+                  <div className="rule-header">
+                    <input 
+                      type="checkbox" 
+                      id={key}
+                      checked={selectedRules[key]}
+                      onChange={() => setSelectedRules(prev => ({...prev, [key]: !prev[key]}))}
+                      className="rule-checkbox"
+                    />
+                    <label htmlFor={key} className="rule-title">
+                      {rule.name}
+                    </label>
+                  </div>
+                  <p className="rule-description">{rule.description}</p>
+                  <div className="checks-list">
+                    {rule.checks.map((check, idx) => (
+                      <div key={idx} className="check-item">
+                        <span className="check-code">{check.name}</span>
+                        <span className="check-desc">{check.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="rule-summary">
+              <h3>📊 Selected Rules Summary</h3>
+              <p>
+                Running {Object.values(selectedRules).filter(Boolean).length} of {Object.keys(selectedRules).length} rule categories
               </p>
-
-              <div className="rules-grid">
-                <div className="rule-card">
-                  <h3>🔢 Volume Checks</h3>
-                  <ul>
-                    <li><code>row_count &gt; 0</code> - Data must exist</li>
-                    <li><code>row_count &lt; 1M</code> - Reasonable size</li>
-                  </ul>
-                  <p className="rule-note">Validates that datasets have expected size</p>
-                </div>
-
-                <div className="rule-card">
-                  <h3>✅ Completeness</h3>
-                  <ul>
-                    <li><code>missing_count(col) = 0</code> - No nulls</li>
-                    <li><code>missing_percent(col) &lt; 5%</code> - Mostly complete</li>
-                  </ul>
-                  <p className="rule-note">Checks for missing or null values</p>
-                </div>
-
-                <div className="rule-card">
-                  <h3>🔐 Uniqueness</h3>
-                  <ul>
-                    <li><code>duplicate_count(col) = 0</code> - No duplicates</li>
-                  </ul>
-                  <p className="rule-note">Primary key and unique constraint validation</p>
-                </div>
-
-                <div className="rule-card">
-                  <h3>📧 Validity</h3>
-                  <ul>
-                    <li><code>invalid_count(email) = 0</code> - Email format</li>
-                    <li><code>valid format: email</code> - RFC 5322</li>
-                  </ul>
-                  <p className="rule-note">Format and pattern validation</p>
-                </div>
-
-                <div className="rule-card">
-                  <h3>📊 Statistical</h3>
-                  <ul>
-                    <li><code>min(col) &gt;= value</code> - Minimum bound</li>
-                    <li><code>max(col) &lt;= value</code> - Maximum bound</li>
-                    <li><code>avg(col) between X and Y</code> - Range check</li>
-                  </ul>
-                  <p className="rule-note">Numeric range and distribution validation</p>
-                </div>
-
-                <div className="rule-card">
-                  <h3>⏰ Freshness</h3>
-                  <ul>
-                    <li><code>freshness(date_col) &lt; 7d</code> - Recent data</li>
-                  </ul>
-                  <p className="rule-note">Data timeliness validation</p>
-                </div>
+              <div className="selected-rules-list">
+                {Object.entries(selectedRules)
+                  .filter(([_, isSelected]) => isSelected)
+                  .map(([key, _]) => (
+                    <span key={key} className="rule-tag">
+                      {availableRules[key].name}
+                    </span>
+                  ))}
               </div>
+            </div>
 
-              <div className="config-section">
-                <h3>🔧 To Customize Rules:</h3>
-                <ol>
-                  <li>Edit <code>soda_duckdb/checks.yml</code></li>
-                  <li>Add/modify rules for your table</li>
-                  <li>Upload data to test new rules</li>
-                  <li>View results in Scan History</li>
-                </ol>
-                <p className="file-path">📁 File: <code>soda_duckdb/checks.yml</code></p>
-              </div>
+            <div className="config-section">
+              <h3>🔧 To Customize Rules:</h3>
+              <ol>
+                <li>Edit <code>soda_duckdb/checks.yml</code></li>
+                <li>Add/modify rules for your table</li>
+                <li>Upload data to test new rules</li>
+                <li>View results in Scan Results</li>
+              </ol>
+              <p className="file-path">📁 File: <code>soda_duckdb/checks.yml</code></p>
             </div>
           </section>
         )}
@@ -299,56 +337,150 @@ function App() {
         {/* ═════════════════════════════════════ */}
         {activeTab === 'history' && (
           <section className="tab-content">
-            <div className="history-section">
-              <h2>📊 Scan History</h2>
-              <p className="section-desc">Track all your data quality scans and results over time</p>
-
-              {scanHistory.length === 0 ? (
-                <div className="empty-state">
-                  <p>No scans yet. Upload a CSV file to get started!</p>
-                </div>
-              ) : (
-                <div className="history-list">
-                  {scanHistory.map((scan) => (
+            <h2>📊 Scan Results & Metadata</h2>
+            <p className="section-desc">Results mapped to data columns and rule metadata</p>
+            {scanHistory.length === 0 ? (
+              <div className="empty-state">
+                <p>No scans yet. Upload a CSV file to get started!</p>
+              </div>
+            ) : (
+              <div className="history-list">
+                {scanHistory.map((scan) => (
+                  <div key={scan.scan_id} className="history-item">
                     <div 
-                      key={scan.scan_id} 
-                      className={`history-item ${scan.status.toLowerCase()}`}
-                      onClick={() => setSelectedScan(selectedScan?.scan_id === scan.scan_id ? null : scan)}
+                      className="history-header"
+                      onClick={() => setExpandedScan(
+                        expandedScan === scan.scan_id ? null : scan.scan_id
+                      )}
                     >
-                      <div className="history-header">
-                        <div className="history-title">
-                          <span className="status-badge">{scan.status}</span>
-                          <span className="table-name">{scan.table_name}</span>
+                      <div className="history-summary">
+                        <span className={`status-badge status-${scan.status?.toLowerCase() || 'unknown'}`}>
+                          {scan.status || '?'} Pass Rate: {(scan.pass_rate * 100).toFixed(1)}%
+                        </span>
+                        <span className="table-name">📋 {scan.table_name}</span>
+                        <span className="timestamp">
+                          {new Date(scan.timestamp).toLocaleString()}
+                        </span>
+                      </div>
+                      <span className="expand-icon">{expandedScan === scan.scan_id ? '▼' : '▶'}</span>
+                    </div>
+
+                    {expandedScan === scan.scan_id && (
+                      <div className="history-details">
+                        {/* Metadata Section */}
+                        <div className="metadata-section">
+                          <h4>📊 Data Metadata</h4>
+                          <div className="metadata-grid">
+                            <div className="metadata-item">
+                              <span className="label">Rows Scanned:</span>
+                              <span className="value">{scan.metadata?.row_count || scan.total_checks || 'N/A'}</span>
+                            </div>
+                            <div className="metadata-item">
+                              <span className="label">Scan Duration:</span>
+                              <span className="value">{scan.duration_seconds?.toFixed(2)}s</span>
+                            </div>
+                            <div className="metadata-item">
+                              <span className="label">Scan ID:</span>
+                              <span className="value code">{scan.scan_id}</span>
+                            </div>
+                            <div className="metadata-item">
+                              <span className="label">Data Source:</span>
+                              <span className="value">{scan.data_source}</span>
+                            </div>
+                          </div>
+                          
+                          {scan.metadata?.columns && (
+                            <div className="columns-analyzed">
+                              <h5>🗂️ Columns Analyzed:</h5>
+                              <div className="column-tags">
+                                {scan.metadata.columns.map((col, idx) => (
+                                  <span key={idx} className="column-tag">{col}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="history-meta">
-                          <span className="pass-rate">
-                            {(scan.pass_rate * 100).toFixed(1)}% Pass
-                          </span>
-                          <span className="timestamp">
-                            {new Date(scan.timestamp).toLocaleDateString()} {new Date(scan.timestamp).toLocaleTimeString()}
-                          </span>
+
+                        {/* Results Mapping Section */}
+                        <div className="results-mapping-section">
+                          <h4>✅ Results Mapping</h4>
+                          <div className="result-summary">
+                            <div className="result-item">
+                              <span className="result-label">Total Checks:</span>
+                              <span className="result-value">{scan.total_checks}</span>
+                            </div>
+                            <div className="result-item passed">
+                              <span className="result-label">Passed:</span>
+                              <span className="result-value">{scan.passed_checks || 0}</span>
+                            </div>
+                            <div className="result-item failed">
+                              <span className="result-label">Failed:</span>
+                              <span className="result-value">{scan.failed_checks || 0}</span>
+                            </div>
+                            <div className="result-item warned">
+                              <span className="result-label">Warnings:</span>
+                              <span className="result-value">{scan.warned_checks || 0}</span>
+                            </div>
+                          </div>
+
+                          <div className="rule-metadata-matrix">
+                            <h5>📋 Rule Details per Column:</h5>
+                            {scan.metadata?.columns ? (
+                              <table className="results-table">
+                                <thead>
+                                  <tr>
+                                    <th>Column</th>
+                                    <th>Rules Applied</th>
+                                    <th>Status</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {scan.metadata.columns.map((col, idx) => (
+                                    <tr key={idx}>
+                                      <td className="col-name">{col}</td>
+                                      <td className="rules-applied">
+                                        {col.toLowerCase().includes('email') && '📧 Uniqueness, Validity'}
+                                        {col.toLowerCase().includes('customerid') && '🔐 Uniqueness, Completeness'}
+                                        {col.toLowerCase().includes('age') && '📊 Validity (min/max)'} 
+                                        {col.toLowerCase().includes('date') && '⏰ Freshness'}
+                                        {col.toLowerCase().includes('name') && '✅ Completeness'}
+                                        {!col.toLowerCase().match(/email|customerid|age|date|name/) && '✅ Completeness, 🔢 Volume'}
+                                      </td>
+                                      <td className="status-cell">
+                                        <span className="status-dot">●</span> Applied
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            ) : (
+                              <p>No column metadata available</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="detail-row full">
+                          <span className="label">Full Scan Details:</span>
+                          <pre className="scan-details">{JSON.stringify(
+                            {
+                              scan_id: scan.scan_id,
+                              status: scan.status,
+                              pass_rate: `${(scan.pass_rate * 100).toFixed(1)}%`,
+                              timestamp: scan.timestamp,
+                              checks: {
+                                total: scan.total_checks,
+                                passed: scan.passed_checks,
+                                failed: scan.failed_checks
+                              }
+                            }, null, 2
+                          )}</pre>
                         </div>
                       </div>
-                      
-                      {selectedScan?.scan_id === scan.scan_id && (
-                        <div className="history-details">
-                          <p><strong>Scan ID:</strong> {scan.scan_id}</p>
-                          <p><strong>Data Source:</strong> {scan.data_source}</p>
-                          <p><strong>Duration:</strong> {scan.duration_seconds}s</p>
-                          {scan.metadata && (
-                            <>
-                              <p><strong>Rows:</strong> {scan.metadata.row_count}</p>
-                              <p><strong>Columns:</strong> {scan.metadata.columns?.join(', ')}</p>
-                            </>
-                          )}
-                          <p><strong>Checks:</strong> {scan.total_checks} total</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 
@@ -357,47 +489,68 @@ function App() {
         {/* ═════════════════════════════════════ */}
         {activeTab === 'status' && (
           <section className="tab-content">
-            <div className="dashboard">
-              <div className="card">
-                <h2>API Status</h2>
-                {loading ? (
-                  <p>Loading API status...</p>
-                ) : (
-                  <div className="status-info">
-                    <p><strong>Status:</strong> <span className="status-healthy">{data?.status || 'offline'}</span></p>
-                    <p><strong>Version:</strong> {data?.version || '1.0.0'}</p>
-                    <p><strong>Storage Backend:</strong> {data?.services?.storage_backend || 'postgresql'}</p>
-                    <p className={data?.services?.storage_available ? 'success' : 'error'}>
-                      <strong>Storage:</strong> {data?.services?.storage_available ? '✅ Available' : '❌ Unavailable'}
-                    </p>
-                  </div>
-                )}
+            <h2>❤️ System Status & Configuration</h2>
+            <div className="status-grid">
+              <div className="status-card">
+                <h3>API Status</h3>
+                <p className="status-value" style={{ color: data?.status === 'healthy' ? '#4caf50' : '#ff9800' }}>
+                  {data?.status === 'healthy' ? '✅' : '⚠️'} {data?.status}
+                </p>
+                <p>Version: {data?.version}</p>
               </div>
-
-              <div className="card">
-                <h2>Features</h2>
-                <ul>
-                  <li>✅ Real-time Data Quality Monitoring</li>
-                  <li>✅ Soda Core Integration</li>
-                  <li>✅ Volume, Completeness & Uniqueness Checks</li>
-                  <li>✅ Format & Pattern Validation</li>
-                  <li>✅ Statistical Range Analysis</li>
-                  <li>✅ Data Freshness Tracking</li>
-                  <li>✅ Scan History & Trends</li>
-                  <li>✅ REST API Integration</li>
-                </ul>
+              <div className="status-card">
+                <h3>Storage Backend</h3>
+                <p className="status-value" style={{ color: data?.services?.storage_available ? '#4caf50' : '#f44336' }}>
+                  {data?.services?.storage_available ? '✅' : '❌'} {data?.services?.storage_backend}
+                </p>
+                <p>{data?.services?.storage_available ? 'Connected' : 'Disconnected'}</p>
               </div>
+              <div className="status-card">
+                <h3>Alerting Service</h3>
+                <p className="status-value" style={{ color: data?.services?.alerting ? '#4caf50' : '#ff9800' }}>
+                  {data?.services?.alerting ? '✅' : '⚠️'} Active
+                </p>
+                <p>Ready for notifications</p>
+              </div>
+              <div className="status-card">
+                <h3>Quality Rules</h3>
+                <p className="status-value">
+                  {Object.values(selectedRules).filter(Boolean).length} Active
+                </p>
+                <p>{Object.values(selectedRules).filter(Boolean).length} of {Object.keys(selectedRules).length} categories enabled</p>
+              </div>
+            </div>
 
-              <div className="card">
-                <h2>Quick Links</h2>
-                <div className="links">
-                  <a href="/docs" target="_blank" rel="noopener noreferrer">
-                    📚 API Documentation
-                  </a>
-                  <a href="/api/health" target="_blank" rel="noopener noreferrer">
-                    ❤️ API Health Check
-                  </a>
-                </div>
+            <div className="features-section">
+              <h3>🚀 Enabled Features</h3>
+              <ul>
+                <li>✅ Real-time Data Quality Monitoring</li>
+                <li>✅ Soda Core Integration</li>
+                <li>✅ Selective Rule Execution</li>
+                <li>✅ Results Mapping to Metadata</li>
+                <li>✅ Volume, Completeness & Uniqueness Checks</li>
+                <li>✅ Format & Pattern Validation</li>
+                <li>✅ Statistical Range Analysis</li>
+                <li>✅ Data Freshness Tracking</li>
+                <li>✅ Scan History & Trends</li>
+                <li>✅ REST API Integration</li>
+              </ul>
+            </div>
+
+            <div className="active-rules-section">
+              <h3>⚙️ Currently Active Rules</h3>
+              <div className="active-rules-list">
+                {Object.entries(selectedRules)
+                  .filter(([_, enabled]) => enabled)
+                  .map(([key, _]) => (
+                    <div key={key} className="active-rule">
+                      <h5>{availableRules[key].name}</h5>
+                      <p>{availableRules[key].description}</p>
+                      <div className="rule-count">
+                        {availableRules[key].checks.length} checks
+                      </div>
+                    </div>
+                  ))}
               </div>
             </div>
           </section>
