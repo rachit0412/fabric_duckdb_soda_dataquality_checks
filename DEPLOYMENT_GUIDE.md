@@ -2,6 +2,20 @@
 
 **Version:** 1.0.1 | **Last Updated:** 2026-04-01
 
+## ⚡ Quick Access URLs
+
+For **GitHub Codespaces** users:
+- **Frontend:** http://127.0.0.1:3002 (Codespaces forwards 3000 → 3002)
+- **API:** http://127.0.0.1:8001 (Codespaces forwards 8000 → 8001)
+
+For **Local Docker** users:
+- **Frontend:** http://localhost:3000
+- **API:** http://localhost:8000
+
+See [PORT_ACCESS_GUIDE.md](PORT_ACCESS_GUIDE.md) for complete port information.
+
+---
+
 ## Quick Deploy (Docker Compose)
 
 ### Prerequisites
@@ -26,9 +40,10 @@ sleep 30
 docker ps --format "table {{.Names}}\t{{.Status}}"
 
 # 5. Access the platform
-echo "Frontend: http://localhost:3000"
-echo "API:      http://localhost:8000/api"
-echo "API Docs: http://localhost:8000/docs"
+echo "Frontend (Codespaces): http://127.0.0.1:3002"
+echo "Frontend (Local):      http://localhost:3000"
+echo "API:                   http://localhost:8000/api"
+echo "API Docs:              http://localhost:8000/docs"
 ```
 
 ### Expected Output

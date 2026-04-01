@@ -12,6 +12,14 @@ Complete API reference for the Data Quality Platform. All endpoints use JSON for
 http://localhost:8000/api
 ```
 
+### Port Access
+
+If you're using **GitHub Codespaces**, the port is forwarded:
+- **From Terminal/CLI:** `http://localhost:8000/api` ✅
+- **From Browser:** `http://127.0.0.1:8001/api` (Codespaces forwards 8000 → 8001)
+
+See [PORT_ACCESS_GUIDE.md](PORT_ACCESS_GUIDE.md) for details.
+
 ## Authentication
 
 Currently, no authentication is required. In production, add JWT tokens to the `Authorization` header:

@@ -15,7 +15,8 @@
 .\quick-start.ps1
 
 # 3. Access the dashboard
-# Open: http://localhost:8000
+# Codespaces: http://127.0.0.1:3002 (forwarded from 3000)
+# Local: http://localhost:3000
 ```
 
 **That's it!** The platform is now running with:
@@ -36,7 +37,9 @@ Modern, responsive dashboard with rule selection and metadata mapping:
 - **Scan History**: Track all scans with detailed metadata
 - **Mobile Ready**: Monitor from any device
 
-**Access:** http://localhost:3000
+**Access:** 
+- Codespaces: http://127.0.0.1:3002
+- Local: http://localhost:3000
 
 ### ⚙️ NEW: Rule Selection & Metadata Mapping
 - **Selective Execution**: Run only the quality rules you need
