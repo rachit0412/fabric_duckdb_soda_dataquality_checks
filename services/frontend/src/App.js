@@ -28,56 +28,124 @@ function App() {
   const [selectedScan, setSelectedScan] = useState(null);
   const [apiStatus, setApiStatus] = useState('loading');
 
-  // Rules definition - Expanded with all Soda Core check types
+  // ═══════════════════════════════════════════════════════════════
+  // RULES DEFINITION - Clear Mapping of 8 Categories to 13 Checks
+  // ═══════════════════════════════════════════════════════════════
+  // This mapping shows exactly which checks each rule category includes
   const rules = {
     rowCount: {
       name: '🔢 Row Count Validation',
       description: 'Volume: Check row counts (must have data, not too large)',
       color: '#ff6b6b',
-      checks: ['row_count > 0', 'row_count < 1000000']
+      checks: ['row_count > 0', 'row_count < 1000000'],
+      checkCount: 2
     },
     missingValues: {
       name: '✅ Missing Value Checks',
       description: 'Completeness: Detect NULL/missing values in critical columns',
       color: '#4ecdc4',
-      checks: ['missing_count(CustomerID)', 'missing_count(Email)', 'missing_count(Name)', 'missing_percent(Age)']
+      checks: ['missing_count(CustomerID) = 0', 'missing_count(Email) = 0', 'missing_count(Name) = 0', 'missing_percent(Age) < 10'],
+      checkCount: 4
     },
     duplicates: {
       name: '🔐 Duplicate Detection',
       description: 'Uniqueness: Find duplicate values in key columns',
       color: '#45b7d1',
-      checks: ['duplicate_count(CustomerID)', 'duplicate_count(Email)']
+      checks: ['duplicate_count(CustomerID) = 0', 'duplicate_count(Email) = 0'],
+      checkCount: 2
     },
     formatValidation: {
       name: '📧 Format Validation',
       description: 'Validity: Check data format (email, date, phone, etc)',
       color: '#f9ca24',
-      checks: ['invalid_count(Email) with email format check']
+      checks: ['invalid_count(Email) = 0 (email format)'],
+      checkCount: 1
     },
     rangeValidation: {
       name: '📊 Range & Bounds',
       description: 'Statistical: Min/Max/Avg ranges and data quality thresholds',
       color: '#a29bfe',
-      checks: ['min(Age) >= 13', 'max(Age) <= 120', 'avg(Age) between 20 and 80']
+      checks: ['min(Age) >= 13', 'max(Age) <= 120', 'avg(Age) between 20 and 80'],
+      checkCount: 3
     },
     freshness: {
       name: '⏰ Data Freshness',
       description: 'Timeliness: Ensure data is current (not stale)',
       color: '#6c5ce7',
-      checks: ['freshness(SignupDate) < 730 days']
+      checks: ['missing_count(SignupDate) = 0'],
+      checkCount: 1
     },
     customPatterns: {
       name: '🎯 Custom Patterns',
       description: 'Advanced: Regex patterns, business rules (premium feature)',
       color: '#fd79a8',
-      checks: ['Custom regex patterns available']
+      checks: ['Custom regex patterns available'],
+      checkCount: 0
     },
     anomaly: {
       name: '⚠️ Anomaly Detection',
       description: 'AI: Detect statistical anomalies and outliers (ML-based)',
       color: '#fdcb6e',
-      checks: ['Statistical anomalies', 'Outlier detection']
+      checks: ['Statistical anomalies', 'Outlier detection'],
+      checkCount: 0
     }
+  };
+
+  // Mapping of actual check names to rule categories
+  const checkToRuleMapping = {
+    'row_count > 0': 'rowCount',
+    'row_count < 1000000': 'rowCount',
+    'missing_count(CustomerID) = 0': 'missingValues',
+    'missing_count(Email) = 0': 'missingValues',
+    'missing_count(Name) = 0': 'missingValues',
+    'missing_percent(Age) < 10': 'missingValues',
+    'duplicate_count(CustomerID) = 0': 'duplicates',
+    'duplicate_count(Email) = 0': 'duplicates',
+    'invalid_count(Email) = 0': 'formatValidation',
+    'min(Age) >= 13': 'rangeValidation',
+    'max(Age) <= 120': 'rangeValidation',
+    'avg(Age) between 20 and 80': 'rangeValidation',
+    'missing_count(SignupDate) = 0': 'freshness'
+  };
+
+  // Helper: Group checks by rule category
+  const groupChecksByCategory = (checkDetails) => {
+    const categorized = {};
+    Object.keys(rules).forEach(key => {
+      categorized[key] = { passed: [], failed: [] };
+    });
+
+    if (checkDetails) {
+      checkDetails.forEach(check => {
+        // Find matching rule category
+        let ruleKey = null;
+        Object.entries(checkToRuleMapping).forEach(([pattern, key]) => {
+          if (check.name.includes(pattern) || pattern.includes(check.name)) {
+            ruleKey = key;
+          }
+        });
+
+        if (!ruleKey) {
+          // Fallback: try to match by check name pattern
+          if (check.name.includes('row_count')) ruleKey = 'rowCount';
+          else if (check.name.includes('missing')) ruleKey = 'missingValues';
+          else if (check.name.includes('duplicate')) ruleKey = 'duplicates';
+          else if (check.name.includes('invalid')) ruleKey = 'formatValidation';
+          else if (check.name.includes('min(Age)') || check.name.includes('max(Age)') || check.name.includes('avg(Age)')) ruleKey = 'rangeValidation';
+          else if (check.name.includes('SignupDate')) ruleKey = 'freshness';
+        }
+
+        if (ruleKey) {
+          if (check.outcome === 'pass') {
+            categorized[ruleKey].passed.push(check);
+          } else {
+            categorized[ruleKey].failed.push(check);
+          }
+        }
+      });
+    }
+
+    return categorized;
   };
 
   // Get API URL
@@ -215,6 +283,7 @@ function App() {
             {/* RULE SELECTION */}
             <div className="rules-box">
               <h2>⚙️ Select Rules</h2>
+              <p className="rules-info-text">💡 Tip: Select rules to see which 13 backend checks they include</p>
               <div className="rules-grid">
                 {Object.entries(rules).map(([key, rule]) => (
                   <label key={key} className="rule-checkbox-wrapper">
@@ -232,6 +301,9 @@ function App() {
                     >
                       <span className="rule-name">{rule.name}</span>
                       <span className="rule-desc">{rule.description}</span>
+                      {rule.checkCount > 0 && (
+                        <span className="check-count">📋 {rule.checkCount} checks</span>
+                      )}
                     </div>
                   </label>
                 ))}
@@ -239,6 +311,10 @@ function App() {
 
               <div className="selected-summary">
                 <strong>{Object.values(selectedRules).filter(Boolean).length}/{Object.keys(selectedRules).length}</strong> rule categories selected
+                <br/>
+                <span className="total-checks-info">
+                  📊 Running <strong>13 backend checks</strong> (always includes all data quality checks)
+                </span>
               </div>
             </div>
 
@@ -393,42 +469,69 @@ function App() {
 
               {selectedScan.check_details && selectedScan.check_details.length > 0 && (
                 <div className="detailed-checks-section">
-                  <h3>🔍 Individual Check Results</h3>
-                  <div className="checks-list">
-                    {selectedScan.check_details.map((check, idx) => (
-                      <div key={idx} className={`check-item check-${check.outcome}`}>
-                        <div className="check-header">
-                          <span className={`check-outcome ${check.outcome}`}>
-                            {check.outcome === 'pass' ? '✅' : '❌'} {check.name}
-                          </span>
-                          {check.column && (
-                            <span className="check-column">[{check.column}]</span>
-                          )}
-                        </div>
-                        <div className="check-body">
-                          <div className="check-status">
-                            {check.outcome === 'pass' ? (
-                              <span className="status-pass">PASSED</span>
-                            ) : (
-                              <>
-                                <span className="status-fail">FAILED</span>
-                                {check.diagnostics?.value !== undefined && (
-                                  <span className="check-value">
-                                    Actual: {JSON.stringify(check.diagnostics.value)}
-                                  </span>
-                                )}
-                                {check.diagnostics?.fail && (
-                                  <span className="check-expected">
-                                    Expected: {JSON.stringify(check.diagnostics.fail)}
-                                  </span>
-                                )}
-                              </>
+                  <h3>🔍 Checks by Category</h3>
+                  <p className="category-info">Below shows all {selectedScan.total_checks} checks organized by rule category</p>
+                  
+                  {Object.entries(groupChecksByCategory(selectedScan.check_details)).map(([categoryKey, categoryData]) => {
+                    const rule = rules[categoryKey];
+                    const totalInCategory = categoryData.passed.length + categoryData.failed.length;
+                    
+                    if (totalInCategory === 0) return null;
+                    
+                    const categoryStatus = categoryData.failed.length === 0 ? 'pass' : categoryData.failed.length === totalInCategory ? 'fail' : 'partial';
+                    
+                    return (
+                      <div key={categoryKey} className={`category-section category-${categoryStatus}`} style={{ borderLeftColor: rule.color }}>
+                        <div className="category-header">
+                          <h4>{rule.name}</h4>
+                          <span className="category-badges">
+                            <span className="badge passed">{categoryData.passed.length} ✅</span>
+                            {categoryData.failed.length > 0 && (
+                              <span className="badge failed">{categoryData.failed.length} ❌</span>
                             )}
-                          </div>
+                          </span>
                         </div>
+                        
+                        {/* Passed checks in category */}
+                        {categoryData.passed.length > 0 && (
+                          <div className="category-checks passed">
+                            {categoryData.passed.map((check, idx) => (
+                              <div key={`${categoryKey}-pass-${idx}`} className="check-item check-pass">
+                                <span className="check-name">✅ {check.name}</span>
+                                {check.column && <span className="check-column">[{check.column}]</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Failed checks in category */}
+                        {categoryData.failed.length > 0 && (
+                          <div className="category-checks failed">
+                            {categoryData.failed.map((check, idx) => (
+                              <div key={`${categoryKey}-fail-${idx}`} className="check-item check-fail">
+                                <div className="check-name">❌ {check.name}</div>
+                                {check.column && <div className="check-column">[{check.column}]</div>}
+                                <div className="check-failure-details">
+                                  {check.diagnostics?.value !== undefined && (
+                                    <div className="failure-reason">
+                                      <span className="label">📍 Found:</span>
+                                      <span className="value">{JSON.stringify(check.diagnostics.value)}</span>
+                                    </div>
+                                  )}
+                                  {check.diagnostics?.fail && (
+                                    <div className="failure-reason">
+                                      <span className="label">🎯 Expected:</span>
+                                      <span className="value">{JSON.stringify(check.diagnostics.fail)}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
