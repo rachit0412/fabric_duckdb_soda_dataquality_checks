@@ -186,6 +186,29 @@ body {
   flex-direction: column;
   gap: 12px;
   margin-bottom: 20px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+  border-radius: 8px;
+}
+
+/* Custom scrollbar for rules grid */
+.rules-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rules-grid::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 10px;
+}
+
+.rules-grid::-webkit-scrollbar-thumb {
+  background: rgba(102, 126, 234, 0.3);
+  border-radius: 10px;
+}
+
+.rules-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(102, 126, 234, 0.6);
 }
 
 .rule-checkbox-wrapper {
@@ -696,6 +719,163 @@ body {
   .result-summary {
     grid-template-columns: 1fr;
   }
+}
+
+/* ═══════════════════════════════════════════════════ */
+/* DETAILED CHECKS SECTION */
+/* ═══════════════════════════════════════════════════ */
+
+.detailed-checks-section {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 2px solid #e0e0e0;
+}
+
+.detailed-checks-section h3 {
+  color: #667eea;
+  font-size: 1.1em;
+  margin-bottom: 15px;
+}
+
+.checks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.check-item {
+  border-radius: 8px;
+  padding: 12px 15px;
+  border-left: 4px solid #ddd;
+  background: #f8f9fa;
+  transition: all 0.2s ease;
+}
+
+.check-item:hover {
+  background: #f0f2f5;
+}
+
+.check-item.check-pass {
+  border-left-color: #4caf50;
+  background: #f0fdf4;
+}
+
+.check-item.check-fail {
+  border-left-color: #f44336;
+  background: #fdf5f5;
+}
+
+.check-item.check-warn {
+  border-left-color: #ff9800;
+  background: #fff8f0;
+}
+
+.check-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.check-outcome {
+  flex: 1;
+  font-size: 0.95em;
+}
+
+.check-outcome.pass {
+  color: #2e7d32;
+}
+
+.check-outcome.fail {
+  color: #c62828;
+}
+
+.check-outcome.warn {
+  color: #e65100;
+}
+
+.check-column {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+.check-body {
+  font-size: 0.9em;
+  line-height: 1.6;
+}
+
+.check-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-pass,
+.status-fail {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85em;
+  width: fit-content;
+}
+
+.status-pass {
+  background: #c8e6c9;
+  color: #2e7d32;
+}
+
+.status-fail {
+  background: #ffcdd2;
+  color: #c62828;
+}
+
+.check-value,
+.check-expected {
+  display: block;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85em;
+  color: #555;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+  word-break: break-word;
+}
+
+.check-value::before {
+  content: '📍 ';
+}
+
+.check-expected::before {
+  content: '🎯 ';
+}
+
+/* SCROLLBAR STYLE */
+.checks-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.checks-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.checks-list::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 10px;
+}
+
+.checks-list::-webkit-scrollbar-thumb:hover {
+  background: #764ba2;
 }
 
 @media (max-width: 768px) {

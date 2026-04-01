@@ -7,13 +7,16 @@ function App() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
 
-  // Rule selection
+  // Rule selection - Initial state with all rules
   const [selectedRules, setSelectedRules] = useState({
-    volume: true,
-    completeness: true,
-    uniqueness: true,
-    validity: true,
-    freshness: true
+    rowCount: true,
+    missingValues: true,
+    duplicates: true,
+    formatValidation: true,
+    rangeValidation: true,
+    freshness: true,
+    customPatterns: false,
+    anomaly: false
   });
 
   // Modals
@@ -25,32 +28,55 @@ function App() {
   const [selectedScan, setSelectedScan] = useState(null);
   const [apiStatus, setApiStatus] = useState('loading');
 
-  // Rules definition
+  // Rules definition - Expanded with all Soda Core check types
   const rules = {
-    volume: {
-      name: '🔢 Volume',
-      description: 'Validate row counts',
-      color: '#ff6b6b'
+    rowCount: {
+      name: '🔢 Row Count Validation',
+      description: 'Volume: Check row counts (must have data, not too large)',
+      color: '#ff6b6b',
+      checks: ['row_count > 0', 'row_count < 1000000']
     },
-    completeness: {
-      name: '✅ Completeness',
-      description: 'Check for missing values',
-      color: '#4ecdc4'
+    missingValues: {
+      name: '✅ Missing Value Checks',
+      description: 'Completeness: Detect NULL/missing values in critical columns',
+      color: '#4ecdc4',
+      checks: ['missing_count(CustomerID)', 'missing_count(Email)', 'missing_count(Name)', 'missing_percent(Age)']
     },
-    uniqueness: {
-      name: '🔐 Uniqueness',
-      description: 'Detect duplicates',
-      color: '#45b7d1'
+    duplicates: {
+      name: '🔐 Duplicate Detection',
+      description: 'Uniqueness: Find duplicate values in key columns',
+      color: '#45b7d1',
+      checks: ['duplicate_count(CustomerID)', 'duplicate_count(Email)']
     },
-    validity: {
-      name: '📧 Validity',
-      description: 'Format & bounds',
-      color: '#f9ca24'
+    formatValidation: {
+      name: '📧 Format Validation',
+      description: 'Validity: Check data format (email, date, phone, etc)',
+      color: '#f9ca24',
+      checks: ['invalid_count(Email) with email format check']
+    },
+    rangeValidation: {
+      name: '📊 Range & Bounds',
+      description: 'Statistical: Min/Max/Avg ranges and data quality thresholds',
+      color: '#a29bfe',
+      checks: ['min(Age) >= 13', 'max(Age) <= 120', 'avg(Age) between 20 and 80']
     },
     freshness: {
-      name: '⏰ Freshness',
-      description: 'Data timeliness',
-      color: '#6c5ce7'
+      name: '⏰ Data Freshness',
+      description: 'Timeliness: Ensure data is current (not stale)',
+      color: '#6c5ce7',
+      checks: ['freshness(SignupDate) < 730 days']
+    },
+    customPatterns: {
+      name: '🎯 Custom Patterns',
+      description: 'Advanced: Regex patterns, business rules (premium feature)',
+      color: '#fd79a8',
+      checks: ['Custom regex patterns available']
+    },
+    anomaly: {
+      name: '⚠️ Anomaly Detection',
+      description: 'AI: Detect statistical anomalies and outliers (ML-based)',
+      color: '#fdcb6e',
+      checks: ['Statistical anomalies', 'Outlier detection']
     }
   };
 
@@ -212,7 +238,7 @@ function App() {
               </div>
 
               <div className="selected-summary">
-                <strong>{Object.values(selectedRules).filter(Boolean).length}/5</strong> rules selected
+                <strong>{Object.values(selectedRules).filter(Boolean).length}/{Object.keys(selectedRules).length}</strong> rule categories selected
               </div>
             </div>
 
@@ -364,6 +390,47 @@ function App() {
                   </div>
                 </div>
               </div>
+
+              {selectedScan.check_details && selectedScan.check_details.length > 0 && (
+                <div className="detailed-checks-section">
+                  <h3>🔍 Individual Check Results</h3>
+                  <div className="checks-list">
+                    {selectedScan.check_details.map((check, idx) => (
+                      <div key={idx} className={`check-item check-${check.outcome}`}>
+                        <div className="check-header">
+                          <span className={`check-outcome ${check.outcome}`}>
+                            {check.outcome === 'pass' ? '✅' : '❌'} {check.name}
+                          </span>
+                          {check.column && (
+                            <span className="check-column">[{check.column}]</span>
+                          )}
+                        </div>
+                        <div className="check-body">
+                          <div className="check-status">
+                            {check.outcome === 'pass' ? (
+                              <span className="status-pass">PASSED</span>
+                            ) : (
+                              <>
+                                <span className="status-fail">FAILED</span>
+                                {check.diagnostics?.value !== undefined && (
+                                  <span className="check-value">
+                                    Actual: {JSON.stringify(check.diagnostics.value)}
+                                  </span>
+                                )}
+                                {check.diagnostics?.fail && (
+                                  <span className="check-expected">
+                                    Expected: {JSON.stringify(check.diagnostics.fail)}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
