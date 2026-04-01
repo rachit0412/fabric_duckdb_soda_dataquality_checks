@@ -10,31 +10,46 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch API data
+    // Fetch API data with support for both localhost and Codespaces
     const fetchData = async () => {
       try {
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        const apiUrl = `${protocol}//${hostname}:8000`;
+        // Determine correct API URL based on environment
+        let apiUrl;
+        
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          // Local environment
+          apiUrl = `${window.location.protocol}//${window.location.hostname}:8000`;
+        } else {
+          // Codespaces or remote environment - replace port 3000 with 8000 in hostname
+          // Codespaces URL format: https://project-name-abc123.github.dev
+          const hostname = window.location.hostname;
+          apiUrl = `${window.location.protocol}//${hostname.replace(':3000', '')}:8000`;
+        }
+        
+        console.log('API URL:', apiUrl);
         
         const response = await fetch(`${apiUrl}/api/health`, {
           method: 'GET',
-          timeout: 5000
+          headers: {
+            'Accept': 'application/json'
+          }
         });
         
         if (response.ok) {
           const jsonData = await response.json();
           setData(jsonData);
+        } else {
+          console.warn('API response status:', response.status);
         }
       } catch (err) {
-        console.warn('API connection warning:', err.message);
-        // Keep default data
+        console.warn('API fetch error:', err.message);
+        // Keep default data and continue
       } finally {
         setLoading(false);
       }
     };
 
-    const timer = setTimeout(fetchData, 500);
+    const timer = setTimeout(fetchData, 300);
     return () => clearTimeout(timer);
   }, []);
 
@@ -77,10 +92,10 @@ function App() {
           <div className="card">
             <h2>Quick Links</h2>
             <div className="links">
-              <a href="http://localhost:8000/docs" target="_blank" rel="noopener noreferrer">
+              <a href="/docs" target="_blank" rel="noopener noreferrer">
                 📚 API Documentation
               </a>
-              <a href="http://localhost:8000/api/health" target="_blank" rel="noopener noreferrer">
+              <a href="/api/health" target="_blank" rel="noopener noreferrer">
                 ❤️ API Health Check
               </a>
             </div>
