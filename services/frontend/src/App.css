@@ -136,6 +136,116 @@
   opacity: 0.8;
 }
 
+/* Upload Section Styles */
+.upload-section {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 30px;
+  margin-bottom: 30px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.upload-section h2 {
+  margin-top: 0;
+  color: #667eea;
+  font-size: 1.5em;
+  margin-bottom: 20px;
+}
+
+.upload-form {
+  display: flex;
+  gap: 15px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.file-input-wrapper {
+  flex: 1;
+  min-width: 250px;
+  position: relative;
+}
+
+.file-input-wrapper input[type="file"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+}
+
+.file-input-wrapper label {
+  display: block;
+  padding: 12px 20px;
+  background: #f8f9fa;
+  border: 2px dashed #667eea;
+  border-radius: 8px;
+  color: #667eea;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.file-input-wrapper input[type="file"]:hover + label {
+  background: #f0f2ff;
+  border-color: #764ba2;
+}
+
+.upload-btn {
+  padding: 12px 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.upload-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.upload-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.alert {
+  margin-top: 20px;
+  padding: 15px 20px;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.alert-success {
+  background: #d4edda;
+  color: #155724;
+  border-left-color: #28a745;
+}
+
+.alert-error {
+  background: #f8d7da;
+  color: #721c24;
+  border-left-color: #dc3545;
+}
+
+.alert pre {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin-top: 10px;
+  font-size: 0.85em;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .App-header h1 {
@@ -157,5 +267,26 @@
   .links a {
     padding: 10px 15px;
     font-size: 0.95em;
+  }
+
+  .upload-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .file-input-wrapper {
+    min-width: unset;
+  }
+
+  .upload-btn {
+    width: 100%;
+  }
+
+  .upload-section {
+    padding: 20px;
+  }
+
+  .upload-section h2 {
+    font-size: 1.2em;
   }
 }

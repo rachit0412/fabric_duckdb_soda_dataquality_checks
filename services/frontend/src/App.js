@@ -8,6 +8,10 @@ function App() {
     services: { storage_backend: 'postgresql', storage_available: true }
   });
   const [loading, setLoading] = useState(true);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
 
   useEffect(() => {
     // Fetch API data with support for both localhost and Codespaces
@@ -53,6 +57,57 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  const handleFileUpload = async (e) => {
+    e.preventDefault();
+    if (!uploadFile) {
+      setUploadError('Please select a file');
+      return;
+    }
+
+    setUploading(true);
+    setUploadError(null);
+    setUploadResult(null);
+
+    try {
+      // Determine correct API URL
+      let apiUrl;
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        apiUrl = `${window.location.protocol}//${window.location.hostname}:8000`;
+      } else {
+        const hostname = window.location.hostname;
+        apiUrl = `${window.location.protocol}//${hostname.replace(':3000', '')}:8000`;
+      }
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('table_name', uploadFile.name.replace('.csv', '').toLowerCase());
+
+      const response = await fetch(`${apiUrl}/api/scan`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setUploadResult({
+          success: true,
+          message: 'File uploaded and scanned successfully!',
+          data: result
+        });
+        setUploadFile(null);
+      } else {
+        const error = await response.json();
+        setUploadError(error.detail || 'Upload failed');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      setUploadError(err.message || 'Failed to upload file');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -61,6 +116,48 @@ function App() {
       </header>
 
       <main className="container">
+        {/* File Upload Section */}
+        <section className="upload-section">
+          <h2>📤 Upload CSV File for Data Quality Scan</h2>
+          <form onSubmit={handleFileUpload} className="upload-form">
+            <div className="file-input-wrapper">
+              <input 
+                type="file" 
+                accept=".csv" 
+                onChange={(e) => {
+                  setUploadFile(e.target.files?.[0] || null);
+                  setUploadError(null);
+                }}
+                disabled={uploading}
+              />
+              <label>{uploadFile ? uploadFile.name : 'Choose a CSV file...'}</label>
+            </div>
+            <button 
+              type="submit" 
+              disabled={uploading || !uploadFile}
+              className="upload-btn"
+            >
+              {uploading ? '⏳ Uploading...' : '🚀 Scan Data Quality'}
+            </button>
+          </form>
+
+          {uploadError && (
+            <div className="alert alert-error">
+              ❌ Error: {uploadError}
+            </div>
+          )}
+
+          {uploadResult && (
+            <div className="alert alert-success">
+              ✅ {uploadResult.message}
+              {uploadResult.data && (
+                <pre>{JSON.stringify(uploadResult.data, null, 2)}</pre>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* Dashboard Section */}
         <section className="dashboard">
           <div className="card">
             <h2>API Status</h2>
