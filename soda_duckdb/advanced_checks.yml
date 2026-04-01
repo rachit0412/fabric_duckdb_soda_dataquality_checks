@@ -1,0 +1,273 @@
+# 🔥 ADVANCED DATA QUALITY CHECKS
+# Enterprise-grade checks using Soda Core out-of-the-box rules
+# Apply these to any CSV table: checks for {your_table_name}
+
+checks for {your_table_name}:
+  
+  # ═══════════════════════════════════════════════════════════════
+  # 1️⃣  VOLUME CHECKS (Ensure data exists and has reasonable size)
+  # ═══════════════════════════════════════════════════════════════
+  - row_count > 0:
+      name: Table must have at least 1 row
+  
+  - row_count < 1000000:
+      name: Table should not exceed 1M rows
+  
+  - row_count between 10 and 100000:
+      name: Expected row count between 10 and 100K
+      missing_count: valid_min=5  # Only warn, don't fail
+
+
+  # ═══════════════════════════════════════════════════════════════
+  # 2️⃣  COMPLETENESS CHECKS (Check for missing/null values)
+  # ═══════════════════════════════════════════════════════════════
+  # For each important column, add these checks:
+  
+  - missing_count(id) = 0:
+      name: ID column must have no missing values
+  
+  - missing_percent(email) < 2:
+      name: Email must be < 2% missing
+  
+  - missing_percent(phone) < 5:
+      name: Phone can be up to 5% missing
+  
+  - missing_count(name) < 3:
+      name: Name should have less than 3 nulls
+  
+  - valid_count(status):
+      name: Count valid status values
+  
+  
+  # ═══════════════════════════════════════════════════════════════
+  # 3️⃣  UNIQUENESS CHECKS (Detect duplicates)
+  # ═══════════════════════════════════════════════════════════════
+  
+  - duplicate_count(id) = 0:
+      name: ID must be globally unique
+  
+  - duplicate_count(email) = 0:
+      name: No duplicate emails allowed
+  
+  - duplicate_percent(external_id) < 0.5:
+      name: Allow max 0.5% duplicate external IDs
+  
+  - duplicate_count(order_id) = 0:
+      name: Order IDs must be unique
+  
+  
+  # ═══════════════════════════════════════════════════════════════
+  # 4️⃣  VALIDITY CHECKS (Format & Pattern Validation)
+  # ═══════════════════════════════════════════════════════════════
+  
+  - invalid_count(email) = 0:
+      valid format: email
+      name: All emails must be properly formatted (RFC 5322)
+  
+  - invalid_count(phone) < 1:
+      valid regex: '^\+?1?[-.\s]?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}$'
+      name: Phone must match standard formats
+  
+  - invalid_count(zip_code) = 0:
+      valid regex: '^\d{5}(-\d{4})?$'
+      name: ZIP code must be valid US format (12345 or 12345-6789)
+  
+  - invalid_count(website) < 2:
+      valid format: url
+      name: Website URLs must be valid
+  
+  - invalid_count(date_created) = 0:
+      valid format: date
+      name: Date field must be valid date format
+  
+  - invalid_count(customer_tier) = 0:
+      valid values: ['bronze', 'silver', 'gold', 'platinum']
+      name: Customer tier must be one of: bronze, silver, gold, platinum
+  
+  - invalid_count(country_code) = 0:
+      valid regex: '^[A-Z]{2}$'
+      name: Country code must be 2-letter ISO format
+  
+  
+  # ═══════════════════════════════════════════════════════════════
+  # 5️⃣  STATISTICAL CHECKS (Numeric ranges & distributions)
+  # ═══════════════════════════════════════════════════════════════
+  
+  - avg(age) between 18 and 80:
+      name: Average age should be reasonable
+  
+  - min(age) >= 1:
+      name: Minimum age must be at least 1
+  
+  - max(age) <= 150:
+      name: Maximum age should not exceed 150
+  
+  - min(salary) > 0:
+      name: Salary must be positive
+  
+  - max(salary) < 10000000:
+      name: Salary cap should not exceed 10M
+  
+  - avg(price) between 10 and 999:
+      name: Average price within expected range
+  
+  - stddev(amount) < 50000:
+      name: Amount standard deviation should be reasonable
+  
+  - percentile(revenue, 95) > 5000:
+      name: 95th percentile revenue must be > $5K
+  
+  
+  # ═══════════════════════════════════════════════════════════════
+  # 6️⃣  FRESHNESS CHECKS (Data timeliness)
+  # ═══════════════════════════════════════════════════════════════
+  
+  - freshness(last_updated) < 1h:
+      name: Data must be updated within 1 hour
+  
+  - freshness(created_date) < 7d:
+      name: Records created within last 7 days
+  
+  - freshness(modified_at) < 30d:
+      name: Recent modifications within last 30 days
+  
+  
+  # ═══════════════════════════════════════════════════════════════
+  # 7️⃣  DISTRIBUTION CHECKS (Value patterns)
+  # ═══════════════════════════════════════════════════════════════
+  
+  - invalid_count(status) = 0:
+      valid values: ['active', 'inactive', 'pending', 'archived']
+      name: Status must be one of: active, inactive, pending, archived
+  
+  - valid_percent(category) > 95:
+      valid values: ['A', 'B', 'C', 'D', 'E']
+      name: Category must be >= 95% valid
+  
+  
+  # ═══════════════════════════════════════════════════════════════
+  # 8️⃣  REFERENTIAL INTEGRITY (Cross-table consistency)
+  # ═══════════════════════════════════════════════════════════════
+  # (Uncomment if you have related tables)
+  
+  # - values in (department_id) must exist in other_table (id):
+  #     name: All department IDs must exist in departments table
+  
+  # - invalid_count(country_code) = 0:
+  #     valid values from query: 'SELECT DISTINCT code FROM countries'
+  #     name: Country codes should match reference data
+  
+  
+  # ═══════════════════════════════════════════════════════════════
+  # 9️⃣  CUSTOM SQL CHECKS (Advanced business logic)
+  # ═══════════════════════════════════════════════════════════════
+  
+  - failed rows:
+      name: Find records with future dates
+      fail query: |
+        SELECT 
+          COUNT(*) as future_date_count
+        FROM {table_name}
+        WHERE CAST(date_created AS DATE) > CURRENT_DATE
+        HAVING COUNT(*) > 0
+  
+  - failed rows:
+      name: Find invalid state transitions
+      fail query: |
+        SELECT COUNT(*)
+        FROM {table_name}
+        WHERE status = 'completed' AND end_date IS NULL
+        HAVING COUNT(*) > 0
+  
+  - failed rows:
+      name: Check for logical inconsistencies
+      fail query: |
+        SELECT COUNT(*)
+        FROM {table_name}
+        WHERE discount_percent > 100 OR discount_percent < 0
+        HAVING COUNT(*) > 0
+  
+  - failed rows:
+      name: Verify data relationships
+      fail query: |
+        SELECT COUNT(*)
+        FROM {table_name}
+        WHERE unit_price <= 0 AND quantity > 0
+        HAVING COUNT(*) > 0
+
+
+  # ═══════════════════════════════════════════════════════════════
+  # 🔟 SCHEMA VALIDATION (Structure checks)
+  # ═══════════════════════════════════════════════════════════════
+  
+  schema:
+    name: Validate table structure
+    fail:
+      when required column missing:
+        - id
+        - email
+        - created_date
+      when wrong column type:
+        id: integer
+        email: varchar
+        created_date: timestamp
+        amount: numeric
+        is_active: boolean
+
+
+  # ═══════════════════════════════════════════════════════════════
+  # 🎯 EXAMPLE: COMPLETE CUSTOMER TABLE CHECKS
+  # ═══════════════════════════════════════════════════════════════
+  # Uncomment and customize for your data:
+
+# checks for customers:
+#   # Volume
+#   - row_count > 100
+#   # Completeness
+#   - missing_count(customer_id) = 0
+#   - missing_percent(email) < 1
+#   # Uniqueness
+#   - duplicate_count(customer_id) = 0
+#   - duplicate_count(email) = 0
+#   # Validity
+#   - invalid_count(email) = 0:
+#       valid format: email
+#   - invalid_count(phone) = 0:
+#       valid regex: '^\d{10}$'
+#   # Numeric ranges
+#   - min(age) >= 18
+#   - max(age) <= 120
+#   - avg(purchase_amount) > 50
+#   # Freshness
+#   - freshness(last_purchase_date) < 30d
+#   # Schema
+#   schema:
+#     name: Customer table structure
+#     fail:
+#       when required column missing: [customer_id, email, name]
+#       when wrong column type:
+#         customer_id: integer
+#         email: varchar
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# USAGE: HOW TO USE THESE CHECKS
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 1. Copy your table-specific rules from above examples
+# 2. Replace {your_table_name} with your actual table name
+# 3. Customize the column names and thresholds for your data
+# 4. Place in: soda_duckdb/checks.yml
+# 5. Upload CSV file via API or web UI
+# 6. Check results for pass/fail status
+#
+# Example for "orders" table:
+#   checks for orders:
+#     - row_count > 1000
+#     - missing_count(order_id) = 0
+#     - duplicate_count(order_id) = 0
+#     - invalid_count(email) = 0:
+#         valid format: email
+#     - min(order_date) >= '2020-01-01'
+#     - max(order_date) <= current_date
+# ═══════════════════════════════════════════════════════════════════════════════
