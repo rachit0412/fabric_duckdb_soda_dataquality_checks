@@ -1,0 +1,42 @@
+# 📊 SODA CORE PROFILING CONFIGURATION
+# Data profiling for statistical analysis and anomaly detection
+# Updated: 2026-04-01
+
+profiling:
+  enabled: true
+  
+  # Profile all columns
+  columns: '*'
+  
+  # Profile result target
+  result_sink_type: local_file_system
+  
+  # Include metrics for profiling
+  include_metrics:
+    - row_count
+    - missing_count
+    - missing_percent
+    - valid_count
+    - valid_percent
+    - invalid_count
+    - invalid_percent
+    - values_count  # Number of distinct values
+    - values_percent
+    
+    # Numeric metrics
+    - mean
+    - min
+    - max
+    - sum
+    - stddev
+    - variance
+    - quartiles
+    - frequent_values
+    
+    # Text metrics
+    - min_length
+    - max_length
+    - avg_length
+    
+    # Date metrics
+    - date_range

@@ -59,16 +59,52 @@ class EnhancedDataQualityScanner:
         self.anomaly_detector = AnomalyDetector() if config.enable_anomaly_detection else None
         
     def load_data(self, csv_path: str, table_name: str) -> pd.DataFrame:
-        """Load data from CSV into DuckDB"""
+        """Load data from CSV into DuckDB with proper type casting"""
         logger.info(f"Loading data from {csv_path} into table {table_name}")
         
         try:
             # Load CSV
             df = pd.read_csv(csv_path)
+            logger.info(f"Initial dtypes:\n{df.dtypes}")
             
-            # Create or replace table
+            # Auto-detect and cast date columns
+            date_columns = [col for col in df.columns if 'date' in col.lower() or 'signup' in col.lower() or 'created' in col.lower()]
+            for col in date_columns:
+                try:
+                    df[col] = pd.to_datetime(df[col], errors='coerce')
+                    logger.info(f"Cast {col} to datetime")
+                except Exception as e:
+                    logger.warning(f"Could not cast {col} to datetime: {e}")
+            
+            # Auto-detect and cast boolean columns
+            bool_columns = [col for col in df.columns if 'is' in col.lower() or 'active' in col.lower()]
+            for col in bool_columns:
+                if df[col].nunique() <= 2:
+                    try:
+                        df[col] = df[col].astype(bool)
+                        logger.info(f"Cast {col} to boolean")
+                    except Exception as e:
+                        logger.warning(f"Could not cast {col} to boolean: {e}")
+            
+            # Auto-detect and cast numeric columns
+            numeric_columns = [col for col in df.columns if col.lower() in ['age', 'count', 'amount', 'value', 'score', 'rating']]
+            for col in numeric_columns:
+                if col in df.columns:
+                    try:
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
+                        logger.info(f"Cast {col} to numeric")
+                    except Exception as e:
+                        logger.warning(f"Could not cast {col} to numeric: {e}")
+            
+            logger.info(f"Final dtypes:\n{df.dtypes}")
+            
+            # Drop and create table with proper schema
             self.connection.sql(f"DROP TABLE IF EXISTS {table_name}")
             self.connection.sql(f"CREATE TABLE {table_name} AS SELECT * FROM df")
+            
+            # Log final schema
+            schema_result = self.connection.sql(f"DESCRIBE {table_name}").fetchall()
+            logger.info(f"DuckDB table schema for {table_name}: {schema_result}")
             
             row_count = self.connection.sql(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
             logger.info(f"Loaded {row_count} rows into {table_name}")

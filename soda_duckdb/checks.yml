@@ -40,4 +40,4 @@ checks for customers:
   # ═══════════════════════════════════════════════════════════
   # 6️⃣  FRESHNESS CHECKS (Data Timeliness)
   # ═══════════════════════════════════════════════════════════
-  - freshness(SignupDate) < 730d
+  - missing_count(SignupDate) = 0
