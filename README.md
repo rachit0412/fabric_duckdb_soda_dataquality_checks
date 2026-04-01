@@ -188,21 +188,35 @@ docker compose down
 
 ---
 
-## 📖 Documentation
+## 📖 Complete Documentation
 
-| Document | Description | Auto-Generated |
-|----------|-------------|----------------|
-| [README.md](README.md) | This file - Quick start and overview | 🟢 |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design and components | ⚪ Manual |
-| [SECURITY.md](SECURITY.md) | Security features and hardening | ⚪ Manual |
-| [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | REST API endpoints and examples | 🟢 |
-| [docs/COMPONENTS.md](docs/COMPONENTS.md) | Component architecture | 🟢 |
-| [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) | Command reference card | 🟢 |
+### Getting Started
+- **[MODERN_UI_GUIDE.md](MODERN_UI_GUIDE.md)** - Modern UI walkthrough and features
+- **[RULE_SELECTION_GUIDE.md](RULE_SELECTION_GUIDE.md)** - Quality rules and configuration
+- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Full deployment instructions
+- **[API_REFERENCE.md](API_REFERENCE.md)** - REST API endpoints with examples
 
-**🔄 Update Documentation:**
-```powershell
-.\generate-docs.ps1
-```
+### Troubleshooting & Support
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
+- **[SECURITY.md](SECURITY.md)** - Security features and hardening guide
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Development and contribution guidelines
+
+### Architecture & Design
+- **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** - System design details
+- **[docs/COMPONENTS.md](docs/COMPONENTS.md)** - Component reference
+- **[docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Command reference card
+
+### Skills & Automation
+- **[.github/copilot/skills/doc-updater/SKILL.md](.github/copilot/skills/doc-updater/SKILL.md)** - Automated documentation maintenance
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
+
+### Quick Links
+| Resource | Purpose | Format |
+|----------|---------|--------|
+| [API Interactive Docs](http://localhost:8000/docs) | Try API endpoints live | Swagger UI |
+| [API ReDoc](http://localhost:8000/redoc) | Browse API docs | ReDoc |
+| [Frontend Dashboard](http://localhost:3000) | Use the platform | Web UI |
+| [GitHub Repository](https://github.com/rachit0412/fabric_duckdb_soda_dataquality_checks) | Source code | GitHub |
 
 ---
 

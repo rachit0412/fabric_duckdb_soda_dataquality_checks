@@ -1,5 +1,7 @@
 # Contributing to Data Quality Platform
 
+> **Version:** 1.0.1 | **Last Updated:** 2026-04-01
+
 Thank you for your interest in contributing! This guide will help you get started.
 
 ## 🚀 Quick Start

@@ -4,7 +4,7 @@ FROM python:3.11-slim
 
 # Metadata
 LABEL maintainer="Data Quality Team <support@your-company.com>"
-LABEL version="1.0.0"
+LABEL version="1.0.1"
 LABEL description="Enterprise Data Quality Platform for Microsoft Fabric"
 LABEL org.opencontainers.image.source="https://github.com/rachit0412/fabric_duckdb_soda_dataquality_checks"
 

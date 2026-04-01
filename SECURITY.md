@@ -5,7 +5,7 @@
 | Property | Value |
 |----------|-------|
 | **Version** | 1.0.1 |
-| **Last Updated** | March 30, 2026 |
+| **Last Updated** | 2026-04-01 |
 | **Security Level** | Production-Grade |
 | **Status** | Hardened & Tested |
 

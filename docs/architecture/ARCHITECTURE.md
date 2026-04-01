@@ -1,5 +1,7 @@
 # Data Quality Platform - Architecture Document
 
+**Version:** 1.0.1 | **Last Updated:** 2026-04-01
+
 ## Overview
 
 The Data Quality Platform is a microservices-based enterprise solution for automated data quality monitoring and validation. It leverages Soda Core for comprehensive data quality checks and provides both API and web interfaces for data quality management.
