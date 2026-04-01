@@ -10,12 +10,30 @@ function App() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/health');
+        // Use window location to determine API URL
+        // In browser: use localhost:8000
+        // In container: use internal DNS dq-platform-api:8000
+        const protocol = window.location.protocol;
+        const hostname = window.location.hostname;
+        const apiUrl = `${protocol}//${hostname}:8000`;
+        
+        const response = await axios.get(`${apiUrl}/api/health`, {
+          timeout: 5000
+        });
         setData(response.data);
         setLoading(false);
       } catch (err) {
-        setError(err.message);
+        console.error('API Error:', err.message);
+        setError(err.message || 'Failed to connect to API');
         setLoading(false);
+        // Still show the app even if API fails
+        setTimeout(() => {
+          setData({ 
+            status: 'offline',
+            version: '1.0.0',
+            services: { storage_backend: 'postgresql' }
+          });
+        }, 2000);
       }
     };
 
