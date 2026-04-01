@@ -29,17 +29,28 @@
 ## ⚡ What You Get
 
 ### 🎨 Professional Web Interface
-Modern, responsive dashboard with real-time updates (auto-refresh every 30s)
-- **Visual Analytics**: Charts, trends, pass rates
-- **Table Management**: Scan history, drill-down analysis
-- **Mobile Ready**: Monitor from anywhere
+Modern, responsive dashboard with rule selection and metadata mapping:
+- **Rule Selector**: Choose which quality checks to run (Volume, Completeness, Uniqueness, Validity, Freshness)
+- **Metadata Mapping**: See which rules apply to each data column
+- **Results Dashboard**: Visual summary of passed/failed/warning checks
+- **Scan History**: Track all scans with detailed metadata
+- **Mobile Ready**: Monitor from any device
 
-**Access:** http://localhost:8000
+**Access:** http://localhost:3000
+
+### ⚙️ NEW: Rule Selection & Metadata Mapping
+- **Selective Execution**: Run only the quality rules you need
+- **Column-to-Rule Mapping**: See which rules test which columns
+- **Data Metadata Display**: Row counts, columns analyzed, scan duration  
+- **Result Visualization**: Color-coded pass/fail/warning indicators
+- **Full Audit Trail**: Detailed scan logs and result history
+
+**See:** [RULE_SELECTION_GUIDE.md](RULE_SELECTION_GUIDE.md) for detailed walkthrough
 
 ### 🤖 Enterprise-Grade Capabilities
+- **Soda Core Integration** for declarative quality checks
 - **AI Anomaly Detection** (Z-score, IQR, pattern analysis)
 - **DuckDB Engine** for high-performance CSV processing
-- **Soda Core Integration** for declarative quality checks
 - **PostgreSQL Storage** for historical tracking and trends
 - **Multi-Channel Alerts** (Email, Teams, Webhooks)
 - **HTML/PDF Reports** with interactive visualizations
