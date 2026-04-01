@@ -383,6 +383,78 @@ async def health_check():
     }
 
 
+@app.post("/api/simple-upload")
+async def simple_upload_scan(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...)
+):
+    """
+    Simple file upload and scan - no complex configuration needed
+    
+    This endpoint:
+    1. Accepts CSV file upload
+    2. Runs basic data quality checks automatically
+    3. Returns scan results
+    """
+    try:
+        # Validate file type
+        if not file.filename.lower().endswith('.csv'):
+            raise HTTPException(status_code=400, detail="Only CSV files are supported")
+        
+        # Save uploaded file to writable temp directory
+        os.makedirs("/tmp/uploads", exist_ok=True)
+        file_path = f"/tmp/uploads/{file.filename}"
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        
+        # Extract table name from filename
+        table_name = file.filename.replace('.csv', '').lower()
+        
+        try:
+            # Initialize scanner
+            scanner = EnhancedDataQualityScanner()
+            
+            # Run scan with default or provided checks
+            scan_result = scanner.execute_comprehensive_scan(
+                csv_path=file_path,
+                table_name=table_name,
+                checks_path=config.soda_checks_path,
+                config_path=config.soda_config_path
+            )
+            
+            # Generate report
+            html_generator = HTMLReportGenerator()
+            os.makedirs("/tmp/reports", exist_ok=True)
+            report_path = f"/tmp/reports/report_{scan_result.scan_id}.html"
+            html_generator.generate_report(scan_result, report_path)
+            
+            # Store in database (async)
+            if storage_repo:
+                background_tasks.add_task(storage_repo.save_scan_result, scan_result)
+            
+            # Send alerts if configured
+            background_tasks.add_task(alerting_service.process_scan_result, scan_result)
+            
+            return ScanResponse(
+                scan_id=scan_result.scan_id,
+                status=scan_result.status,
+                pass_rate=scan_result.pass_rate,
+                message=f"Scan completed with {scan_result.status} status",
+                report_url=f"/api/reports/{scan_result.scan_id}"
+            )
+            
+        except Exception as e:
+            logger.error(f"Scan failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Scan failed: {str(e)}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
 @app.post("/api/scan", response_model=ScanResponse)
 async def run_scan(request: ScanRequest, background_tasks: BackgroundTasks):
     """

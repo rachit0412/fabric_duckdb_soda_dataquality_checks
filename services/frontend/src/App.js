@@ -81,9 +81,8 @@ function App() {
       // Create FormData for file upload
       const formData = new FormData();
       formData.append('file', uploadFile);
-      formData.append('table_name', uploadFile.name.replace('.csv', '').toLowerCase());
 
-      const response = await fetch(`${apiUrl}/api/scan`, {
+      const response = await fetch(`${apiUrl}/api/simple-upload`, {
         method: 'POST',
         body: formData,
       });
@@ -92,10 +91,12 @@ function App() {
         const result = await response.json();
         setUploadResult({
           success: true,
-          message: 'File uploaded and scanned successfully!',
+          message: `✅ File uploaded and scanned successfully! Status: ${result.status}`,
           data: result
         });
         setUploadFile(null);
+        // Reset file input
+        document.querySelector('input[type="file"]').value = '';
       } else {
         const error = await response.json();
         setUploadError(error.detail || 'Upload failed');

@@ -121,6 +121,8 @@ services:
       # Application settings
       ENVIRONMENT: ${ENVIRONMENT:-production}
       PYTHONUNBUFFERED: 1
+      # DuckDB configuration - use temp directory for database
+      DUCKDB_PATH: /tmp/my_database.myduckdb
       # Database settings
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
