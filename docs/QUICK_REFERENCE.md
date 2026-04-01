@@ -80,4 +80,4 @@ docker compose restart
 - [Contributing](CONTRIBUTING.md)
 
 ---
-*Generated: 2026-03-31* | *Version: 1.0.0*
+*Generated: 2026-04-01* | *Version: 1.0.1*

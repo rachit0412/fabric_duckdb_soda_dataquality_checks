@@ -2,7 +2,7 @@
 
 > **Production-ready data quality monitoring with AI anomaly detection, professional web UI, and enterprise security**
 
-**Version:** 1.0.0 | **Generated:** 2026-03-31 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+**Version:** 1.0.1 | **Generated:** 2026-04-01 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ---
 

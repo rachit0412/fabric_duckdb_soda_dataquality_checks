@@ -231,4 +231,4 @@ http://localhost:3000
 
 ---
 
-**Last Updated:** April 1, 2026 | **Platform Version:** 1.0.0
+**Last Updated:** April 1, 2026 | **Platform Version:** 1.0.1

@@ -4,7 +4,7 @@
 
 | Property | Value |
 |----------|-------|
-| **Version** | 1.0.0 |
+| **Version** | 1.0.1 |
 | **Last Updated** | March 30, 2026 |
 | **Security Level** | Production-Grade |
 | **Status** | Hardened & Tested |

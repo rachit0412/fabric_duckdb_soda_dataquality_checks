@@ -1,6 +1,6 @@
 # Component Reference
 
-> **Version:** 1.0.0 | **Generated:** 2026-03-31 23:11:34
+> **Version:** 1.0.1 | **Generated:** 2026-04-01
 
 ## Architecture Overview
 

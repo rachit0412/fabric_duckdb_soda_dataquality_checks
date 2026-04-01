@@ -123,6 +123,10 @@ services:
       PYTHONUNBUFFERED: 1
       # DuckDB configuration - use temp directory for database
       DUCKDB_PATH: /tmp/my_database.myduckdb
+      # Soda configuration - point to container paths
+      LAKEHOUSE_PATH: /app
+      SODA_CONFIG_PATH: /app/soda_duckdb/config.yml
+      SODA_CHECKS_PATH: /app/soda_duckdb/checks.yml
       # Database settings
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
