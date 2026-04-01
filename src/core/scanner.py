@@ -177,7 +177,8 @@ class EnhancedDataQualityScanner:
         csv_path: str,
         table_name: str,
         checks_path: str,
-        config_path: str
+        config_path: str,
+        selected_rules: Optional[List[str]] = None
     ) -> ScanResult:
         """
         Execute comprehensive data quality scan including:
@@ -185,11 +186,30 @@ class EnhancedDataQualityScanner:
         - Soda checks
         - Data profiling
         - Anomaly detection
+        
+        Args:
+            selected_rules: Optional list of rule categories to run
+                           (e.g., ['rowCount', 'missingValues'])
+                           If None or empty, runs all checks
         """
         scan_id = str(uuid.uuid4())
         start_time = datetime.now()
         
         logger.info(f"Starting comprehensive scan {scan_id} for {table_name}")
+        if selected_rules:
+            logger.info(f"Selected rules: {selected_rules}")
+        
+        # Mapping of rules to check patterns
+        rules_to_checks = {
+            'rowCount': ['row_count'],
+            'missingValues': ['missing_count', 'missing_percent'],
+            'duplicates': ['duplicate_count'],
+            'formatValidation': ['invalid_count'],
+            'rangeValidation': ['min(', 'max(', 'avg('],
+            'freshness': ['fresh', 'SignupDate'],
+            'customPatterns': ['pattern', 'regex'],
+            'anomaly': ['anomaly']
+        }
         
         try:
             # Load data
@@ -198,6 +218,46 @@ class EnhancedDataQualityScanner:
             # Run Soda scan
             soda_scan = self.run_soda_scan(table_name, checks_path, config_path)
             scan_results = self.parse_scan_results(soda_scan, table_name)
+            
+            # Filter checks if specific rules selected
+            if selected_rules:
+                filtered_details = []
+                for check in scan_results['check_details']:
+                    check_name = check.get('name', '').lower()
+                    
+                    # Check if this check matches any selected rule
+                    for rule in selected_rules:
+                        if rule in rules_to_checks:
+                            patterns = rules_to_checks[rule]
+                            if any(pattern.lower() in check_name for pattern in patterns):
+                                filtered_details.append(check)
+                                break
+                
+                # Recalculate stats based on filtered checks
+                if filtered_details:
+                    passed = sum(1 for c in filtered_details if c['outcome'] == 'pass')
+                    failed = sum(1 for c in filtered_details if c['outcome'] == 'fail')
+                    warned = sum(1 for c in filtered_details if c['outcome'] == 'warn')
+                    total = len(filtered_details)
+                    pass_rate = passed / total if total > 0 else 0
+                    
+                    # Update status based on filtered results
+                    if pass_rate >= config.warning_threshold:
+                        status = "PASSED"
+                    elif pass_rate >= config.critical_failure_threshold:
+                        status = "WARNING"
+                    else:
+                        status = "CRITICAL"
+                    
+                    scan_results['check_details'] = filtered_details
+                    scan_results['total_checks'] = total
+                    scan_results['passed_checks'] = passed
+                    scan_results['failed_checks'] = failed
+                    scan_results['warned_checks'] = warned
+                    scan_results['pass_rate'] = pass_rate
+                    scan_results['status'] = status
+                    
+                    logger.info(f"Filtered to {total} checks from {selected_rules}")
             
             # Profile data
             profile = None

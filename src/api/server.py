@@ -14,6 +14,8 @@ import os
 from pathlib import Path
 import shutil
 import tempfile
+import pandas as pd
+import numpy as np
 
 from ..core.scanner import EnhancedDataQualityScanner, ScanResult
 from ..storage.postgres_repository import PostgreSQLRepository
@@ -100,6 +102,11 @@ class ScanResponse(BaseModel):
     pass_rate: float
     message: str
     report_url: Optional[str] = None
+    total_checks: Optional[int] = None
+    passed_checks: Optional[int] = None
+    failed_checks: Optional[int] = None
+    warned_checks: Optional[int] = None
+    check_details: Optional[List[Dict[str, Any]]] = None
 
 
 @app.post("/api/upload-scan")
@@ -386,15 +393,20 @@ async def health_check():
 @app.post("/api/simple-upload")
 async def simple_upload_scan(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    rules: str = Form(default="all")  # Rules as comma-separated string or 'all'
 ):
     """
-    Simple file upload and scan - no complex configuration needed
+    Simple file upload and scan with optional rule filtering
     
     This endpoint:
     1. Accepts CSV file upload
-    2. Runs basic data quality checks automatically
-    3. Returns scan results
+    2. Optionally filters which data quality checks to run based on rules
+    3. Returns scan results with full check details
+    
+    Rules parameter can be:
+    - 'all' (default): Run all 13 checks
+    - 'rowCount,missingValues,duplicates' etc: Run specific categories
     """
     try:
         # Validate file type
@@ -415,12 +427,18 @@ async def simple_upload_scan(
             # Initialize scanner
             scanner = EnhancedDataQualityScanner()
             
-            # Run scan with default or provided checks
+            # Parse rules filter
+            rules_list = None
+            if rules and rules != "all":
+                rules_list = [r.strip() for r in rules.split(",")]
+            
+            # Run scan with optional rule filtering
             scan_result = scanner.execute_comprehensive_scan(
                 csv_path=file_path,
                 table_name=table_name,
                 checks_path=config.soda_checks_path,
-                config_path=config.soda_config_path
+                config_path=config.soda_config_path,
+                selected_rules=rules_list  # Pass rules to scanner
             )
             
             # Generate report
@@ -441,7 +459,12 @@ async def simple_upload_scan(
                 status=scan_result.status,
                 pass_rate=scan_result.pass_rate,
                 message=f"Scan completed with {scan_result.status} status",
-                report_url=f"/api/reports/{scan_result.scan_id}"
+                report_url=f"/api/reports/{scan_result.scan_id}",
+                total_checks=scan_result.total_checks,
+                passed_checks=scan_result.passed_checks,
+                failed_checks=scan_result.failed_checks,
+                warned_checks=getattr(scan_result, 'warned_checks', 0),
+                check_details=scan_result.check_details
             )
             
         except Exception as e:
@@ -453,6 +476,81 @@ async def simple_upload_scan(
     except Exception as e:
         logger.error(f"Upload failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
+@app.post("/api/profile")
+async def profile_data(file: UploadFile = File(...)):
+    """
+    Profile uploaded CSV before scanning
+    
+    Returns:
+    - Row count, column count
+    - Column names and types
+    - Sample rows (first 5)
+    - Basic statistics per column
+    - Data quality indicators
+    """
+    try:
+        if not file.filename.lower().endswith('.csv'):
+            raise HTTPException(status_code=400, detail="Only CSV files are supported")
+        
+        os.makedirs("/tmp/uploads", exist_ok=True)
+        file_path = f"/tmp/uploads/{file.filename}"
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        
+        table_name = file.filename.replace('.csv', '').lower()
+        
+        try:
+            scanner = EnhancedDataQualityScanner()
+            df = scanner.load_data(file_path, table_name)
+            
+            # Convert sample data to ensure JSON serialization
+            sample_data = df.head(5).to_dict(orient='records')
+            # Convert numpy types to native Python types
+            for row in sample_data:
+                for key, value in row.items():
+                    if isinstance(value, (np.integer, np.floating)):
+                        row[key] = float(value) if isinstance(value, np.floating) else int(value)
+                    elif isinstance(value, np.bool_):
+                        row[key] = bool(value)
+                    elif pd.isna(value):
+                        row[key] = None
+            
+            # Convert numpy counts to Python int
+            missing_counts = {col: int(df[col].isnull().sum()) for col in df.columns}
+            missing_percent = {col: float((df[col].isnull().sum() / len(df) * 100)) for col in df.columns}
+            
+            # Profile the data
+            profile = {
+                "filename": file.filename,
+                "row_count": int(len(df)),
+                "column_count": len(df.columns),
+                "columns": list(df.columns),
+                "dtypes": {col: str(df[col].dtype) for col in df.columns},
+                "sample_data": sample_data,
+                "missing_counts": missing_counts,
+                "missing_percent": missing_percent,
+                "data_quality_indicators": {
+                    "has_missing_values": bool(df.isnull().any().any()),
+                    "has_duplicates": bool(df.duplicated().any()),
+                    "empty_strings": int((df == '').sum().sum()) if df.select_dtypes(include=['object']).size > 0 else 0
+                }
+            }
+            
+            logger.info(f"Profiled {table_name}: {profile['row_count']} rows, {profile['column_count']} columns")
+            return profile
+            
+        except Exception as e:
+            logger.error(f"Profiling failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Profiling failed: {str(e)}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Profile upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Profile upload failed: {str(e)}")
 
 
 @app.post("/api/scan", response_model=ScanResponse)

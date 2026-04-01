@@ -23,10 +23,12 @@ function App() {
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
-  // Data
+  // Data state
   const [scanHistory, setScanHistory] = useState([]);
   const [selectedScan, setSelectedScan] = useState(null);
   const [apiStatus, setApiStatus] = useState('loading');
+  const [profileData, setProfileData] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // ═══════════════════════════════════════════════════════════════
   // RULES DEFINITION - Clear Mapping of 8 Categories to 13 Checks
@@ -186,7 +188,7 @@ function App() {
     setTimeout(fetchData, 500);
   }, []);
 
-  // Handle file upload
+  // Handle file upload - First profile, then scan
   const handleFileUpload = async () => {
     if (!uploadFile) {
       setUploadError('Select a CSV file first');
@@ -198,8 +200,55 @@ function App() {
 
     try {
       const apiUrl = getApiUrl();
+      
+      // Step 1: Profile the data first
+      const profileFormData = new FormData();
+      profileFormData.append('file', uploadFile);
+      
+      const profileRes = await fetch(`${apiUrl}/api/profile`, {
+        method: 'POST',
+        body: profileFormData,
+      });
+
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        setProfileData(profile);
+        setShowProfileModal(true);
+      }
+      
+      // Reset upload state but keep file for scanning
+      setUploading(false);
+      
+    } catch (err) {
+      setUploadError(err.message || 'Upload error');
+      setUploading(false);
+      console.error(err);
+    }
+  };
+
+  // Handle actual scan after profile review
+  const handleScanWithSelectedRules = async () => {
+    if (!uploadFile) {
+      setUploadError('File missing');
+      return;
+    }
+
+    setUploading(true);
+    setShowProfileModal(false);
+
+    try {
+      const apiUrl = getApiUrl();
+      
+      // Get selected rules as comma-separated string
+      const selectedRuleKeys = Object.entries(selectedRules)
+        .filter(([_, selected]) => selected)
+        .map(([key]) => key)
+        .join(',');
+      
+      // Step 2: Run scan with selected rules
       const formData = new FormData();
       formData.append('file', uploadFile);
+      formData.append('rules', selectedRuleKeys || 'all');
 
       const response = await fetch(`${apiUrl}/api/simple-upload`, {
         method: 'POST',
@@ -211,6 +260,7 @@ function App() {
         setSelectedScan(result);
         setShowResultsModal(true);
         setUploadFile(null);
+        setProfileData(null);
         
         // Refresh history
         const historyRes = await fetch(`${apiUrl}/api/summary`);
@@ -220,10 +270,10 @@ function App() {
         }
       } else {
         const error = await response.json();
-        setUploadError(error.detail || 'Upload failed');
+        setUploadError(error.detail || 'Scan failed');
       }
     } catch (err) {
-      setUploadError(err.message || 'Upload error');
+      setUploadError(err.message || 'Scan error');
       console.error(err);
     } finally {
       setUploading(false);
@@ -324,7 +374,7 @@ function App() {
               onClick={handleFileUpload}
               disabled={uploading || !uploadFile}
             >
-              {uploading ? '⏳ Scanning...' : '🚀 Run Scan'}
+              {uploading ? (profileData ? '⏳ Scanning with selected rules...' : '⏳ Analyzing data...') : '🚀 Upload & Review'}
             </button>
           </section>
 
@@ -534,6 +584,121 @@ function App() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DATA PROFILE MODAL */}
+      {showProfileModal && profileData && (
+        <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
+          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="btn-close"
+              onClick={() => setShowProfileModal(false)}
+            >
+              ✕
+            </button>
+
+            <h2>📊 Data Profile & Rule Selection</h2>
+
+            <div className="modal-body">
+              {/* Data Profile Info */}
+              <div className="profile-section">
+                <h3>📈 Data Profile</h3>
+                <div className="profile-grid">
+                  <div className="profile-item">
+                    <span className="label">📋 File</span>
+                    <span className="value">{profileData.filename}</span>
+                  </div>
+                  <div className="profile-item">
+                    <span className="label">📊 Rows</span>
+                    <span className="value">{profileData.row_count}</span>
+                  </div>
+                  <div className="profile-item">
+                    <span className="label">📑 Columns</span>
+                    <span className="value">{profileData.column_count}</span>
+                  </div>
+                  <div className="profile-item">
+                    <span className="label">⚠️ Missing Values</span>
+                    <span className="value">{profileData.data_quality_indicators.has_missing_values ? '❌ Yes' : '✅ No'}</span>
+                  </div>
+                  <div className="profile-item">
+                    <span className="label">🔁 Duplicates</span>
+                    <span className="value">{profileData.data_quality_indicators.has_duplicates ? '❌ Yes' : '✅ No'}</span>
+                  </div>
+                  <div className="profile-item">
+                    <span className="label">🔤 Empty Strings</span>
+                    <span className="value">{profileData.data_quality_indicators.empty_strings}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Column Info */}
+              <div className="profile-section">
+                <h3>📍 Columns ({profileData.column_count})</h3>
+                <div className="columns-list">
+                  {profileData.columns.map((col, idx) => (
+                    <div key={idx} className="column-item">
+                      <span className="col-name">{col}</span>
+                      <span className="col-type">{profileData.dtypes[col]}</span>
+                      <span className="col-missing">{profileData.missing_percent[col]}% missing</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sample Data */}
+              <div className="profile-section">
+                <h3>👁️ Sample Data (first 5 rows)</h3>
+                <div className="sample-data">
+                  <table>
+                    <thead>
+                      <tr>
+                        {profileData.columns.map((col, idx) => (
+                          <th key={idx}>{col}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profileData.sample_data.map((row, ridx) => (
+                        <tr key={ridx}>
+                          {profileData.columns.map((col, cidx) => (
+                            <td key={cidx}>{String(row[col] || '—').substring(0, 20)}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Rules Selection Reminder */}
+              <div className="profile-section">
+                <h3>✅ Selected Rules for Scanning</h3>
+                <p className="rule-count-info">
+                  {Object.values(selectedRules).filter(Boolean).length}/{Object.keys(selectedRules).length} categories selected
+                  <br/>
+                  <small>Running only checks for selected categories</small>
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="modal-actions">
+                <button
+                  className="btn-secondary"
+                  onClick={() => setShowProfileModal(false)}
+                >
+                  ← Back to Rules
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={handleScanWithSelectedRules}
+                  disabled={uploading}
+                >
+                  {uploading ? '⏳ Scanning...' : '🚀 Scan with Selected Rules'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

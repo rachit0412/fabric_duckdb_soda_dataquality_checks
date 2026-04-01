@@ -498,6 +498,10 @@ body {
   box-shadow: 0 30px 100px rgba(0, 0, 0, 0.4);
 }
 
+.modal-content.modal-large {
+  max-width: 900px;
+}
+
 @keyframes slideUp {
   from {
     transform: translateY(30px);
@@ -736,6 +740,216 @@ body {
 /* ═══════════════════════════════════════════════════ */
 /* RESPONSIVE DESIGN */
 /* ═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════ */
+/* PROFILE MODAL STYLES */
+/* ═══════════════════════════════════════════════════ */
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.profile-item {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.profile-item .label {
+  font-size: 0.85em;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.profile-item .value {
+  font-size: 1.2em;
+  font-weight: 700;
+  color: #333;
+}
+
+.profile-section {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  margin-bottom: 15px;
+}
+
+.profile-section h3 {
+  color: #667eea;
+  font-size: 1.1em;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.columns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.column-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  font-size: 0.9em;
+  gap: 10px;
+}
+
+.col-name {
+  flex: 1;
+  font-weight: 600;
+  color: #333;
+  word-break: break-word;
+}
+
+.col-type {
+  padding: 3px 8px;
+  background: #e3f2fd;
+  color: #1976d2;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.col-missing {
+  padding: 3px 8px;
+  background: #fff3e0;
+  color: #f57c00;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sample-data {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
+.sample-data table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85em;
+}
+
+.sample-data thead {
+  background: #667eea;
+  color: white;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.sample-data th {
+  padding: 12px;
+  text-align: left;
+  word-break: break-word;
+}
+
+.sample-data td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  background: white;
+}
+
+.sample-data tbody tr:hover {
+  background: #f0f2ff;
+}
+
+.sample-data tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.rule-count-info {
+  font-size: 0.95em;
+  color: #666;
+  line-height: 1.6;
+}
+
+.rule-count-info small {
+  display: block;
+  color: #999;
+  font-size: 0.9em;
+  margin-top: 8px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #f0f2ff;
+  color: #667eea;
+  border: 1px solid #667eea;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #e8ebff;
+  border-color: #5568d3;
+  transform: translateY(-2px);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (max-width: 1000px) {
   .grid-container {
     grid-template-columns: 1fr;
@@ -747,6 +961,14 @@ body {
 
   .result-summary {
     grid-template-columns: 1fr;
+  }
+
+  .profile-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .modal-content.modal-large {
+    max-width: 90vw;
   }
 }
 
