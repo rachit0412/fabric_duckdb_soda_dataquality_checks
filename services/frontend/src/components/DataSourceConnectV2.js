@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './DataSourceConnect.css';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+// Dynamically determine API base URL based on current URL
+const API_BASE = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8000/api/v1`;
 
 export default function DataSourceConnectV2() {
   const [connectionType, setConnectionType] = useState('postgres');
@@ -93,6 +94,12 @@ export default function DataSourceConnectV2() {
 
     try {
       const payload = buildPayload();
+      
+      // Choose endpoint based on upload type
+      const endpoint = payload.isMultipart 
+        ? `${API_BASE}/connections/upload` 
+        : `${API_BASE}/connections/`;
+      
       const options = {
         method: 'POST',
         ...(payload.isMultipart
@@ -100,14 +107,14 @@ export default function DataSourceConnectV2() {
           : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload.data) }),
       };
 
-      const res = await fetch(`${API_BASE}/connections/`, options);
+      const res = await fetch(endpoint, options);
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(errData.detail || `HTTP ${res.status}`);
       }
 
       const result = await res.json();
-      setSuccess(`✓ Connected as "${result.connection_name}"`);
+      setSuccess(`✓ Connected as "${result.name}"`);
       setUrl('');
       setUploadFile(null);
       setSecret('');
@@ -115,7 +122,7 @@ export default function DataSourceConnectV2() {
       // Reload connections list
       const listRes = await fetch(`${API_BASE}/connections/`);
       const listData = await listRes.json();
-      setExistingConnections(listData.connections || []);
+      setExistingConnections(listData || []);
     } catch (err) {
       setError(err.message);
     } finally {

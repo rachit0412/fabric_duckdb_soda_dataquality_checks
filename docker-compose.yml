@@ -46,10 +46,10 @@ services:
     
     # Security: Don't expose port to host (internal network only)
     # Comment out for external database tools - use pgAdmin instead
-    expose:
-      - "5432"
-    # ports:
-    #   - "${POSTGRES_PORT:-5432}:5432"  # Only enable if needed externally
+    # expose:
+    #   - "5432"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"  # Enable for dev - allows host connection
     
     volumes:
       - postgres_data:/var/lib/postgresql/data
