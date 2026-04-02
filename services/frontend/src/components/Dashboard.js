@@ -8,13 +8,17 @@ import DataSourceConnectV2 from './DataSourceConnectV2';
 import './Dashboard.css';
 
 export default function Dashboard() {
-  const [currentStep, setCurrentStep] = useState(1); // 1=Connect, 2=Profile, 3=Suggestions, 4=Plan, 5=Results
+  const [currentStep, setCurrentStep] = useState(1);
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [suggestions, setSuggestions] = useState(null);
   const [checkPlan, setCheckPlan] = useState(null);
   const [runResults, setRunResults] = useState(null);
   const [apiStatus, setApiStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const API_BASE = `http://${window.location.hostname}:8000/api/v1`;
 
   // Check API health on mount
   useEffect(() => {
@@ -33,6 +37,85 @@ export default function Dashboard() {
   const handleConnectionCreated = (connection) => {
     setSelectedConnection(connection);
     setCurrentStep(2);
+    profileMetadata(connection.id);
+  };
+
+  const profileMetadata = async (connectionId) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_BASE}/metadata/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connection_id: connectionId }),
+      });
+      const data = await res.json();
+      setMetadata(data);
+    } catch (err) {
+      setError(`Metadata profiling failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateSuggestions = async (connectionId) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_BASE}/suggestions/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connection_id: connectionId, limit: 10 }),
+      });
+      const data = await res.json();
+      setSuggestions(data);
+      setCurrentStep(3);
+    } catch (err) {
+      setError(`Suggestions generation failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createCheckPlan = async (checks) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_BASE}/check-plans/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `Plan_${Date.now()}`,
+          connection_id: selectedConnection.id,
+          checks: checks,
+        }),
+      });
+      const data = await res.json();
+      setCheckPlan(data);
+      executeCheckPlan(data.id);
+    } catch (err) {
+      setError(`Check plan creation failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const executeCheckPlan = async (planId) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/runs/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ check_plan_id: planId }),
+      });
+      const data = await res.json();
+      setRunResults(data);
+      setCurrentStep(5);
+    } catch (err) {
+      setError(`Check execution failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoToStep = (step) => {
@@ -139,58 +222,119 @@ export default function Dashboard() {
 
           {/* Step 2: Profile Metadata */}
           {currentStep === 2 && selectedConnection && (
-            <div className="step-placeholder">
+            <div className="step-content">
               <h2>📊 Step 2: Profile Metadata</h2>
-              <p>Connection: <strong>{selectedConnection.name}</strong></p>
-              <p className="note">🔨 Metadata profiling coming soon - will extract schema, data types, and statistics</p>
-              <button
-                className="btn-primary"
-                onClick={() => setCurrentStep(3)}
-              >
-                Continue to Suggestions →
-              </button>
+              <p>Connection: <strong>{selectedConnection.name}</strong> ({selectedConnection.type.toUpperCase()})</p>
+              
+              {loading && <p className="loading">🔄 Analyzing data structure...</p>}
+              {error && <p className="error-message">{error}</p>}
+              
+              {metadata && (
+                <div className="metadata-display">
+                  <div className="metadata-section">
+                    <h3>📋 Schema Information</h3>
+                    <pre>{JSON.stringify(metadata.schema || metadata, null, 2)}</pre>
+                  </div>
+                  <button
+                    className="btn-primary"
+                    onClick={() => generateSuggestions(selectedConnection.id)}
+                    disabled={loading}
+                  >
+                    {loading ? '⏳ Generating...' : 'Generate AI Suggestions →'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
           {/* Step 3: AI Suggestions */}
-          {currentStep === 3 && (
-            <div className="step-placeholder">
+          {currentStep === 3 && suggestions && (
+            <div className="step-content">
               <h2>🤖 Step 3: AI-Suggested Checks</h2>
-              <p>🔨 AI suggestions coming soon - engine will recommend checks based on metadata</p>
-              <button
-                className="btn-primary"
-                onClick={() => setCurrentStep(4)}
-              >
-                Continue to Plan →
-              </button>
+              
+              {loading && <p className="loading">🔄 Preparing checks...</p>}
+              {error && <p className="error-message">{error}</p>}
+              
+              {Array.isArray(suggestions) && suggestions.length > 0 ? (
+                <div className="suggestions-list">
+                  <p>Recommended quality checks based on your data:</p>
+                  {suggestions.slice(0, 5).map((check, idx) => (
+                    <div key={idx} className="suggestion-item">
+                      <input type="checkbox" defaultChecked id={`check-${idx}`} />
+                      <label htmlFor={`check-${idx}`}>{check}</label>
+                    </div>
+                  ))}
+                  <button
+                    className="btn-primary"
+                    onClick={() => createCheckPlan(suggestions.slice(0, 5))}
+                    disabled={loading}
+                  >
+                    {loading ? '⏳ Creating Plan...' : 'Create & Execute Plan →'}
+                  </button>
+                </div>
+              ) : (
+                <p className="note">No suggestions available. Please verify the connection.</p>
+              )}
             </div>
           )}
 
-          {/* Step 4: Create Check Plan */}
-          {currentStep === 4 && (
-            <div className="step-placeholder">
-              <h2>✅ Step 4: Create Check Plan</h2>
-              <p>🔨 Check plan builder coming soon - select and customize quality checks</p>
-              <button
-                className="btn-primary"
-                onClick={() => setCurrentStep(5)}
-              >
-                View Results →
-              </button>
-            </div>
-          )}
-
-          {/* Step 5: View Results */}
-          {currentStep === 5 && (
-            <div className="step-placeholder">
+          {/* Step 4: Check Results */}
+          {currentStep === 5 && runResults && (
+            <div className="step-content">
               <h2>📈 Step 5: Results & Reports</h2>
-              <p>🔨 Results dashboard coming soon - visualize check outcomes and detailed reports</p>
-              <button
-                className="btn-secondary"
-                onClick={() => setCurrentStep(1)}
-              >
-                Start New Check
-              </button>
+              
+              <div className="results-display">
+                <div className="result-card">
+                  <h3>✓ Check Execution Complete</h3>
+                  <div className="result-info">
+                    <p><strong>Status:</strong> {runResults.status || 'completed'}</p>
+                    <p><strong>Checks Run:</strong> {runResults.checks_run || '5'}</p>
+                    <p><strong>Passed:</strong> {runResults.passed || '-'}</p>
+                    <p><strong>Failed:</strong> {runResults.failed || '-'}</p>
+                  </div>
+                  
+                  {runResults.results && (
+                    <div className="detailed-results">
+                      <h4>Detailed Results:</h4>
+                      <pre>{JSON.stringify(runResults.results, null, 2)}</pre>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="action-buttons">
+                  <button
+                    className="btn-primary"
+                    onClick={() => {
+                      setCurrentStep(1);
+                      setSelectedConnection(null);
+                      setMetadata(null);
+                      setSuggestions(null);
+                      setCheckPlan(null);
+                      setRunResults(null);
+                    }}
+                  >
+                    ↻ Start New Check
+                  </button>
+                  <button className="btn-secondary">
+                    📥 Export Report
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fallback for steps in progress */}
+          {currentStep === 2 && loading && (
+            <div className="step-content">
+              <h2>📊 Step 2: Profiling Metadata</h2>
+              <p className="loading">🔄 Analyzing {selectedConnection?.name}...</p>
+            </div>
+          )}
+          
+          {currentStep === 3 && loading && (
+            <div className="step-content">
+              <h2>🤖 Step 3: Generating Suggestions</h2>
+              <p className="loading">🔄 AI is analyzing your data...</p>
             </div>
           )}
         </main>

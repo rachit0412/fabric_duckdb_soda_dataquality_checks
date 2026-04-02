@@ -4,7 +4,7 @@ import './DataSourceConnect.css';
 // Dynamically determine API base URL based on current URL
 const API_BASE = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8000/api/v1`;
 
-export default function DataSourceConnectV2() {
+export default function DataSourceConnectV2({ onConnectionCreated }) {
   const [connectionType, setConnectionType] = useState('postgres');
   const [inputMode, setInputMode] = useState('link');
   const [url, setUrl] = useState('');
@@ -14,6 +14,7 @@ export default function DataSourceConnectV2() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [existingConnections, setExistingConnections] = useState([]);
+  const [selectedConnection, setSelectedConnection] = useState(null); // Track selected connection
 
   // Connection type configurations
   const configs = {
@@ -115,14 +116,15 @@ export default function DataSourceConnectV2() {
 
       const result = await res.json();
       setSuccess(`✓ Connected as "${result.name}"`);
+      setSelectedConnection(result); // Set selected connection instead of showing list
       setUrl('');
       setUploadFile(null);
       setSecret('');
-
-      // Reload connections list
-      const listRes = await fetch(`${API_BASE}/connections/`);
-      const listData = await listRes.json();
-      setExistingConnections(listData || []);
+      
+      // Call parent callback to move to next step
+      if (onConnectionCreated) {
+        setTimeout(() => onConnectionCreated(result), 800);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -152,139 +154,180 @@ export default function DataSourceConnectV2() {
       <div className="connect-container">
         <h2>📊 Step 1: Connect Data Source</h2>
 
-        {/* Existing Connections */}
-        {existingConnections.length > 0 && (
-          <div className="existing-connections">
-            <h3>Recent Connections</h3>
-            <div className="connection-list">
-              {existingConnections.map(conn => (
-                <button
-                  key={conn.id}
-                  className="connection-item"
-                  onClick={() => handleSelectExisting(conn)}
-                  disabled={loading}
+        {/* Success State - Show selected connection */}
+        {selectedConnection ? (
+          <div className="success-state">
+            <div className="success-card">
+              <div className="success-icon">✓</div>
+              <h3>Connection Ready</h3>
+              <div className="selected-connection-display">
+                <div className="conn-info">
+                  <span className="conn-icon">{configs[selectedConnection.type]?.icon || '📁'}</span>
+                  <div>
+                    <div className="conn-label">{selectedConnection.name}</div>
+                    <div className="conn-type">{selectedConnection.type.toUpperCase()}</div>
+                  </div>
+                </div>
+              </div>
+              <p className="success-message">{success}</p>
+              <div className="action-buttons">
+                <button 
+                  className="btn-primary" 
+                  onClick={() => setSelectedConnection(null)}
                 >
-                  <span className="conn-name">{conn.name}</span>
-                  <span className="conn-type">{conn.type.toUpperCase()}</span>
+                  ← Back to Connections
                 </button>
-              ))}
+                <button 
+                  className="btn-primary" 
+                  onClick={() => {
+                    if (onConnectionCreated && selectedConnection) {
+                      onConnectionCreated(selectedConnection);
+                    }
+                  }}
+                >
+                  Next: Profile Data →
+                </button>
+              </div>
             </div>
-            <hr />
           </div>
+        ) : (
+          <>
+            {/* Existing Connections */}
+            {existingConnections.length > 0 && (
+              <div className="existing-connections">
+                <h3>Recent Connections</h3>
+                <div className="connection-list">
+                  {existingConnections.map(conn => (
+                    <button
+                      key={conn.id}
+                      className="connection-item"
+                      onClick={() => handleSelectExisting(conn)}
+                      disabled={loading}
+                    >
+                      <span className="conn-name">{conn.name}</span>
+                      <span className="conn-type">{conn.type.toUpperCase()}</span>
+                    </button>
+                  ))}
+                </div>
+                <hr />
+              </div>
+            )}
+
+            {/* New Connection Form */}
+            <form onSubmit={handleCreateConnection} className="connection-form">
+              <fieldset disabled={loading}>
+                {/* Type Selector */}
+                <div className="form-group">
+                  <label>Data Source Type</label>
+                  <div className="type-selector">
+                    {Object.entries(configs).map(([type, cfg]) => (
+                      <label key={type} className="type-option">
+                        <input
+                          type="radio"
+                          name="connectionType"
+                          value={type}
+                          checked={connectionType === type}
+                          onChange={() => {
+                            setConnectionType(type);
+                            setInputMode('link');
+                          }}
+                        />
+                        <span className="type-icon">{cfg.icon}</span>
+                        <span className="type-label">{cfg.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dual-mode selector */}
+                {supportsDualMode && (
+                  <div className="form-group mode-selector">
+                    <label>Input Mode</label>
+                    <div className="mode-options">
+                      <label className="mode-option">
+                        <input
+                          type="radio"
+                          name="inputMode"
+                          value="link"
+                          checked={inputMode === 'link'}
+                          onChange={() => setInputMode('link')}
+                        />
+                        <span className="mode-icon">🔗</span>
+                        <span>Link</span>
+                      </label>
+                      <label className="mode-option">
+                        <input
+                          type="radio"
+                          name="inputMode"
+                          value="upload"
+                          checked={inputMode === 'upload'}
+                          onChange={() => setInputMode('upload')}
+                        />
+                        <span className="mode-icon">📤</span>
+                        <span>Upload</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* URL Input or File Upload */}
+                {!supportsDualMode || inputMode === 'link' ? (
+                  <div className="form-group">
+                    <label htmlFor="url">
+                      {connectionType === 'postgres' ? 'Connection String' : 'URL or Path'}
+                    </label>
+                    <input
+                      id="url"
+                      type="text"
+                      value={url}
+                      onChange={e => setUrl(e.target.value)}
+                      placeholder={config.placeholder}
+                      required
+                    />
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <label htmlFor="file-upload">Select File</label>
+                    <div className="file-upload-area">
+                      <p style={{ color: '#666', marginBottom: '10px', fontSize: '14px' }}>📤 Upload File</p>
+                      <input
+                        id="file-upload"
+                        type="file"
+                        accept={connectionType === 'csv' ? '.csv' : '.parquet'}
+                        onChange={e => setUploadFile(e.target.files?.[0] || null)}
+                        required
+                      />
+                      {uploadFile && <p className="file-selected">✓ {uploadFile.name}</p>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Secret (optional) */}
+                {!supportsDualMode || inputMode === 'link' ? (
+                  <div className="form-group">
+                    <label htmlFor="secret">API Key (optional)</label>
+                    <input
+                      id="secret"
+                      type="password"
+                      value={secret}
+                      onChange={e => setSecret(e.target.value)}
+                      placeholder="Leave blank if not needed"
+                    />
+                  </div>
+                ) : null}
+
+                {/* Messages */}
+                {error && <div className="error-message">{error}</div>}
+                {success && <div className="success-message">{success}</div>}
+
+                {/* Submit Button */}
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? '⏳ Processing...' : supportsDualMode && inputMode === 'upload' ? '📤 Upload & Connect' : '✓ Connect'}
+                </button>
+              </fieldset>
+            </form>
+          </>
         )}
-
-        {/* New Connection Form */}
-        <form onSubmit={handleCreateConnection} className="connection-form">
-          <fieldset disabled={loading}>
-            {/* Type Selector */}
-            <div className="form-group">
-              <label>Data Source Type</label>
-              <div className="type-selector">
-                {Object.entries(configs).map(([type, cfg]) => (
-                  <label key={type} className="type-option">
-                    <input
-                      type="radio"
-                      name="connectionType"
-                      value={type}
-                      checked={connectionType === type}
-                      onChange={() => {
-                        setConnectionType(type);
-                        setInputMode('link');
-                      }}
-                    />
-                    <span className="type-icon">{cfg.icon}</span>
-                    <span className="type-label">{cfg.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Dual-mode selector */}
-            {supportsDualMode && (
-              <div className="form-group mode-selector">
-                <label>Input Mode</label>
-                <div className="mode-options">
-                  <label className="mode-option">
-                    <input
-                      type="radio"
-                      name="inputMode"
-                      value="link"
-                      checked={inputMode === 'link'}
-                      onChange={() => setInputMode('link')}
-                    />
-                    <span className="mode-icon">🔗</span>
-                    <span>Link</span>
-                  </label>
-                  <label className="mode-option">
-                    <input
-                      type="radio"
-                      name="inputMode"
-                      value="upload"
-                      checked={inputMode === 'upload'}
-                      onChange={() => setInputMode('upload')}
-                    />
-                    <span className="mode-icon">📤</span>
-                    <span>Upload</span>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {/* URL Input or File Upload */}
-            {!supportsDualMode || inputMode === 'link' ? (
-              <div className="form-group">
-                <label htmlFor="url">
-                  {connectionType === 'postgres' ? 'Connection String' : 'URL or Path'}
-                </label>
-                <input
-                  id="url"
-                  type="text"
-                  value={url}
-                  onChange={e => setUrl(e.target.value)}
-                  placeholder={config.placeholder}
-                  required
-                />
-              </div>
-            ) : (
-              <div className="form-group">
-                <label htmlFor="file-upload">Select File</label>
-                <div className="file-upload-area">
-                  <input
-                    id="file-upload"
-                    type="file"
-                    accept={connectionType === 'csv' ? '.csv' : '.parquet'}
-                    onChange={e => setUploadFile(e.target.files?.[0] || null)}
-                    required
-                  />
-                  {uploadFile && <p className="file-selected">✓ {uploadFile.name}</p>}
-                </div>
-              </div>
-            )}
-
-            {/* Secret (optional) */}
-            {!supportsDualMode || inputMode === 'link' ? (
-              <div className="form-group">
-                <label htmlFor="secret">API Key (optional)</label>
-                <input
-                  id="secret"
-                  type="password"
-                  value={secret}
-                  onChange={e => setSecret(e.target.value)}
-                  placeholder="Leave blank if not needed"
-                />
-              </div>
-            ) : null}
-
-            {/* Messages */}
-            {error && <div className="error-message">{error}</div>}
-            {success && <div className="success-message">{success}</div>}
-
-            {/* Submit Button */}
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? '⏳ Processing...' : supportsDualMode && inputMode === 'upload' ? '📤 Upload & Connect' : '✓ Connect'}
-            </button>
-          </fieldset>
-        </form>
       </div>
     </div>
   );

@@ -58,8 +58,9 @@ async def profile_dataset(
         # Store metadata snapshot
         snapshot = MetadataSnapshot(
             connection_id=conn.id,
-            schema_info=json.dumps(schema),
-            profile_info=json.dumps(profile),
+            dataset_identifier=dataset_id,
+            schema_json=schema,  # Use correct field name
+            profile_json=profile,  # Use correct field name
         )
         db.add(snapshot)
         db.commit()
@@ -95,8 +96,8 @@ async def get_metadata_snapshot(
         return MetadataProfileResponse(
             snapshot_id=snapshot.id,
             connection_id=snapshot.connection_id,
-            schema=json.loads(snapshot.schema_info),
-            profile=json.loads(snapshot.profile_info),
+            schema=snapshot.schema_json if isinstance(snapshot.schema_json, dict) else (json.loads(snapshot.schema_json) if snapshot.schema_json else {}),
+            profile=snapshot.profile_json if isinstance(snapshot.profile_json, dict) else (json.loads(snapshot.profile_json) if snapshot.profile_json else {}),
             profiled_at=snapshot.created_at,
         )
     except HTTPException:
@@ -121,8 +122,8 @@ async def list_snapshots_for_connection(
             MetadataProfileResponse(
                 snapshot_id=s.id,
                 connection_id=s.connection_id,
-                schema=json.loads(s.schema_info),
-                profile=json.loads(s.profile_info),
+                schema=s.schema_json if isinstance(s.schema_json, dict) else (json.loads(s.schema_json) if s.schema_json else {}),
+                profile=s.profile_json if isinstance(s.profile_json, dict) else (json.loads(s.profile_json) if s.profile_json else {}),
                 profiled_at=s.created_at,
             )
             for s in snapshots

@@ -44,8 +44,12 @@ class MetadataProfileRequest(BaseModel):
     tables: Optional[List[str]] = None
 
 class MetadataProfileResponse(BaseModel):
-    """Deprecated - use MetadataSnapshotResponse"""
-    pass
+    """Response for metadata profiling operations"""
+    snapshot_id: UUID
+    connection_id: UUID
+    schema: Optional[Dict[str, Any]] = None
+    profile: Optional[Dict[str, Any]] = None
+    profiled_at: datetime
 
 class MetadataSnapshotResponse(BaseModel):
     id: UUID
@@ -67,7 +71,8 @@ class CheckSuggestionDTO(BaseModel):
     suggested_yaml: str
 
 class SuggestionsRequest(BaseModel):
-    metadata_snapshot_id: UUID
+    metadata_snapshot_id: Optional[UUID] = None
+    connection_id: Optional[UUID] = None  # Alternative: get latest snapshot for connection
     confidence_threshold: Optional[float] = 0.5
 
 class SuggestionsResponse(BaseModel):

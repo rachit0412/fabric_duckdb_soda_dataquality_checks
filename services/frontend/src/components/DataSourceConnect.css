@@ -393,6 +393,119 @@
   margin-bottom: 0;
 }
 
+/* ════════════════════════════════════════ */
+/* Success State */
+/* ════════════════════════════════════════ */
+
+.success-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.success-card {
+  width: 100%;
+  padding: 40px;
+  text-align: center;
+  background: linear-gradient(135deg, #f5f7ff 0%, #f0f4ff 100%);
+  border-radius: 12px;
+  border: 2px solid #667eea;
+}
+
+.success-icon {
+  font-size: 60px;
+  margin-bottom: 20px;
+  animation: bounce 0.6s ease;
+}
+
+@keyframes bounce {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.success-card h3 {
+  color: #333;
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+.selected-connection-display {
+  margin: 30px 0;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.conn-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: center;
+}
+
+.conn-icon {
+  font-size: 40px;
+}
+
+.conn-label {
+  font-weight: 600;
+  font-size: 18px;
+  color: #333;
+}
+
+.conn-type {
+  background: #667eea;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  margin-top: 6px;
+}
+
+.success-message {
+  color: #3c3;
+  font-weight: 600;
+  margin: 20px 0 30px 0;
+  font-size: 16px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.action-buttons .btn-primary {
+  flex: 1;
+  max-width: 250px;
+}
+
+@media (max-width: 600px) {
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .action-buttons .btn-primary {
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 600px) {
   .connect-container {
     padding: 20px;

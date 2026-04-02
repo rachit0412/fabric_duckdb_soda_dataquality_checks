@@ -27,27 +27,59 @@ async def get_suggestions(
 ):
     """
     Get AI-generated check suggestions for a dataset.
+    Accepts either metadata_snapshot_id or connection_id (gets latest snapshot).
     """
     try:
         # Get metadata snapshot
-        snapshot = db.query(MetadataSnapshot).filter(
-            MetadataSnapshot.id == request.metadata_snapshot_id
-        ).first()
+        snapshot = None
+        if request.metadata_snapshot_id:
+            snapshot = db.query(MetadataSnapshot).filter(
+                MetadataSnapshot.id == request.metadata_snapshot_id
+            ).first()
+        elif request.connection_id:
+            # Get latest snapshot for connection
+            snapshot = db.query(MetadataSnapshot).filter(
+                MetadataSnapshot.connection_id == request.connection_id
+            ).order_by(MetadataSnapshot.created_at.desc()).first()
+        else:
+            raise HTTPException(status_code=400, detail="Must provide either metadata_snapshot_id or connection_id")
         
         if not snapshot:
             raise HTTPException(status_code=404, detail="Metadata snapshot not found")
         
         logger.info(f"Generating suggestions for snapshot: {snapshot.id}")
         
-        # Extract schema and profile
-        schema = json.loads(snapshot.schema_info) if snapshot.schema_info else {}
-        profile = json.loads(snapshot.profile_info) if snapshot.profile_info else {}
+        # Extract schema and profile (already deserialized by SQLAlchemy)
+        schema = snapshot.schema_json if isinstance(snapshot.schema_json, dict) else (json.loads(snapshot.schema_json) if snapshot.schema_json else {})
+        profile = snapshot.profile_json if isinstance(snapshot.profile_json, dict) else (json.loads(snapshot.profile_json) if snapshot.profile_json else {})
+        
+        # Type mapping to normalize profiler types to SQL types
+        type_mapping = {
+            'NUMBER': 'NUMERIC',
+            'STRING': 'VARCHAR',
+            'Date': 'TIMESTAMP',
+            'bool': 'BOOLEAN',
+            'Boolean': 'BOOLEAN',
+        }
+        
+        # Merge profile data into schema columns for suggestion rules
+        enriched_schema = schema.copy()
+        if 'columns' in enriched_schema and profile:
+            for column in enriched_schema['columns']:
+                col_name = column.get('name')
+                if col_name and col_name in profile:
+                    col_profile = profile[col_name]
+                    column['row_count'] = col_profile.get('row_count', 0)
+                    column['null_count'] = col_profile.get('null_count', 0)
+                    column['null_percent'] = col_profile.get('null_percent', 0)
+                    column['distinct_count'] = col_profile.get('distinct_count', 0)
+                # Normalize type names
+                original_type = column.get('type', '')
+                column['type'] = type_mapping.get(original_type, original_type)
         
         # Run suggestion engine
-        suggestions_list = suggestion_engine.suggest_checks(
-            schema=schema,
-            profile=profile,
-            confidence_threshold=request.confidence_threshold or 0.5
+        suggestions_list = suggestion_engine.generate_suggestions(
+            schema=enriched_schema
         )
         
         # Store suggestions in database
@@ -55,12 +87,12 @@ async def get_suggestions(
         for suggestion in suggestions_list:
             db_suggestion = CheckSuggestion(
                 metadata_snapshot_id=snapshot.id,
-                check_name=suggestion['name'],
-                description=suggestion['description'],
-                check_configuration=json.dumps(suggestion['config']),
-                confidence_score=suggestion['confidence'],
-                rule_category=suggestion['category'],
-                rationale=suggestion['rationale'],
+                rule_id=suggestion.get('rule_id', ''),
+                check_name=suggestion.get('check_name', ''),
+                check_type=suggestion.get('check_type', ''),
+                rationale=suggestion.get('rationale', ''),
+                suggested_check_yaml=suggestion.get('suggested_yaml', ''),
+                confidence_score=suggestion.get('confidence', 0.5),
             )
             db.add(db_suggestion)
             stored_suggestions.append(db_suggestion)
@@ -78,12 +110,12 @@ async def get_suggestions(
             suggestions=[
                 {
                     'id': str(s.id),
-                    'name': s.check_name,
-                    'description': s.description,
-                    'category': s.rule_category,
-                    'confidence': s.confidence_score,
-                    'configuration': json.loads(s.check_configuration) if s.check_configuration else {},
+                    'rule_id': s.rule_id,
+                    'check_name': s.check_name,
+                    'check_type': s.check_type,
                     'rationale': s.rationale,
+                    'confidence': s.confidence_score,
+                    'suggested_check_yaml': s.suggested_check_yaml,
                 }
                 for s in stored_suggestions
             ],
