@@ -19,6 +19,7 @@ from src.core.config import settings
 from src.storage.db import init_db, close_db, engine
 from src.models.db import Base
 from src.api.routes import connection, metadata, suggestions, checks, runs, results
+from src.worker import start_worker, stop_worker
 
 # Configure logging
 LOGGING_CONFIG = {
@@ -59,14 +60,17 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     logger.info("Database schema initialized")
     
-    # TODO: Start worker if enabled
+    # Start worker if enabled
     if settings.WORKER_ENABLED:
-        logger.info("Worker process enabled (TODO: implement)")
+        logger.info("Starting check execution worker")
+        start_worker()
     
     yield
     
     # Shutdown
     logger.info("Shutting down")
+    if settings.WORKER_ENABLED:
+        stop_worker()
     close_db()
 
 # Create FastAPI app

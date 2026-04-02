@@ -4,10 +4,10 @@ View and export check execution results
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from starlette.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
+from datetime import datetime
 import logging
 import json
 from io import BytesIO
@@ -59,17 +59,18 @@ async def get_run_results(run_id: UUID, db: Session = Depends(get_db)):
                     check_name=r.check_name,
                     outcome=r.outcome,
                     message=r.message,
-                    details=r.details,
-                    failed_rows=r.failed_rows or [],
-                    metrics=r.metrics or {},
+                    details=json.loads(r.details) if isinstance(r.details, str) else (r.details or {}),
+                    failed_rows=json.loads(r.failed_rows) if isinstance(r.failed_rows, str) else (r.failed_rows or []),
+                    metrics=json.loads(r.metrics) if isinstance(r.metrics, str) else (r.metrics or {}),
                     created_at=r.created_at,
                 )
                 for r in results
             ],
         )
-    
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Failed to get run results: {e}")
+        logger.error(f"Failed to get run results: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -87,11 +88,13 @@ async def get_check_result(result_id: UUID, db: Session = Depends(get_db)):
             check_name=result.check_name,
             outcome=result.outcome,
             message=result.message,
-            details=result.details,
-            failed_rows=result.failed_rows or [],
-            metrics=result.metrics or {},
+            details=json.loads(result.details) if isinstance(result.details, str) else (result.details or {}),
+            failed_rows=json.loads(result.failed_rows) if isinstance(result.failed_rows, str) else (result.failed_rows or []),
+            metrics=json.loads(result.metrics) if isinstance(result.metrics, str) else (result.metrics or {}),
             created_at=result.created_at,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get check result: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -112,7 +115,8 @@ async def get_results_summary(run_id: UUID, db: Session = Depends(get_db)):
         # Group by check category
         by_category = {}
         for r in results:
-            cat = r.details.get('category', 'other') if isinstance(r.details, dict) else 'other'
+            details = json.loads(r.details) if isinstance(r.details, str) else (r.details or {})
+            cat = details.get('category', 'other')
             if cat not in by_category:
                 by_category[cat] = {'passed': 0, 'failed': 0}
             
@@ -137,7 +141,7 @@ async def get_results_summary(run_id: UUID, db: Session = Depends(get_db)):
 @router.post("/export")
 async def export_results(request: ExportRequest, db: Session = Depends(get_db)):
     """
-    Export results in multiple formats (JSON, CSV, HTML, PDF)
+    Export results in multiple formats (JSON, CSV)
     """
     try:
         # Get results
@@ -159,7 +163,7 @@ async def export_results(request: ExportRequest, db: Session = Depends(get_db)):
                         'check_name': r.check_name,
                         'outcome': r.outcome,
                         'message': r.message,
-                        'details': r.details,
+                        'details': json.loads(r.details) if isinstance(r.details, str) else r.details,
                     }
                     for r in results
                 ]
@@ -173,11 +177,12 @@ async def export_results(request: ExportRequest, db: Session = Depends(get_db)):
             writer = csv.writer(output)
             writer.writerow(['Check Name', 'Outcome', 'Message', 'Details'])
             for r in results:
+                details_dict = json.loads(r.details) if isinstance(r.details, str) else r.details
                 writer.writerow([
                     r.check_name,
                     r.outcome,
                     r.message,
-                    json.dumps(r.details) if r.details else ''
+                    json.dumps(details_dict) if details_dict else ''
                 ])
             content = output.getvalue()
             filename = f"results_{request.run_id}.csv"
@@ -194,7 +199,8 @@ async def export_results(request: ExportRequest, db: Session = Depends(get_db)):
             'size': len(content),
             'download_url': f'/api/v1/results/download/{request.run_id}?format={format_type}'
         }
-    
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to export results: {e}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -247,10 +253,9 @@ async def compare_runs(
                 )
         
         return comparison
-    
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to compare runs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-from datetime import datetime

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
 import logging
+import json
 
 from src.api.models import SuggestionsRequest, SuggestionsResponse
 from src.models.db import MetadataSnapshot, CheckSuggestion
@@ -26,7 +27,6 @@ async def get_suggestions(
 ):
     """
     Get AI-generated check suggestions for a dataset.
-    Based on metadata snapshot, engine recommends quality checks.
     """
     try:
         # Get metadata snapshot
@@ -39,9 +39,9 @@ async def get_suggestions(
         
         logger.info(f"Generating suggestions for snapshot: {snapshot.id}")
         
-        # Extract schema info
-        schema = snapshot.schema_definition or {}
-        profile = snapshot.profile_data or {}
+        # Extract schema and profile
+        schema = json.loads(snapshot.schema_info) if snapshot.schema_info else {}
+        profile = json.loads(snapshot.profile_info) if snapshot.profile_info else {}
         
         # Run suggestion engine
         suggestions_list = suggestion_engine.suggest_checks(
@@ -50,14 +50,14 @@ async def get_suggestions(
             confidence_threshold=request.confidence_threshold or 0.5
         )
         
-        # Store suggestions
+        # Store suggestions in database
         stored_suggestions = []
         for suggestion in suggestions_list:
             db_suggestion = CheckSuggestion(
                 metadata_snapshot_id=snapshot.id,
                 check_name=suggestion['name'],
                 description=suggestion['description'],
-                check_configuration=suggestion['config'],
+                check_configuration=json.dumps(suggestion['config']),
                 confidence_score=suggestion['confidence'],
                 rule_category=suggestion['category'],
                 rationale=suggestion['rationale'],
@@ -82,7 +82,7 @@ async def get_suggestions(
                     'description': s.description,
                     'category': s.rule_category,
                     'confidence': s.confidence_score,
-                    'configuration': s.check_configuration,
+                    'configuration': json.loads(s.check_configuration) if s.check_configuration else {},
                     'rationale': s.rationale,
                 }
                 for s in stored_suggestions
@@ -90,9 +90,10 @@ async def get_suggestions(
             total_suggestions=len(stored_suggestions),
             generated_at=stored_suggestions[0].created_at if stored_suggestions else None,
         )
-    
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Failed to generate suggestions: {e}")
+        logger.error(f"Failed to generate suggestions: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -123,7 +124,7 @@ async def get_snapshot_suggestions(
                     'description': s.description,
                     'category': s.rule_category,
                     'confidence': s.confidence_score,
-                    'configuration': s.check_configuration,
+                    'configuration': json.loads(s.check_configuration) if s.check_configuration else {},
                     'rationale': s.rationale,
                 }
                 for s in suggestions
@@ -131,7 +132,8 @@ async def get_snapshot_suggestions(
             total_suggestions=len(suggestions),
             generated_at=suggestions[0].created_at if suggestions else None,
         )
-    
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get suggestions: {e}")
         raise HTTPException(status_code=500, detail=str(e))

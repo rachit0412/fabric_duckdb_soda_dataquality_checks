@@ -1,201 +1,149 @@
-/**
- * DataSourceConnect Component V2
- * Step 1: Connect to a data source with dual-mode support (Link + Upload for CSV/Parquet)
- */
-
 import React, { useState, useEffect } from 'react';
-import apiClient from '../api/client';
 import './DataSourceConnect.css';
 
-export default function DataSourceConnect({ onConnectionCreated, onNext }) {
+const API_BASE = 'http://localhost:8000/api/v1';
+
+export default function DataSourceConnectV2() {
   const [connectionType, setConnectionType] = useState('postgres');
-  const [inputMode, setInputMode] = useState('link'); // 'link' or 'upload' for CSV/Parquet
-  const [formData, setFormData] = useState({
-    name: '',
-    remote_url: '',
-    secret: '',
-  });
+  const [inputMode, setInputMode] = useState('link');
+  const [url, setUrl] = useState('');
   const [uploadFile, setUploadFile] = useState(null);
+  const [secret, setSecret] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [existingConnections, setExistingConnections] = useState([]);
 
-  // Load existing connections on mount
-  useEffect(() => {
-    loadConnections();
-  }, []);
-
-  // Reset mode when switching connection type
-  useEffect(() => {
-    setInputMode(['csv', 'parquet'].includes(connectionType) ? 'link' : 'link');
-    setUploadFile(null);
-    setFormData({ name: '', remote_url: '', secret: '' });
-  }, [connectionType]);
-
-  const loadConnections = async () => {
-    try {
-      const connections = await apiClient.listConnections();
-      setExistingConnections(connections);
-    } catch (err) {
-      console.error('Failed to load connections:', err);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      const expectedExt = connectionType === 'csv' ? 'csv' : 'parquet';
-      
-      if (ext !== expectedExt) {
-        setError(`Please select a ${expectedExt.toUpperCase()} file`);
-        return;
-      }
-
-      if (file.size > 500 * 1024 * 1024) { // 500MB limit
-        setError('File size exceeds 500MB limit');
-        return;
-      }
-
-      setUploadFile(file);
-      setError('');
-    }
-  };
-
-  const handleCreateConnection = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      // Validate inputs
-      if (!formData.name.trim()) {
-        throw new Error('Connection name is required');
-      }
-
-      let connection;
-
-      if (['csv', 'parquet'].includes(connectionType) && inputMode === 'upload') {
-        // File upload mode
-        if (!uploadFile) {
-          throw new Error(`Please select a ${connectionType.toUpperCase()} file to upload`);
-        }
-
-        connection = await apiClient.uploadDataSource({
-          name: formData.name,
-          type: connectionType,
-          file: uploadFile,
-        });
-      } else {
-        // Link mode (for all types, or CSV/Parquet with URL)
-        if (!formData.remote_url.trim()) {
-          throw new Error('URL or connection string is required');
-        }
-
-        connection = await apiClient.createConnection({
-          name: formData.name,
-          type: connectionType,
-          remote_url: formData.remote_url,
-          secret: formData.secret || '',
-        });
-      }
-
-      const modeText = inputMode === 'upload' ? 'uploaded' : 'linked';
-      setSuccess(`✓ Connection "${connection.name}" ${modeText} successfully`);
-      setFormData({ name: '', remote_url: '', secret: '' });
-      setUploadFile(null);
-      
-      // Reload connections list
-      await loadConnections();
-      
-      // Call parent callback
-      if (onConnectionCreated) {
-        onConnectionCreated(connection);
-      }
-
-      // Optionally proceed to next step
-      if (onNext) {
-        setTimeout(() => onNext(connection), 1500);
-      }
-    } catch (err) {
-      setError(err.message || 'Failed to create connection');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSelectExisting = async (connection) => {
-    setLoading(true);
-    try {
-      // Test the connection
-      await apiClient.testConnection(connection.id);
-      setSuccess(`✓ Connection "${connection.name}" verified`);
-      
-      if (onConnectionCreated) {
-        onConnectionCreated(connection);
-      }
-      
-      if (onNext) {
-        setTimeout(() => onNext(connection), 1000);
-      }
-    } catch (err) {
-      setError(`Failed to verify connection: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const connectionTypeConfig = {
+  // Connection type configurations
+  const configs = {
     postgres: {
       label: 'PostgreSQL',
-      placeholder: 'postgresql://user:password@host:5432/database',
       icon: '🐘',
-      description: 'Connect to PostgreSQL database',
+      placeholder: 'postgresql://user:pass@host:5432/db',
       dualmodeSupport: false,
-      offlineMode: false,
     },
     csv: {
       label: 'CSV File',
-      placeholder: 's3://bucket/file.csv or /local/path/file.csv',
       icon: '📄',
-      description: 'Import CSV files from URL or upload directly',
+      placeholder: 's3://bucket/file.csv',
       dualmodeSupport: true,
-      offlineMode: true, // Upload mode works offline
     },
     parquet: {
       label: 'Parquet File',
-      placeholder: 's3://bucket/file.parquet or /local/path/file.parquet',
       icon: '📦',
-      description: 'Import Parquet files from URL or upload directly',
+      placeholder: 's3://bucket/file.parquet',
       dualmodeSupport: true,
-      offlineMode: true, // Upload mode works offline
     },
     snowflake: {
       label: 'Snowflake',
-      placeholder: 'snowflake://account.region/database/schema',
       icon: '❄️',
-      description: 'Connect to Snowflake data warehouse',
+      placeholder: 'snowflake://account/database/schema',
       dualmodeSupport: false,
-      offlineMode: false,
     },
   };
 
-  const config = connectionTypeConfig[connectionType];
+  const config = configs[connectionType];
   const supportsDualMode = config.dualmodeSupport;
+
+  // Load existing connections on mount
+  useEffect(() => {
+    const loadConnections = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/connections/`);
+        const data = await res.json();
+        setExistingConnections(data.connections || []);
+      } catch (e) {
+        console.error('Failed to load connections:', e);
+      }
+    };
+    loadConnections();
+  }, []);
+
+  // Build connection payload
+  const buildPayload = () => {
+    const autoName = `${connectionType}_${Date.now()}`;
+
+    if (supportsDualMode && inputMode === 'upload') {
+      if (!uploadFile) throw new Error('Please select a file');
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('type', connectionType);
+      formData.append('name', autoName);
+      return { formData, isMultipart: true };
+    }
+
+    if (!url.trim()) throw new Error('URL/connection string required');
+    return {
+      data: {
+        type: connectionType,
+        name: autoName,
+        remote_url: url,
+        secret: secret || undefined,
+      },
+      isMultipart: false,
+    };
+  };
+
+  // Handle connection creation
+  const handleCreateConnection = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const payload = buildPayload();
+      const options = {
+        method: 'POST',
+        ...(payload.isMultipart
+          ? { body: payload.formData }
+          : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload.data) }),
+      };
+
+      const res = await fetch(`${API_BASE}/connections/`, options);
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || `HTTP ${res.status}`);
+      }
+
+      const result = await res.json();
+      setSuccess(`✓ Connected as "${result.connection_name}"`);
+      setUrl('');
+      setUploadFile(null);
+      setSecret('');
+
+      // Reload connections list
+      const listRes = await fetch(`${API_BASE}/connections/`);
+      const listData = await listRes.json();
+      setExistingConnections(listData.connections || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle selecting existing connection
+  const handleSelectExisting = async (conn) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/connections/${conn.id}/test`, { method: 'POST' });
+      if (res.ok) {
+        setSuccess(`✓ Connection "${conn.name}" verified and ready`);
+      } else {
+        setError(`✗ Connection test failed for "${conn.name}"`);
+      }
+    } catch (err) {
+      setError(`Error testing connection: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="data-source-connect">
       <div className="connect-container">
         <h2>📊 Step 1: Connect Data Source</h2>
-        <p className="subtitle">Link your database or file to start quality checks</p>
 
         {/* Existing Connections */}
         {existingConnections.length > 0 && (
@@ -211,9 +159,6 @@ export default function DataSourceConnect({ onConnectionCreated, onNext }) {
                 >
                   <span className="conn-name">{conn.name}</span>
                   <span className="conn-type">{conn.type.toUpperCase()}</span>
-                  <span className="conn-date">
-                    {new Date(conn.created_at).toLocaleDateString()}
-                  </span>
                 </button>
               ))}
             </div>
@@ -224,28 +169,30 @@ export default function DataSourceConnect({ onConnectionCreated, onNext }) {
         {/* New Connection Form */}
         <form onSubmit={handleCreateConnection} className="connection-form">
           <fieldset disabled={loading}>
-            {/* Connection Type Selector */}
+            {/* Type Selector */}
             <div className="form-group">
               <label>Data Source Type</label>
               <div className="type-selector">
-                {Object.entries(connectionTypeConfig).map(([type, cfg]) => (
+                {Object.entries(configs).map(([type, cfg]) => (
                   <label key={type} className="type-option">
                     <input
                       type="radio"
                       name="connectionType"
                       value={type}
                       checked={connectionType === type}
-                      onChange={() => setConnectionType(type)}
+                      onChange={() => {
+                        setConnectionType(type);
+                        setInputMode('link');
+                      }}
                     />
                     <span className="type-icon">{cfg.icon}</span>
                     <span className="type-label">{cfg.label}</span>
                   </label>
                 ))}
               </div>
-              <p className="config-description">{config.description}</p>
             </div>
 
-            {/* Dual-mode selector for CSV/Parquet */}
+            {/* Dual-mode selector */}
             {supportsDualMode && (
               <div className="form-group mode-selector">
                 <label>Input Mode</label>
@@ -259,8 +206,7 @@ export default function DataSourceConnect({ onConnectionCreated, onNext }) {
                       onChange={() => setInputMode('link')}
                     />
                     <span className="mode-icon">🔗</span>
-                    <span className="mode-label">Link</span>
-                    <span className="mode-desc">URL or S3 path</span>
+                    <span>Link</span>
                   </label>
                   <label className="mode-option">
                     <input
@@ -271,97 +217,64 @@ export default function DataSourceConnect({ onConnectionCreated, onNext }) {
                       onChange={() => setInputMode('upload')}
                     />
                     <span className="mode-icon">📤</span>
-                    <span className="mode-label">Upload</span>
-                    <span className="mode-desc">Direct file upload (offline ✓)</span>
+                    <span>Upload</span>
                   </label>
                 </div>
               </div>
             )}
 
-            {/* Connection Name */}
-            <div className="form-group">
-              <label htmlFor="name">Connection Name *</label>
-              <input
-                id="name"
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="e.g., Production Database"
-                required
-              />
-            </div>
-
-            {/* Conditional input: Link or Upload */}
+            {/* URL Input or File Upload */}
             {!supportsDualMode || inputMode === 'link' ? (
               <div className="form-group">
-                <label htmlFor="remote_url">
-                  {connectionType === 'postgres' ? 'Connection String' : 'URL or Path'} *
+                <label htmlFor="url">
+                  {connectionType === 'postgres' ? 'Connection String' : 'URL or Path'}
                 </label>
                 <input
-                  id="remote_url"
+                  id="url"
                   type="text"
-                  name="remote_url"
-                  value={formData.remote_url}
-                  onChange={handleInputChange}
+                  value={url}
+                  onChange={e => setUrl(e.target.value)}
                   placeholder={config.placeholder}
                   required
                 />
-                <p className="hint">
-                  {connectionType === 'postgres' && 'Format: postgresql://user:password@host:port/database'}
-                  {connectionType === 'csv' && 'HTTP URL, S3 path (s3://bucket/file.csv), or local path (/path/file.csv)'}
-                  {connectionType === 'parquet' && 'HTTP URL, S3 path (s3://bucket/file.parquet), or local path (/path/file.parquet)'}
-                  {connectionType === 'snowflake' && 'Format: snowflake://account-id/database/schema'}
-                </p>
               </div>
             ) : (
               <div className="form-group">
-                <label htmlFor="file-upload">
-                  Select {connectionType.toUpperCase()} File *
-                </label>
+                <label htmlFor="file-upload">Select File</label>
                 <div className="file-upload-area">
                   <input
                     id="file-upload"
                     type="file"
                     accept={connectionType === 'csv' ? '.csv' : '.parquet'}
-                    onChange={handleFileChange}
+                    onChange={e => setUploadFile(e.target.files?.[0] || null)}
                     required
                   />
-                  <div className="upload-hint">
-                    {uploadFile ? (
-                      <p className="file-selected">✓ {uploadFile.name} ({(uploadFile.size / 1024 / 1024).toFixed(2)} MB)</p>
-                    ) : (
-                      <p>Drag & drop or click to select {connectionType.toUpperCase()} file (max 500MB)</p>
-                    )}
-                  </div>
+                  {uploadFile && <p className="file-selected">✓ {uploadFile.name}</p>}
                 </div>
               </div>
             )}
 
-            {/* Secret / Credentials (only for link mode or non-file types) */}
+            {/* Secret (optional) */}
             {!supportsDualMode || inputMode === 'link' ? (
               <div className="form-group">
-                <label htmlFor="secret">API Key / Secret (Optional)</label>
+                <label htmlFor="secret">API Key (optional)</label>
                 <input
                   id="secret"
                   type="password"
-                  name="secret"
-                  value={formData.secret}
-                  onChange={handleInputChange}
-                  placeholder="For cloud services: API key or access token"
+                  value={secret}
+                  onChange={e => setSecret(e.target.value)}
+                  placeholder="Leave blank if not needed"
                 />
               </div>
             ) : null}
 
-            {/* Error Message */}
+            {/* Messages */}
             {error && <div className="error-message">{error}</div>}
-
-            {/* Success Message */}
             {success && <div className="success-message">{success}</div>}
 
             {/* Submit Button */}
             <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? '⏳ Processing...' : supportsDualMode && inputMode === 'upload' ? '📤 Upload & Connect' : '✓ Create Connection'}
+              {loading ? '⏳ Processing...' : supportsDualMode && inputMode === 'upload' ? '📤 Upload & Connect' : '✓ Connect'}
             </button>
           </fieldset>
         </form>

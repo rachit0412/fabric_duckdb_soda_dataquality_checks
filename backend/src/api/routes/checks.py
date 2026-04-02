@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 import logging
+import json
 
 from src.api.models import CheckPlanCreate, CheckPlanResponse
 from src.models.db import CheckPlan, Connection, MetadataSnapshot
@@ -46,8 +47,8 @@ async def create_check_plan(
             name=request.name,
             description=request.description,
             metadata_snapshot_id=request.metadata_snapshot_id,
-            checks_definition=request.checks,  # List of check configs
-            is_active=request.is_active if hasattr(request, 'is_active') else True,
+            checks_definition=json.dumps(request.checks) if request.checks else json.dumps([]),
+            is_active=True,
         )
         
         db.add(plan)
@@ -66,9 +67,10 @@ async def create_check_plan(
             created_at=plan.created_at,
             created_by=plan.created_by,
         )
-    
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Failed to create check plan: {e}")
+        logger.error(f"Failed to create check plan: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -96,7 +98,7 @@ async def list_check_plans(
                 name=p.name,
                 description=p.description,
                 metadata_snapshot_id=p.metadata_snapshot_id,
-                check_count=len(p.checks_definition) if p.checks_definition else 0,
+                check_count=len(json.loads(p.checks_definition)) if p.checks_definition else 0,
                 is_active=p.is_active,
                 created_at=p.created_at,
                 created_by=p.created_by,
@@ -122,7 +124,7 @@ async def get_check_plan(plan_id: UUID, db: Session = Depends(get_db)):
             name=plan.name,
             description=plan.description,
             metadata_snapshot_id=plan.metadata_snapshot_id,
-            check_count=len(plan.checks_definition) if plan.checks_definition else 0,
+            check_count=len(json.loads(plan.checks_definition)) if plan.checks_definition else 0,
             is_active=plan.is_active,
             created_at=plan.created_at,
             created_by=plan.created_by,
@@ -147,7 +149,7 @@ async def update_check_plan(
         
         plan.name = request.name
         plan.description = request.description
-        plan.checks_definition = request.checks
+        plan.checks_definition = json.dumps(request.checks) if request.checks else json.dumps([])
         
         db.commit()
         db.refresh(plan)
@@ -159,7 +161,7 @@ async def update_check_plan(
             name=plan.name,
             description=plan.description,
             metadata_snapshot_id=plan.metadata_snapshot_id,
-            check_count=len(plan.checks_definition) if plan.checks_definition else 0,
+            check_count=len(json.loads(plan.checks_definition)) if plan.checks_definition else 0,
             is_active=plan.is_active,
             created_at=plan.created_at,
             created_by=plan.created_by,
@@ -187,3 +189,4 @@ async def delete_check_plan(plan_id: UUID, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Failed to delete check plan: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+

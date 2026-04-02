@@ -3,42 +3,48 @@ FastAPI Routes: Metadata Management
 Handles dataset profiling and metadata extraction
 """
 
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 import logging
+import json
 
-from src.api.models import MetadataProfileRequest, MetadataProfileResponse, MetadataSnapshotResponse
+from src.api.models import MetadataProfileRequest, MetadataProfileResponse
 from src.models.db import MetadataSnapshot, Connection
-from src.services.metadata import MetadataService
+from src.services.metadata import PostgresConnector, CSVConnector
 from src.storage.db import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["metadata"])
 
-metadata_service = MetadataService()
 
-@router.post("/profile", response_model=MetadataSnapshotResponse)
+@router.post("/profile", response_model=MetadataProfileResponse)
 async def profile_dataset(
     request: MetadataProfileRequest,
-    db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks = None
+    db: Session = Depends(get_db)
 ):
     """
     Profile a dataset to extract schema, data types, and statistics.
-    Stores metadata snapshot in database for later reference.
     """
     try:
         # Get connection
         conn = db.query(Connection).filter(Connection.id == request.connection_id).first()
         if not conn:
-            raise HTTPException(status_code=404, detail=f"Connection {request.connection_id} not found")
+            raise HTTPException(status_code=404, detail=f"Connection not found")
         
         logger.info(f"Profiling dataset for connection: {conn.name}")
         
-        # Get connector (PostgreSQL, CSV, etc)
-        connector = metadata_service.get_connector(conn.type, conn.remote_url, conn.encrypted_secret)
+        # Get appropriate connector
+        if conn.type == "postgres":
+            connector = PostgresConnector(conn.remote_url)
+        elif conn.type == "csv":
+            connector = CSVConnector(conn.remote_url)
+        elif conn.type == "parquet":
+            # For now, treat parquet like CSV (DuckDB handles both)
+            connector = CSVConnector(conn.remote_url)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported connection type: {conn.type}")
         
         # Profile the dataset
         schema = connector.get_schema()
@@ -47,11 +53,8 @@ async def profile_dataset(
         # Store metadata snapshot
         snapshot = MetadataSnapshot(
             connection_id=conn.id,
-            dataset_name=request.dataset_name or conn.name,
-            schema_definition=schema,
-            profile_data=profile,
-            record_count=profile.get('total_records', 0),
-            column_count=profile.get('total_columns', 0),
+            schema_info=json.dumps(schema),
+            profile_info=json.dumps(profile),
         )
         db.add(snapshot)
         db.commit()
@@ -59,65 +62,63 @@ async def profile_dataset(
         
         logger.info(f"Metadata snapshot created: {snapshot.id}")
         
-        return MetadataSnapshotResponse(
-            id=snapshot.id,
-            connection_id=snapshot.connection_id,
-            dataset_name=snapshot.dataset_name,
-            record_count=snapshot.record_count,
-            column_count=snapshot.column_count,
-            created_at=snapshot.created_at,
-            schema_preview=schema,
+        return MetadataProfileResponse(
+            snapshot_id=snapshot.id,
+            connection_id=conn.id,
+            schema=schema,
+            profile=profile,
+            profiled_at=snapshot.created_at,
         )
-    
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Failed to profile dataset: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.get("/{snapshot_id}", response_model=MetadataSnapshotResponse)
-async def get_metadata_snapshot(snapshot_id: UUID, db: Session = Depends(get_db)):
-    """Get a specific metadata snapshot."""
-    try:
-        snapshot = db.query(MetadataSnapshot).filter(MetadataSnapshot.id == snapshot_id).first()
-        if not snapshot:
-            raise HTTPException(status_code=404, detail="Snapshot not found")
-        
-        return MetadataSnapshotResponse(
-            id=snapshot.id,
-            connection_id=snapshot.connection_id,
-            dataset_name=snapshot.dataset_name,
-            record_count=snapshot.record_count,
-            column_count=snapshot.column_count,
-            created_at=snapshot.created_at,
-            schema_preview=snapshot.schema_definition,
-        )
-    except Exception as e:
-        logger.error(f"Failed to get metadata snapshot: {e}")
+        logger.error(f"Failed to profile metadata: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/", response_model=List[MetadataSnapshotResponse])
-async def list_metadata_snapshots(
-    connection_id: Optional[UUID] = None,
+@router.get("/{snapshot_id}", response_model=MetadataProfileResponse)
+async def get_metadata_snapshot(
+    snapshot_id: UUID,
     db: Session = Depends(get_db)
 ):
-    """List all metadata snapshots (optionally filtered by connection)."""
+    """Retrieve a stored metadata snapshot."""
     try:
-        query = db.query(MetadataSnapshot)
-        if connection_id:
-            query = query.filter(MetadataSnapshot.connection_id == connection_id)
-        
-        snapshots = query.order_by(MetadataSnapshot.created_at.desc()).all()
+        snapshot = db.query(MetadataSnapshot).filter(MetadataSnapshot.id == snapshot_id).first()
+        if not snapshot:
+            raise HTTPException(status_code=404, detail="Metadata snapshot not found")
+
+        return MetadataProfileResponse(
+            snapshot_id=snapshot.id,
+            connection_id=snapshot.connection_id,
+            schema=json.loads(snapshot.schema_info),
+            profile=json.loads(snapshot.profile_info),
+            profiled_at=snapshot.created_at,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve metadata snapshot: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/connection/{connection_id}", response_model=List[MetadataProfileResponse])
+async def list_snapshots_for_connection(
+    connection_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """List all metadata snapshots for a connection."""
+    try:
+        snapshots = db.query(MetadataSnapshot).filter(
+            MetadataSnapshot.connection_id == connection_id
+        ).order_by(MetadataSnapshot.created_at.desc()).all()
         
         return [
-            MetadataSnapshotResponse(
-                id=s.id,
+            MetadataProfileResponse(
+                snapshot_id=s.id,
                 connection_id=s.connection_id,
-                dataset_name=s.dataset_name,
-                record_count=s.record_count,
-                column_count=s.column_count,
-                created_at=s.created_at,
-                schema_preview=s.schema_definition,
+                schema=json.loads(s.schema_info),
+                profile=json.loads(s.profile_info),
+                profiled_at=s.created_at,
             )
             for s in snapshots
         ]
@@ -125,21 +126,3 @@ async def list_metadata_snapshots(
         logger.error(f"Failed to list metadata snapshots: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@router.delete("/{snapshot_id}")
-async def delete_metadata_snapshot(snapshot_id: UUID, db: Session = Depends(get_db)):
-    """Delete a metadata snapshot."""
-    try:
-        snapshot = db.query(MetadataSnapshot).filter(MetadataSnapshot.id == snapshot_id).first()
-        if not snapshot:
-            raise HTTPException(status_code=404, detail="Snapshot not found")
-        
-        db.delete(snapshot)
-        db.commit()
-        
-        logger.info(f"Metadata snapshot deleted: {snapshot_id}")
-        
-        return {"message": "Snapshot deleted"}
-    except Exception as e:
-        logger.error(f"Failed to delete metadata snapshot: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
