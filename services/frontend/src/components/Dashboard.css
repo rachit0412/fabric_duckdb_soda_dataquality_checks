@@ -893,6 +893,61 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 15px;
+  margin-bottom: 20px;
+}
+
+.all-soda-checks-section {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  border: 2px dashed #e5e7eb;
+}
+
+.all-soda-checks-section h4,
+.columns-specific-section h4 {
+  margin: 0 0 15px 0;
+  color: #1f2937;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.checks-by-category {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.category-section {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #667eea;
+}
+
+.category-header {
+  font-size: 13px;
+  font-weight: 700;
+  color: #667eea;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 12px;
+  opacity: 0.9;
+}
+
+.checks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.columns-specific-section {
+  background: #f0fdf4;
+  padding: 20px;
+  border-radius: 8px;
+  border: 2px dashed #bbf7d0;
 }
 
 .column-selector {
@@ -919,7 +974,51 @@
 .check-options {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.check-category {
+  border-left: 3px solid #667eea;
+  padding-left: 8px;
+  margin-top: 6px;
+}
+
+.category-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #667eea;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+
+.check-item {
+  display: flex;
+  align-items: flex-start;
   gap: 6px;
+  margin-bottom: 4px;
+}
+
+.check-item label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: normal;
+  font-size: 13px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.check-label {
+  font-weight: 500;
+  color: #333;
+}
+
+.check-description {
+  font-size: 11px;
+  color: #999;
+  font-weight: normal;
 }
 
 .check-options label {
@@ -933,6 +1032,8 @@
 .check-options input[type="checkbox"] {
   margin: 0;
   cursor: pointer;
+  margin-top: 2px;
+  flex-shrink: 0;
 }
 
 .action-buttons {

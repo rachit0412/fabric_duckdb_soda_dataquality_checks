@@ -8,6 +8,108 @@ import DataSourceConnectV2 from './DataSourceConnectV2';
 import ResultsVisualization from './ResultsVisualization';
 import './Dashboard.css';
 
+// SODA Core Native Checks - Comprehensive List
+const SODA_CHECKS = {
+  VOLUME: {
+    category: '📊 Volume Checks',
+    checks: [
+      { id: 'row_count', label: 'row_count (Total rows)', description: 'Validates total number of rows', types: ['ALL'] },
+      { id: 'row_count_range', label: 'row_count (Range)', description: 'Validates rows are within range', types: ['ALL'] },
+    ]
+  },
+  COMPLETENESS: {
+    category: '✅ Completeness Checks',
+    checks: [
+      { id: 'missing_count', label: 'missing_count (NULL/Empty)', description: 'Finds NULL or empty values', types: ['ALL'] },
+      { id: 'missing_percent', label: 'missing_percent (% Missing)', description: 'Percentage of missing values', types: ['ALL'] },
+      { id: 'valid_count', label: 'valid_count (Non-NULL)', description: 'Count of valid (non-NULL) rows', types: ['ALL'] },
+    ]
+  },
+  UNIQUENESS: {
+    category: '🔑 Uniqueness Checks',
+    checks: [
+      { id: 'duplicate_count', label: 'duplicate_count', description: 'Count of duplicate values', types: ['ALL'] },
+      { id: 'invalid_percent', label: 'invalid_percent', description: 'Percentage of invalid values', types: ['ALL'] },
+    ]
+  },
+  VALIDITY: {
+    category: '📝 Validity Checks',
+    checks: [
+      { id: 'invalid_count', label: 'invalid_count (Pattern Match)', description: 'Invalid values matching pattern', types: ['STRING', 'VARCHAR', 'TEXT'] },
+      { id: 'invalid_count_email', label: 'invalid_count (Email Format)', description: 'Invalid email addresses', types: ['STRING', 'VARCHAR', 'TEXT'] },
+      { id: 'valid_emails', label: 'valid_count (Email Format)', description: 'Valid email addresses', types: ['STRING', 'VARCHAR', 'TEXT'] },
+      { id: 'failed_rows', label: 'failed_rows (Custom Pattern)', description: 'Rows matching custom pattern', types: ['ALL'] },
+    ]
+  },
+  STATISTICAL: {
+    category: '📈 Statistical Checks',
+    checks: [
+      { id: 'min', label: 'min (Minimum Value)', description: 'Minimum value in column', types: ['NUMERIC', 'INT', 'FLOAT', 'DOUBLE', 'DATE', 'TIMESTAMP'] },
+      { id: 'max', label: 'max (Maximum Value)', description: 'Maximum value in column', types: ['NUMERIC', 'INT', 'FLOAT', 'DOUBLE', 'DATE', 'TIMESTAMP'] },
+      { id: 'avg', label: 'avg (Average/Mean)', description: 'Average of numeric values', types: ['NUMERIC', 'INT', 'FLOAT', 'DOUBLE'] },
+      { id: 'stddev', label: 'stddev (Standard Deviation)', description: 'Standard deviation of values', types: ['NUMERIC', 'INT', 'FLOAT', 'DOUBLE'] },
+      { id: 'values_between', label: 'values_between (Range)', description: 'Check value falls in range', types: ['NUMERIC', 'INT', 'FLOAT', 'DOUBLE', 'DATE', 'TIMESTAMP'] },
+    ]
+  },
+  SCHEMA: {
+    category: '🏗️ Schema Checks',
+    checks: [
+      { id: 'schema_type', label: 'schema_type (Type Match)', description: 'Validates column data type', types: ['ALL'] },
+      { id: 'schema_column_exists', label: 'Column Exists', description: 'Checks column is present', types: ['ALL'] },
+    ]
+  },
+  DISTRIBUTION: {
+    category: '📊 Distribution Checks',
+    checks: [
+      { id: 'distinct_count', label: 'distinct_count', description: 'Count of distinct values', types: ['ALL'] },
+      { id: 'frequency', label: 'frequency (Value Distribution)', description: 'Frequency of specific values', types: ['ALL'] },
+    ]
+  },
+};
+
+// Determine applicable checks based on column type
+const getApplicableChecks = (columnType) => {
+  const type = (columnType || '').toUpperCase();
+  
+  // Better type detection - handle various type names
+  const isNumeric = ['INT', 'BIGINT', 'FLOAT', 'DOUBLE', 'NUMERIC', 'DECIMAL', 'NUMBER', 'INT64', 'FLOAT64'].some(t => type.includes(t));
+  const isString = ['VARCHAR', 'STRING', 'TEXT', 'CHAR', 'OBJECT'].some(t => type.includes(t));
+  const isDate = ['DATE', 'TIMESTAMP', 'DATETIME', 'TIME', 'DATETIME64'].some(t => type.includes(t));
+  
+  const applicable = {};
+  
+  Object.entries(SODA_CHECKS).forEach(([key, category]) => {
+    applicable[key] = {
+      ...category,
+      checks: category.checks.filter(check => {
+        // Always include checks marked for ALL types
+        if (check.types.includes('ALL')) return true;
+        
+        // Type-specific checks
+        if (isNumeric && check.types.some(t => ['NUMERIC', 'INT', 'FLOAT', 'DOUBLE'].includes(t))) return true;
+        if (isString && check.types.some(t => ['STRING', 'VARCHAR', 'TEXT'].includes(t))) return true;
+        if (isDate && check.types.some(t => ['DATE', 'TIMESTAMP'].includes(t))) return true;
+        
+        return false;
+      })
+    };
+  });
+  
+  return applicable;
+};
+
+// Helper function to get columns from various metadata structures
+const getColumnsFromMetadata = (metadata) => {
+  if (!metadata) return [];
+  
+  // Try different possible structures
+  if (metadata.schema?.columns) return metadata.schema.columns;
+  if (metadata.columns) return metadata.columns;
+  if (Array.isArray(metadata)) return metadata;
+  
+  return [];
+};
+
 export default function Dashboard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedConnection, setSelectedConnection] = useState(null);
@@ -55,8 +157,13 @@ export default function Dashboard() {
       });
       const data = await res.json();
       setMetadata(data);
+      // Persist metadata to localStorage for cross-step access
+      localStorage.setItem(`metadata_${connectionId}`, JSON.stringify(data));
+      console.log('[Metadata] Profiling complete and persisted:', { connectionId, columns: data.schema?.columns?.length || 0 });
     } catch (err) {
-      setError(`Metadata profiling failed: ${err.message}`);
+      const errMsg = `Metadata profiling failed: ${err.message}`;
+      setError(errMsg);
+      console.error('[Metadata] Error:', err);
     } finally {
       setLoading(false);
     }
@@ -66,16 +173,20 @@ export default function Dashboard() {
     setLoading(true);
     setError('');
     try {
+      console.log('[Step 3] Generating AI suggestions for connection:', connectionId);
       const res = await fetch(`${API_BASE}/suggestions/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ connection_id: connectionId, limit: 10 }),
       });
       const data = await res.json();
-      setSuggestions(data.suggestions || []);  // Extract suggestions array
+      setSuggestions(data.suggestions || []);
+      console.log('[Step 3] Received', data.suggestions?.length || 0, 'AI suggestions');
       setCurrentStep(3);
     } catch (err) {
-      setError(`Suggestions generation failed: ${err.message}`);
+      const errMsg = `Suggestions generation failed: ${err.message}`;
+      setError(errMsg);
+      console.error('[Step 3] Error generating suggestions:', err);
     } finally {
       setLoading(false);
     }
@@ -84,6 +195,21 @@ export default function Dashboard() {
   const preparePlan = (checks) => {
     // Move to Step 4 (Plan Review) without executing yet
     setChecksToExecute(checks);
+    
+    // Restore metadata from localStorage if not in memory
+    if (!metadata && selectedConnection) {
+      const cached = localStorage.getItem(`metadata_${selectedConnection.id}`);
+      if (cached) {
+        try {
+          const restoredMetadata = JSON.parse(cached);
+          setMetadata(restoredMetadata);
+          console.log('[Metadata] Restored from localStorage for Step 4');
+        } catch (e) {
+          console.error('[Metadata] Failed to restore from cache:', e);
+        }
+      }
+    }
+    
     setCurrentStep(4);
   };
 
@@ -308,27 +434,75 @@ export default function Dashboard() {
                 
                 <div className="manual-selection">
                   <h3>📋 Soda Native Checks</h3>
-                  <p className="subtitle">Or manually add Soda checks by column:</p>
-                  {metadata && metadata.schema && metadata.schema.columns && (
-                    <div className="columns-grid">
-                      {metadata.schema.columns.map((col, idx) => (
-                        <div key={idx} className="column-selector">
-                          <label><strong>{col.name}</strong> <span className="type">({col.type})</span></label>
-                          <div className="check-options">
-                            <input type="checkbox" id={`col-${idx}-not-null`} />
-                            <label htmlFor={`col-${idx}-not-null`}>missing_count (nulls)</label>
-                            
-                            <input type="checkbox" id={`col-${idx}-duplicate`} />
-                            <label htmlFor={`col-${idx}-duplicate`}>duplicate_count</label>
-                            
-                            <input type="checkbox" id={`col-${idx}-invalid`} />
-                            <label htmlFor={`col-${idx}-invalid`}>invalid_count (pattern)</label>
-                            
-                            <input type="checkbox" id={`col-${idx}-outlier`} />
-                            <label htmlFor={`col-${idx}-outlier`}>outlier_count</label>
+                  <p className="subtitle">Manually add Soda checks by column or select all available checks:</p>
+                  
+                  {/* Show all available Soda checks */}
+                  <div className="all-soda-checks-section">
+                    <h4>All Available SODA Core Checks</h4>
+                    <div className="checks-by-category">
+                      {Object.entries(SODA_CHECKS).map(([categoryKey, category]) => (
+                        <div key={categoryKey} className="category-section">
+                          <div className="category-header">{category.category}</div>
+                          <div className="checks-grid">
+                            {category.checks.map((check) => (
+                              <div key={check.id} className="check-item">
+                                <input 
+                                  type="checkbox" 
+                                  id={`soda-all-${check.id}`}
+                                  className="soda-check"
+                                  data-check-id={check.id}
+                                  data-check-type={check.id}
+                                />
+                                <label htmlFor={`soda-all-${check.id}`}>
+                                  <span className="check-label">{check.label}</span>
+                                  <span className="check-description">{check.description}</span>
+                                </label>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Show column-specific checks if columns exist */}
+                  {getColumnsFromMetadata(metadata).length > 0 && (
+                    <div className="columns-specific-section">
+                      <h4>By Column</h4>
+                      <div className="columns-grid">
+                        {getColumnsFromMetadata(metadata).map((col, colIdx) => {
+                          const applicableChecks = getApplicableChecks(col.type);
+                          return (
+                            <div key={colIdx} className="column-selector">
+                              <label><strong>{col.name}</strong> <span className="type">({col.type})</span></label>
+                              <div className="check-options">
+                                {Object.entries(applicableChecks).map(([categoryKey, category]) => 
+                                  category.checks.length > 0 && (
+                                    <div key={categoryKey} className="check-category">
+                                      <div className="category-label">{category.category}</div>
+                                      {category.checks.map((check) => (
+                                        <div key={check.id} className="check-item">
+                                          <input 
+                                            type="checkbox" 
+                                            id={`col-${colIdx}-${check.id}`}
+                                            data-column={col.name}
+                                            data-check-id={check.id}
+                                            data-check-type={check.id}
+                                          />
+                                          <label htmlFor={`col-${colIdx}-${check.id}`}>
+                                            <span className="check-label">{check.label}</span>
+                                            <span className="check-description">{check.description}</span>
+                                          </label>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -338,6 +512,8 @@ export default function Dashboard() {
                 <button
                   className="btn-primary"
                   onClick={() => {
+                    console.log('[Step 3] Check collection triggered');
+                    
                     // Collect AI suggestions that are checked
                     const checkedAI = Array.from(document.querySelectorAll('input[id^="ai-check-"]:checked'))
                       .map(cb => {
@@ -346,36 +522,71 @@ export default function Dashboard() {
                       })
                       .filter(s => s);
                     
-                    // Collect manually selected Soda checks
-                    const manualChecks = [];
-                    if (metadata && metadata.schema) {
-                      metadata.schema.columns.forEach((col, colIdx) => {
-                        const checks = {
-                          'not-null': 'missing_count',
-                          'duplicate': 'duplicate_count',
-                          'invalid': 'invalid_count',
-                          'outlier': 'outlier_count'
-                        };
-                        
-                        for (const [key, checkType] of Object.entries(checks)) {
-                          const cb = document.getElementById(`col-${colIdx}-${key}`);
-                          if (cb && cb.checked) {
-                            manualChecks.push({
-                              column: col.name,
-                              check_type: checkType,
-                              name: `${col.name} - ${checkType}`
-                            });
+                    // Collect global SODA checks (not tied to specific columns)
+                    const globalSodaChecks = Array.from(document.querySelectorAll('input[id^="soda-all-"]:checked'))
+                      .map(cb => {
+                        const checkId = cb.getAttribute('data-check-id');
+                        // Find the check details from SODA_CHECKS
+                        for (const [categoryKey, category] of Object.entries(SODA_CHECKS)) {
+                          const check = category.checks.find(c => c.id === checkId);
+                          if (check) {
+                            return {
+                              column: null,
+                              check_type: checkId,
+                              name: check.label,
+                              description: check.description,
+                              check_category: category.category,
+                              is_global: true
+                            };
                           }
                         }
+                        return null;
+                      })
+                      .filter(c => c);
+                    
+                    // Collect column-specific manually selected Soda checks
+                    const manualChecks = [];
+                    const columns = getColumnsFromMetadata(metadata);
+                    console.log('[Step 3] Metadata columns available:', columns.length, 'columns');
+                    
+                    if (columns.length > 0) {
+                      columns.forEach((col, colIdx) => {
+                        // Get all applicable checks for this column
+                        const applicableChecks = getApplicableChecks(col.type);
+                        
+                        Object.entries(applicableChecks).forEach(([categoryKey, category]) => {
+                          category.checks.forEach((check) => {
+                            const checkboxId = `col-${colIdx}-${check.id}`;
+                            const cb = document.getElementById(checkboxId);
+                            if (cb && cb.checked) {
+                              manualChecks.push({
+                                column: col.name,
+                                check_type: check.id,
+                                name: `${col.name} - ${check.label}`,
+                                description: check.description,
+                                check_category: category.category
+                              });
+                            }
+                          });
+                        });
                       });
                     }
                     
-                    const allChecks = [...checkedAI, ...manualChecks];
+                    const allChecks = [...checkedAI, ...globalSodaChecks, ...manualChecks];
+                    console.log('[Step 3] Check collection result:', {
+                      ai_suggestions: checkedAI.length,
+                      global_soda: globalSodaChecks.length,
+                      manual_column: manualChecks.length,
+                      total: allChecks.length
+                    });
                     
                     if (allChecks.length > 0) {
+                      console.log('[Step 3] Proceeding to Step 4 with', allChecks.length, 'checks');
                       preparePlan(allChecks);
                     } else {
-                      setError('Please select at least one check');
+                      const errMsg = 'Please select at least one check';
+                      setError(errMsg);
+                      console.warn('[Step 3]', errMsg);
                     }
                   }}
                   disabled={loading}
@@ -444,11 +655,9 @@ export default function Dashboard() {
                           <label>Column *</label>
                           <select name="column" required>
                             <option value="">Select column...</option>
-                            {metadata && metadata.schema && metadata.schema.columns && 
-                              metadata.schema.columns.map((col, idx) => (
-                                <option key={idx} value={col.name}>{col.name} ({col.type})</option>
-                              ))
-                            }
+                            {getColumnsFromMetadata(metadata).map((col, idx) => (
+                              <option key={idx} value={col.name}>{col.name} ({col.type})</option>
+                            ))}
                           </select>
                         </div>
                         <div className="form-group">
@@ -471,11 +680,11 @@ export default function Dashboard() {
 
                   <div className="quick-add-checks">
                     <h4>Quick Add from Columns</h4>
-                    {metadata && metadata.schema && metadata.schema.columns && (
+                    {getColumnsFromMetadata(metadata).length > 0 && (
                       <>
                         <p className="subtitle">Quickly add missing_count check:</p>
                         <div className="quick-add-grid">
-                          {metadata.schema.columns.map((col, colIdx) => (
+                          {getColumnsFromMetadata(metadata).map((col, colIdx) => (
                             <button
                               key={colIdx}
                               className="quick-add-btn"

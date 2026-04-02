@@ -26,7 +26,7 @@ test.describe('Data Quality Platform E2E Tests', () => {
     await expect(page.locator('h1')).toBeVisible({ timeout: 10000 });
     const heading = await page.locator('h1').textContent();
     
-    expect(heading).toContain('Enterprise' || 'Data Quality' || 'Platform');
+    expect(heading?.toLowerCase() || '').toMatch(/enterprise|data quality|platform/);
   });
 
   test('should navigate through the 5-step workflow', async ({ page }) => {

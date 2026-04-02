@@ -335,29 +335,31 @@ class HTMLReportGenerator:
     
     <script>
         // Checks Distribution Chart
-        const ctx = document.getElementById('checksChart').getContext('2d');
-        new Chart(ctx, {{
-            type: 'doughnut',
-            data: {{
-                labels: ['Passed', 'Failed', 'Warned'],
-                datasets: [{{
-                    data: [{result.passed_checks}, {result.failed_checks}, {result.warned_checks}],
-                    backgroundColor: ['#28a745', '#dc3545', '#ffc107'],
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }}]
-            }},
-            options: {{
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {{
-                    legend: {{
-                        position: 'bottom',
-                        labels: {{
-                            font: {{
-                                size: 14
-                            }},
-                            padding: 20
+        const checksChartEl = document.getElementById('checksChart');
+        if (checksChartEl && typeof Chart !== 'undefined') {{
+            const ctx = checksChartEl.getContext('2d');
+            new Chart(ctx, {{
+                type: 'doughnut',
+                data: {{
+                    labels: ['Passed', 'Failed', 'Warned'],
+                    datasets: [{{
+                        data: [{result.passed_checks}, {result.failed_checks}, {result.warned_checks}],
+                        backgroundColor: ['#28a745', '#dc3545', '#ffc107'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {{
+                        legend: {{
+                            position: 'bottom',
+                            labels: {{
+                                font: {{
+                                    size: 14
+                                }},
+                                padding: 20
                         }}
                     }},
                     title: {{
@@ -369,8 +371,8 @@ class HTMLReportGenerator:
                         padding: 20
                     }}
                 }}
-            }}
-        }});
+            }});
+        }}
     </script>
 </body>
 </html>
