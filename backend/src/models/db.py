@@ -44,6 +44,7 @@ class CheckPlan(Base):
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     connection_id = Column(PG_UUID(as_uuid=True), nullable=False, index=True)
+    metadata_snapshot_id = Column(PG_UUID(as_uuid=True), nullable=True, index=True)
     dataset_identifier = Column(String(255), nullable=False)
     description = Column(Text)
     checks_yaml = Column(Text, nullable=False)

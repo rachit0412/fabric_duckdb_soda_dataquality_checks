@@ -67,10 +67,26 @@ Examples:
     
     args = parser.parse_args()
     
-    # Setup logging
+    # Setup logging - map environment to logging level
+    log_level_map = {
+        "development": "DEBUG",
+        "staging": "INFO",
+        "production": "WARNING"
+    }
+    log_level = log_level_map.get(config.environment.value, "INFO")
+    
+    # Use /tmp for logs if logs directory is not writable
+    log_file = "/tmp/data_quality.log"
+    try:
+        import os
+        if os.path.exists("logs") and os.access("logs", os.W_OK):
+            log_file = "logs/data_quality.log"
+    except:
+        pass
+    
     setup_logging(
-        log_level=config.environment.value.upper(),
-        log_file="logs/data_quality.log"
+        log_level=log_level,
+        log_file=log_file
     )
     
     if args.command == 'scan':

@@ -654,6 +654,77 @@
 }
 
 /* ════════════════════════════════════════ */
+/* Custom Check Form Styles */
+/* ════════════════════════════════════════ */
+
+.custom-check-form {
+  background: #f0f9ff;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 4px solid #0ea5e9;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.form-row:last-of-type {
+  margin-bottom: 0;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-group input,
+.form-group select {
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.btn-add-check {
+  background: #0ea5e9;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.btn-add-check:hover {
+  background: #0284c7;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);
+}
+
+/* ════════════════════════════════════════ */
 /* Step 5: Enhanced Results Display */
 /* ════════════════════════════════════════ */
 

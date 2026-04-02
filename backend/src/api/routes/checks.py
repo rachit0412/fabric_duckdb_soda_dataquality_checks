@@ -52,6 +52,7 @@ async def create_check_plan(
         plan = CheckPlan(
             name=request.name,
             connection_id=snapshot.connection_id,
+            metadata_snapshot_id=snapshot.id,  # Store snapshot reference for executor
             dataset_identifier='data',  # From metadata snapshot
             description=request.description,
             checks_yaml=json.dumps(request.checks) if request.checks else json.dumps([]),

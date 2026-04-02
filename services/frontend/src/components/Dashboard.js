@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import DataSourceConnectV2 from './DataSourceConnectV2';
+import ResultsVisualization from './ResultsVisualization';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -15,6 +16,8 @@ export default function Dashboard() {
   const [checkPlan, setCheckPlan] = useState(null);
   const [checksToExecute, setChecksToExecute] = useState([]);
   const [runResults, setRunResults] = useState(null);
+  const [runId, setRunId] = useState(null);
+  const [metrics, setMetrics] = useState(null);
   const [apiStatus, setApiStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -118,11 +121,30 @@ export default function Dashboard() {
       });
       const data = await res.json();
       setRunResults(data);
+      setRunId(data.id); // Store run ID for metrics
+      
+      // Fetch metrics for visualization
+      if (data.id) {
+        fetchRunMetrics(data.id);
+      }
+      
       setCurrentStep(5);
     } catch (err) {
       setError(`Check execution failed: ${err.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRunMetrics = async (runId) => {
+    try {
+      const res = await fetch(`${API_BASE}/runs/${runId}/metrics`);
+      if (res.ok) {
+        const metricsData = await res.json();
+        setMetrics(metricsData);
+      }
+    } catch (err) {
+      console.error('Failed to fetch metrics:', err);
     }
   };
 
@@ -397,10 +419,61 @@ export default function Dashboard() {
 
                 <div className="add-check-section">
                   <h3>Add More Checks</h3>
+                  
+                  <div className="custom-check-form">
+                    <h4>Create Custom Check</h4>
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.target);
+                      const newCheck = {
+                        name: formData.get('checkName') || `Custom - ${formData.get('checkType')}`,
+                        column: formData.get('column'),
+                        check_type: formData.get('checkType'),
+                      };
+                      setChecksToExecute([...checksToExecute, newCheck]);
+                      e.target.reset();
+                    }}>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Check Name (optional)</label>
+                          <input type="text" name="checkName" placeholder="e.g., Email validation" />
+                        </div>
+                      </div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Column *</label>
+                          <select name="column" required>
+                            <option value="">Select column...</option>
+                            {metadata && metadata.schema && metadata.schema.columns && 
+                              metadata.schema.columns.map((col, idx) => (
+                                <option key={idx} value={col.name}>{col.name} ({col.type})</option>
+                              ))
+                            }
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Check Type *</label>
+                          <select name="checkType" required>
+                            <option value="">Select check type...</option>
+                            <option value="missing_count">Missing/NULL Count</option>
+                            <option value="duplicate_count">Duplicate Count</option>
+                            <option value="invalid_count">Invalid Count (Pattern)</option>
+                            <option value="outlier_count">Outlier Count</option>
+                            <option value="failed_rows">Failed Rows</option>
+                            <option value="valid_count">Valid Count</option>
+                            <option value="schema_type">Schema Type Check</option>
+                          </select>
+                        </div>
+                      </div>
+                      <button type="submit" className="btn-add-check">+ Add Custom Check</button>
+                    </form>
+                  </div>
+
                   <div className="quick-add-checks">
+                    <h4>Quick Add from Columns</h4>
                     {metadata && metadata.schema && metadata.schema.columns && (
                       <>
-                        <p className="subtitle">Quick add by column:</p>
+                        <p className="subtitle">Quickly add missing_count check:</p>
                         <div className="quick-add-grid">
                           {metadata.schema.columns.map((col, colIdx) => (
                             <button
@@ -452,88 +525,115 @@ export default function Dashboard() {
             <div className="step-content">
               <h2>📈 Step 5: Results & Reports</h2>
               
-              <div className="results-display">
-                <div className="result-card">
-                  <h3>✓ Check Execution Complete</h3>
-                  <div className="result-summary">
-                    <div className="summary-stat">
-                      <span className="stat-label">Total Checks:</span>
-                      <span className="stat-value">{runResults.total_checks || checksToExecute.length}</span>
-                    </div>
-                    <div className="summary-stat passed">
-                      <span className="stat-label">Passed:</span>
-                      <span className="stat-value">{runResults.passed_checks || 0}</span>
-                    </div>
-                    <div className="summary-stat failed">
-                      <span className="stat-label">Failed:</span>
-                      <span className="stat-value">{runResults.failed_checks || 0}</span>
-                    </div>
-                    <div className="summary-stat">
-                      <span className="stat-label">Status:</span>
-                      <span className="stat-value">{runResults.status || 'completed'}</span>
-                    </div>
+              {/* Show visualization component if metrics are available */}
+              {metrics ? (
+                <>
+                  <ResultsVisualization runId={runId} metrics={metrics} planId={checkPlan?.id} />
+                  <div className="action-buttons">
+                    <button
+                      className="btn-primary"
+                      onClick={() => {
+                        setCurrentStep(1);
+                        setSelectedConnection(null);
+                        setMetadata(null);
+                        setSuggestions(null);
+                        setCheckPlan(null);
+                        setChecksToExecute([]);
+                        setRunResults(null);
+                        setRunId(null);
+                        setMetrics(null);
+                      }}
+                    >
+                      ↻ Start New Check
+                    </button>
                   </div>
-                  
-                  {checksToExecute && checksToExecute.length > 0 && (
-                    <div className="detailed-results">
-                      <h4>Executed Checks Details:</h4>
-                      <div className="checks-results-list">
-                        {checksToExecute.map((check, idx) => (
-                          <div key={idx} className="check-result-item">
-                            <div className="check-result-header">
-                              <span className="check-name">✓ {check.check_name || check.name}</span>
-                              {check.column && <span className="column-tag">{check.column}</span>}
-                              {check.check_type && <span className="type-tag">{check.check_type}</span>}
-                            </div>
-                            <div className="check-result-details">
-                              {check.rationale && <p className="rationale"><strong>Rationale:</strong> {check.rationale}</p>}
-                              {check.suggested_check_yaml && (
-                                <div className="yaml-preview">
-                                  <details>
-                                    <summary>View YAML Config</summary>
-                                    <pre>{check.suggested_check_yaml}</pre>
-                                  </details>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                </>
+              ) : (
+                <div className="results-display">
+                  <div className="result-card">
+                    <h3>✓ Check Execution Complete</h3>
+                    <div className="result-summary">
+                      <div className="summary-stat">
+                        <span className="stat-label">Total Checks:</span>
+                        <span className="stat-value">{runResults.total_checks || checksToExecute.length}</span>
+                      </div>
+                      <div className="summary-stat passed">
+                        <span className="stat-label">Passed:</span>
+                        <span className="stat-value">{runResults.passed_checks || 0}</span>
+                      </div>
+                      <div className="summary-stat failed">
+                        <span className="stat-label">Failed:</span>
+                        <span className="stat-value">{runResults.failed_checks || 0}</span>
+                      </div>
+                      <div className="summary-stat">
+                        <span className="stat-label">Status:</span>
+                        <span className="stat-value">{runResults.status || 'completed'}</span>
                       </div>
                     </div>
-                  )}
+                  
+                    {checksToExecute && checksToExecute.length > 0 && (
+                      <div className="detailed-results">
+                        <h4>Executed Checks Details:</h4>
+                        <div className="checks-results-list">
+                          {checksToExecute.map((check, idx) => (
+                            <div key={idx} className="check-result-item">
+                              <div className="check-result-header">
+                                <span className="check-name">✓ {check.check_name || check.name}</span>
+                                {check.column && <span className="column-tag">{check.column}</span>}
+                                {check.check_type && <span className="type-tag">{check.check_type}</span>}
+                              </div>
+                              <div className="check-result-details">
+                                {check.rationale && <p className="rationale"><strong>Rationale:</strong> {check.rationale}</p>}
+                                {check.suggested_check_yaml && (
+                                  <div className="yaml-preview">
+                                    <details>
+                                      <summary>View YAML Config</summary>
+                                      <pre>{check.suggested_check_yaml}</pre>
+                                    </details>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="action-buttons">
+                    <button
+                      className="btn-primary"
+                      onClick={() => {
+                        setCurrentStep(1);
+                        setSelectedConnection(null);
+                        setMetadata(null);
+                        setSuggestions(null);
+                        setCheckPlan(null);
+                        setChecksToExecute([]);
+                        setRunResults(null);
+                        setRunId(null);
+                        setMetrics(null);
+                      }}
+                    >
+                      ↻ Start New Check
+                    </button>
+                    <button 
+                      className="btn-secondary"
+                      onClick={() => {
+                        const report = `Data Quality Check Results\n${'='.repeat(50)}\nTotal Checks: ${checksToExecute.length}\nStatus: ${runResults.status}\n\nChecks Executed:\n${checksToExecute.map(c => `- ${c.check_name || c.name}`).join('\n')}`;
+                        const blob = new Blob([report], { type: 'text/plain' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `dq-report-${Date.now()}.txt`;
+                        a.click();
+                      }}
+                    >
+                      📥 Export Report
+                    </button>
+                  </div>
                 </div>
-                
-                <div className="action-buttons">
-                  <button
-                    className="btn-primary"
-                    onClick={() => {
-                      setCurrentStep(1);
-                      setSelectedConnection(null);
-                      setMetadata(null);
-                      setSuggestions(null);
-                      setCheckPlan(null);
-                      setChecksToExecute([]);
-                      setRunResults(null);
-                    }}
-                  >
-                    ↻ Start New Check
-                  </button>
-                  <button 
-                    className="btn-secondary"
-                    onClick={() => {
-                      const report = `Data Quality Check Results\n${'='.repeat(50)}\nTotal Checks: ${checksToExecute.length}\nStatus: ${runResults.status}\n\nChecks Executed:\n${checksToExecute.map(c => `- ${c.check_name || c.name}`).join('\n')}`;
-                      const blob = new Blob([report], { type: 'text/plain' });
-                      const url = window.URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `dq-report-${Date.now()}.txt`;
-                      a.click();
-                    }}
-                  >
-                    📥 Export Report
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
           )}
 

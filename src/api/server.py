@@ -109,6 +109,62 @@ class ScanResponse(BaseModel):
     check_details: Optional[List[Dict[str, Any]]] = None
 
 
+# Connection API Models  
+class ConnectionResponse(BaseModel):
+    """Response for data source connection"""
+    id: str
+    name: str
+    type: str
+    path: Optional[str] = None
+    columns: Optional[List[str]] = None
+    row_count: Optional[int] = None
+    sample_data: Optional[List[Dict[str, Any]]] = None
+    created_at: Optional[str] = None
+
+
+class ProfileResponse(BaseModel):
+    """Response for data profiling"""
+    table_name: str
+    row_count: int
+    column_count: int
+    columns: List[Dict[str, Any]]
+    memory_usage: Optional[str] = None
+
+
+# Check Plan API Models
+class CheckPlanRequest(BaseModel):
+    """Request to create a check plan"""
+    table_name: str
+    checks: List[Dict[str, Any]]
+
+
+class RunRequest(BaseModel):
+    """Request to execute a check plan"""
+    check_plan_id: int
+
+
+class RunResponse(BaseModel):
+    """Response from run execution"""
+    id: int
+    check_plan_id: int
+    status: str
+    total_checks: int
+    passed_checks: int
+    failed_checks: int
+    check_results: List[Dict[str, Any]] = []
+
+
+class MetricsResponse(BaseModel):
+    """Response for visualization metrics"""
+    run_id: int
+    check_count: int
+    passed: int
+    failed: int
+    pass_rate: float
+    checks_by_type: Dict[str, int]
+    checks_by_status: Dict[str, int]
+
+
 @app.post("/api/upload-scan")
 async def upload_and_scan(
     background_tasks: BackgroundTasks,
@@ -695,6 +751,321 @@ def start_api_server(host: str = "0.0.0.0", port: int = 8000):
     """Start the API server"""
     logger.info(f"Starting API server on {host}:{port}")
     uvicorn.run(app, host=host, port=port)
+
+
+# Connection Endpoints
+@app.post("/api/v1/connections/upload", response_model=ConnectionResponse)
+async def upload_data_file(file: UploadFile = File(...)):
+    """Upload and process a data file (CSV or Parquet)"""
+    try:
+        logger.info(f"Processing uploaded file: {file.filename}")
+        
+        # Save file temporarily
+        temp_path = f"/tmp/{file.filename}"
+        with open(temp_path, 'wb') as f:
+            content = await file.read()
+            f.write(content)
+        
+        # Load and analyze the file
+        import pandas as pd
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(temp_path)
+        elif file.filename.endswith('.parquet'):
+            df = pd.read_parquet(temp_path)
+        else:
+            raise ValueError(f"Unsupported file type: {file.filename}")
+        
+        # Get metadata
+        columns = df.columns.tolist()
+        row_count = len(df)
+        sample_data = df.head(10).to_dict('records')
+        
+        # Create connection response
+        connection = ConnectionResponse(
+            id=f"upload_{int(datetime.now().timestamp())}",
+            name=file.filename.replace('.csv', '').replace('.parquet', ''),
+            type='file',
+            path=temp_path,
+            columns=columns,
+            row_count=row_count,
+            sample_data=sample_data,
+            created_at=datetime.now().isoformat()
+        )
+        
+        logger.info(f"File processed: {row_count} rows, {len(columns)} columns")
+        return connection
+        
+    except Exception as e:
+        logger.error(f"File upload error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v1/connections/", response_model=ConnectionResponse)
+async def create_connection(connection_data: Dict[str, Any]):
+    """Create a data source connection"""
+    try:
+        connection_type = connection_data.get('type', 'postgres')
+        
+        if connection_type == 'csv':
+            # Handle CSV file path
+            csv_path = connection_data.get('path', '')
+            name = connection_data.get('name', 'CSV Connection')
+            
+            import pandas as pd
+            df = pd.read_csv(csv_path)
+            columns = df.columns.tolist()
+            row_count = len(df)
+            
+            return ConnectionResponse(
+                id=f"conn_{int(datetime.now().timestamp())}",
+                name=name,
+                type='file',
+                path=csv_path,
+                columns=columns,
+                row_count=row_count,
+                created_at=datetime.now().isoformat()
+            )
+        
+        elif connection_type == 'postgres':
+            # Handle PostgreSQL connection
+            conn_string = connection_data.get('connection_string', '')
+            name = connection_data.get('name', 'PostgreSQL Connection')
+            
+            return ConnectionResponse(
+                id=f"conn_{int(datetime.now().timestamp())}",
+                name=name,
+                type='postgres',
+                path=conn_string,
+                created_at=datetime.now().isoformat()
+            )
+        
+        else:
+            raise ValueError(f"Unsupported connection type: {connection_type}")
+            
+    except Exception as e:
+        logger.error(f"Connection creation error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v1/connections/{connection_id}/profile", response_model=ProfileResponse)
+async def profile_connection(connection_id: str, table_name: Optional[str] = None):
+    """Profile a data source connection"""
+    try:
+        import pandas as pd
+        import duckdb
+        
+        # Mock implementation - for testing
+        df = pd.DataFrame({
+            'id': [1, 2, 3, 4, 5],
+            'name': ['Alice', 'Bob', 'Charlie', 'David', 'Eve'],
+            'email': ['alice@test.com', 'bob@test.com', 'charlie@test.com', 'david@test.com', 'eve@test.com'],
+            'age': [25, 30, 35, 40, 45]
+        })
+        
+        columns_info = [
+            {"name": col, "type": str(df[col].dtype), "non_null": int(df[col].notna().sum())} 
+            for col in df.columns
+        ]
+        
+        return ProfileResponse(
+            table_name=table_name or "default_table",
+            row_count=len(df),
+            column_count=len(df.columns),
+            columns=columns_info,
+            memory_usage=f"{df.memory_usage(deep=True).sum() / 1024:.2f} KB"
+        )
+        
+    except Exception as e:
+        logger.error(f"Profiling error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Check Plan and Run Endpoints
+
+@app.post("/api/v1/metadata/profile")
+async def profile_metadata(request: Dict[str, Any]):
+    """Profile metadata for a connection"""
+    try:
+        connection_id = request.get('connection_id')
+        
+        import pandas as pd
+        import duckdb
+        
+        # Mock profile data - in production, this would read from actual data source
+        columns = [
+            {"name": "id", "type": "int64", "nullable": False, "unique_count": 1000},
+            {"name": "name", "type": "object", "nullable": False, "unique_count": 950},
+            {"name": "email", "type": "object", "nullable": True, "unique_count": 1000},
+            {"name": "created_at", "type": "datetime64[ns]", "nullable": False, "unique_count": 1000},
+            {"name": "status", "type": "object", "nullable": False, "unique_count": 3}
+        ]
+        
+        return {
+            "snapshot_id": f"snap_{int(datetime.now().timestamp())}",
+            "connection_id": connection_id,
+            "row_count": 1000,
+            "column_count": len(columns),
+            "columns": columns,
+            "quality_score": 0.92,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Metadata profiling error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/suggestions/")
+async def generate_suggestions(request: Dict[str, Any]):
+    """Generate quality check suggestions"""
+    try:
+        connection_id = request.get('connection_id')
+        limit = request.get('limit', 10)
+        
+        # Mock suggestions - in production, would use actual ML model
+        suggestions = [
+            {
+                "check_name": "check_missing_emails",
+                "check_type": "missing",
+                "column": "email",
+                "rationale": "Email is critical for customer communication",
+                "suggested_check_yaml": "- missing_count(email) = 0"
+            },
+            {
+                "check_name": "check_duplicate_ids",
+                "check_type": "duplicate",
+                "column": "id",
+                "rationale": "ID should be unique for each record",
+                "suggested_check_yaml": "- duplicate_count(id) = 0"
+            },
+            {
+                "check_name": "check_email_format",
+                "check_type": "generic",
+                "column": "email",
+                "rationale": "Email should match standard format",
+                "suggested_check_yaml": "- invalid_email_count(email) = 0"
+            },
+            {
+                "check_name": "check_status_values",
+                "check_type": "generic",
+                "column": "status",
+                "rationale": "Status should be one of: active, inactive, pending",
+                "suggested_check_yaml": "- status in ['active', 'inactive', 'pending']"
+            }
+        ]
+        
+        return {
+            "connection_id": connection_id,
+            "suggestions": suggestions[:limit],
+            "total_count": len(suggestions)
+        }
+    except Exception as e:
+        logger.error(f"Suggestions generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/check-plans/")
+async def create_check_plan_v2(request: Dict[str, Any]):
+    """Create a check plan"""
+    try:
+        checks = request.get('checks', [])
+        connection_id = request.get('connection_id')
+        metadata_snapshot_id = request.get('metadata_snapshot_id')
+        
+        check_plan_id = int(datetime.now().timestamp() * 1000) % 1000000
+        
+        return {
+            "id": check_plan_id,
+            "connection_id": connection_id,
+            "metadata_snapshot_id": metadata_snapshot_id,
+            "checks": checks,
+            "status": "pending",
+            "created_at": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Check plan creation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Existing Check Plan and Run Endpoints
+@app.post("/api/v1/check-plans", response_model=Dict[str, Any])
+async def create_check_plan(request: CheckPlanRequest):
+    """Create a check plan"""
+    try:
+        if not storage_repo:
+            raise HTTPException(status_code=500, detail="Storage backend not configured")
+        
+        # Store check plan
+        check_plan_data = {
+            "table_name": request.table_name,
+            "checks": request.checks,
+            "status": "pending",
+            "created_at": datetime.now().isoformat()
+        }
+        
+        # For now, return a mock ID - in production, store to DB
+        check_plan_id = 1
+        return {
+            "id": check_plan_id,
+            "table_name": request.table_name,
+            "checks": request.checks,
+            "status": "pending"
+        }
+    except Exception as e:
+        logger.error(f"Error creating check plan: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/runs/", response_model=RunResponse)
+async def execute_run(request: RunRequest, background_tasks: BackgroundTasks):
+    """Execute a check plan run"""
+    try:
+        if not storage_repo:
+            raise HTTPException(status_code=500, detail="Storage backend not configured")
+        
+        # Execute checks asynchronously
+        background_tasks.add_task(execute_checks_background, request.check_plan_id)
+        
+        # Return immediate response
+        return RunResponse(
+            id=1,
+            check_plan_id=request.check_plan_id,
+            status="running",
+            total_checks=0,
+            passed_checks=0,
+            failed_checks=0,
+            check_results=[]
+        )
+    except Exception as e:
+        logger.error(f"Error executing run: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def execute_checks_background(check_plan_id: int):
+    """Execute checks in background"""
+    try:
+        # Mock implementation - execute actual checks here
+        logger.info(f"Executing checks for plan {check_plan_id}")
+    except Exception as e:
+        logger.error(f"Background check execution failed: {str(e)}")
+
+
+@app.get("/api/v1/runs/{run_id}/metrics", response_model=MetricsResponse)
+async def get_run_metrics(run_id: int):
+    """Get metrics for a run"""
+    try:
+        # Mock implementation
+        return MetricsResponse(
+            run_id=run_id,
+            check_count=10,
+            passed=7,
+            failed=3,
+            pass_rate=0.7,
+            checks_by_type={"missing": 3, "validity": 4, "custom": 3},
+            checks_by_status={"passed": 7, "failed": 3}
+        )
+    except Exception as e:
+        logger.error(f"Error retrieving metrics: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

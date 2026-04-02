@@ -73,7 +73,7 @@ class CheckExecutor:
                 raise Exception(f"Connection not found: {snapshot.connection_id}")
             
             # Parse checks configuration
-            checks_config = json.loads(plan.checks_definition) if plan.checks_definition else []
+            checks_config = json.loads(plan.checks_yaml) if plan.checks_yaml else []
             
             logger.info(f"Executing {len(checks_config)} checks on connection: {conn.name}")
             

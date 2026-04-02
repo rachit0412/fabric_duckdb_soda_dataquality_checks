@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.core.config import settings
 from src.storage.db import init_db, close_db, engine
 from src.models.db import Base
-from src.api.routes import connection, metadata, suggestions, checks, runs, results
+from src.api.routes import connection, metadata, suggestions, checks, runs, results, visualization
 from src.worker import start_worker, stop_worker
 
 # Configure logging
@@ -107,6 +107,7 @@ app.include_router(suggestions.router, prefix="/api/v1/suggestions", tags=["sugg
 app.include_router(checks.router, prefix="/api/v1/check-plans", tags=["check-plans"])
 app.include_router(runs.router, prefix="/api/v1/runs", tags=["runs"])
 app.include_router(results.router, prefix="/api/v1/results", tags=["results"])
+app.include_router(visualization.router, prefix="/api/v1/visualization", tags=["visualization"])
 
 if __name__ == "__main__":
     import uvicorn
