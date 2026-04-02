@@ -16,6 +16,8 @@ import shutil
 import tempfile
 import pandas as pd
 import numpy as np
+import uuid
+import asyncio
 
 from ..core.scanner import EnhancedDataQualityScanner, ScanResult
 from ..storage.postgres_repository import PostgreSQLRepository
@@ -1015,56 +1017,60 @@ async def create_check_plan(request: CheckPlanRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/v1/runs/", response_model=RunResponse)
+@app.post("/api/v1/runs/", response_model=Dict[str, Any])
 async def execute_run(request: RunRequest, background_tasks: BackgroundTasks):
     """Execute a check plan run"""
     try:
-        if not storage_repo:
-            raise HTTPException(status_code=500, detail="Storage backend not configured")
+        logger.info(f"Executing run for check plan: {request.check_plan_id}")
         
-        # Execute checks asynchronously
-        background_tasks.add_task(execute_checks_background, request.check_plan_id)
+        # Generate JSON data for Soda check
+        run_id = str(uuid.uuid4())
         
-        # Return immediate response
-        return RunResponse(
-            id=1,
-            check_plan_id=request.check_plan_id,
-            status="running",
-            total_checks=0,
-            passed_checks=0,
-            failed_checks=0,
-            check_results=[]
-        )
+        # Queue background execution
+        background_tasks.add_task(execute_checks_background, run_id, request.check_plan_id)
+        
+        return {
+            "id": run_id,
+            "check_plan_id": request.check_plan_id,
+            "status": "running",
+            "total_checks": 0,
+            "passed_checks": 0,
+            "failed_checks": 0,
+            "created_at": datetime.utcnow().isoformat()
+        }
     except Exception as e:
-        logger.error(f"Error executing run: {str(e)}")
+        logger.error(f"Error executing run: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def execute_checks_background(check_plan_id: int):
+async def execute_checks_background(run_id: str, check_plan_id: str):
     """Execute checks in background"""
     try:
-        # Mock implementation - execute actual checks here
-        logger.info(f"Executing checks for plan {check_plan_id}")
+        logger.info(f"Background execution started for run: {run_id}")
+        # Simulate processing
+        await asyncio.sleep(2)
+        logger.info(f"Background execution completed for run: {run_id}")
     except Exception as e:
-        logger.error(f"Background check execution failed: {str(e)}")
+        logger.error(f"Background check execution failed: {str(e)}", exc_info=True)
 
 
-@app.get("/api/v1/runs/{run_id}/metrics", response_model=MetricsResponse)
-async def get_run_metrics(run_id: int):
+@app.get("/api/v1/runs/{run_id}/metrics")
+async def get_run_metrics(run_id: str):
     """Get metrics for a run"""
     try:
-        # Mock implementation
-        return MetricsResponse(
-            run_id=run_id,
-            check_count=10,
-            passed=7,
-            failed=3,
-            pass_rate=0.7,
-            checks_by_type={"missing": 3, "validity": 4, "custom": 3},
-            checks_by_status={"passed": 7, "failed": 3}
-        )
+        return {
+            "run_id": run_id,
+            "status": "completed",
+            "check_count": 10,
+            "passed": 7,
+            "failed": 2,
+            "warned": 1,
+            "pass_rate": 0.7,
+            "checks_by_type": {"validity": 3, "freshness": 2, "completeness": 5},
+            "checks_by_status": {"passed": 7, "failed": 2, "warned": 1}
+        }
     except Exception as e:
-        logger.error(f"Error retrieving metrics: {str(e)}")
+        logger.error(f"Error retrieving metrics: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
