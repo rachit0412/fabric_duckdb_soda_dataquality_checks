@@ -101,7 +101,8 @@ class CheckSelection(BaseModel):
 
 class CheckPlanCreate(BaseModel):
     name: str
-    metadata_snapshot_id: UUID
+    metadata_snapshot_id: Optional[UUID] = None
+    connection_id: Optional[UUID] = None
     description: Optional[str] = None
     checks: Optional[List[Dict[str, Any]]] = None
     is_active: Optional[bool] = True

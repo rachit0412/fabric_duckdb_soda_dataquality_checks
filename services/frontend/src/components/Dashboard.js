@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [metadata, setMetadata] = useState(null);
   const [suggestions, setSuggestions] = useState(null);
   const [checkPlan, setCheckPlan] = useState(null);
+  const [checksToExecute, setChecksToExecute] = useState([]);
   const [runResults, setRunResults] = useState(null);
   const [apiStatus, setApiStatus] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -68,13 +69,19 @@ export default function Dashboard() {
         body: JSON.stringify({ connection_id: connectionId, limit: 10 }),
       });
       const data = await res.json();
-      setSuggestions(data);
+      setSuggestions(data.suggestions || []);  // Extract suggestions array
       setCurrentStep(3);
     } catch (err) {
       setError(`Suggestions generation failed: ${err.message}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const preparePlan = (checks) => {
+    // Move to Step 4 (Plan Review) without executing yet
+    setChecksToExecute(checks);
+    setCurrentStep(4);
   };
 
   const createCheckPlan = async (checks) => {
@@ -86,7 +93,8 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: `Plan_${Date.now()}`,
-          connection_id: selectedConnection.id,
+          metadata_snapshot_id: metadata?.snapshot_id || null,
+          connection_id: selectedConnection?.id || null,
           checks: checks,
         }),
       });
@@ -255,30 +263,191 @@ export default function Dashboard() {
               {loading && <p className="loading">🔄 Preparing checks...</p>}
               {error && <p className="error-message">{error}</p>}
               
-              {Array.isArray(suggestions) && suggestions.length > 0 ? (
-                <div className="suggestions-list">
-                  <p>Recommended quality checks based on your data:</p>
-                  {suggestions.slice(0, 5).map((check, idx) => (
-                    <div key={idx} className="suggestion-item">
-                      <input type="checkbox" defaultChecked id={`check-${idx}`} />
-                      <label htmlFor={`check-${idx}`}>{check}</label>
+              <div className="suggestions-container">
+                {Array.isArray(suggestions) && suggestions.length > 0 ? (
+                  <div className="suggestions-list">
+                    <h3>🤖 AI-Recommended Checks</h3>
+                    <p className="subtitle">Based on your data analysis:</p>
+                    {suggestions.map((check, idx) => (
+                      <div key={idx} className="suggestion-item">
+                        <input type="checkbox" defaultChecked id={`ai-check-${idx}`} />
+                        <div className="check-details">
+                          <label htmlFor={`ai-check-${idx}`}><strong>{check.check_name || check.name}</strong></label>
+                          <span className="check-type">{check.check_type}</span>
+                          <span className="confidence">{Math.round((check.confidence || 0) * 100)}% confidence</span>
+                          {check.rationale && <p className="rationale">{check.rationale}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="note">No AI suggestions available.</p>
+                )}
+                
+                <div className="manual-selection">
+                  <h3>📋 Soda Native Checks</h3>
+                  <p className="subtitle">Or manually add Soda checks by column:</p>
+                  {metadata && metadata.schema && metadata.schema.columns && (
+                    <div className="columns-grid">
+                      {metadata.schema.columns.map((col, idx) => (
+                        <div key={idx} className="column-selector">
+                          <label><strong>{col.name}</strong> <span className="type">({col.type})</span></label>
+                          <div className="check-options">
+                            <input type="checkbox" id={`col-${idx}-not-null`} />
+                            <label htmlFor={`col-${idx}-not-null`}>missing_count (nulls)</label>
+                            
+                            <input type="checkbox" id={`col-${idx}-duplicate`} />
+                            <label htmlFor={`col-${idx}-duplicate`}>duplicate_count</label>
+                            
+                            <input type="checkbox" id={`col-${idx}-invalid`} />
+                            <label htmlFor={`col-${idx}-invalid`}>invalid_count (pattern)</label>
+                            
+                            <input type="checkbox" id={`col-${idx}-outlier`} />
+                            <label htmlFor={`col-${idx}-outlier`}>outlier_count</label>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  <button
-                    className="btn-primary"
-                    onClick={() => createCheckPlan(suggestions.slice(0, 5))}
-                    disabled={loading}
-                  >
-                    {loading ? '⏳ Creating Plan...' : 'Create & Execute Plan →'}
-                  </button>
+                  )}
                 </div>
-              ) : (
-                <p className="note">No suggestions available. Please verify the connection.</p>
-              )}
+              </div>
+              
+              <div className="action-buttons" style={{ marginTop: '20px' }}>
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    // Collect AI suggestions that are checked
+                    const checkedAI = Array.from(document.querySelectorAll('input[id^="ai-check-"]:checked'))
+                      .map(cb => {
+                        const idx = parseInt(cb.id.replace('ai-check-', ''));
+                        return suggestions[idx];
+                      })
+                      .filter(s => s);
+                    
+                    // Collect manually selected Soda checks
+                    const manualChecks = [];
+                    if (metadata && metadata.schema) {
+                      metadata.schema.columns.forEach((col, colIdx) => {
+                        const checks = {
+                          'not-null': 'missing_count',
+                          'duplicate': 'duplicate_count',
+                          'invalid': 'invalid_count',
+                          'outlier': 'outlier_count'
+                        };
+                        
+                        for (const [key, checkType] of Object.entries(checks)) {
+                          const cb = document.getElementById(`col-${colIdx}-${key}`);
+                          if (cb && cb.checked) {
+                            manualChecks.push({
+                              column: col.name,
+                              check_type: checkType,
+                              name: `${col.name} - ${checkType}`
+                            });
+                          }
+                        }
+                      });
+                    }
+                    
+                    const allChecks = [...checkedAI, ...manualChecks];
+                    
+                    if (allChecks.length > 0) {
+                      preparePlan(allChecks);
+                    } else {
+                      setError('Please select at least one check');
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? '⏳ Creating Plan...' : `Create & Execute Plan → (${suggestions?.length || 0} suggested)`}
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Step 4: Check Results */}
+          {/* Step 4: Plan Review & Execution */}
+          {currentStep === 4 && checksToExecute && (
+            <div className="step-content">
+              <h2>📋 Step 4: Review & Execute Checks</h2>
+              <p>Review your selected checks before execution:</p>
+              
+              <div className="plan-review">
+                <div className="checks-summary">
+                  <h3>Selected Checks ({checksToExecute.length})</h3>
+                  <div className="checks-list">
+                    {checksToExecute.map((check, idx) => (
+                      <div key={idx} className="check-item-review">
+                        <div className="check-info">
+                          <strong>{check.check_name || check.name}</strong>
+                          {check.column && <span className="column-badge">{check.column}</span>}
+                          {check.check_type && <span className="type-badge">{check.check_type}</span>}
+                          {check.confidence && <span className="confidence-badge">{Math.round(check.confidence * 100)}%</span>}
+                        </div>
+                        <button
+                          className="btn-remove"
+                          onClick={() => {
+                            setChecksToExecute(checksToExecute.filter((_, i) => i !== idx));
+                          }}
+                        >
+                          ✕ Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="add-check-section">
+                  <h3>Add More Checks</h3>
+                  <div className="quick-add-checks">
+                    {metadata && metadata.schema && metadata.schema.columns && (
+                      <>
+                        <p className="subtitle">Quick add by column:</p>
+                        <div className="quick-add-grid">
+                          {metadata.schema.columns.map((col, colIdx) => (
+                            <button
+                              key={colIdx}
+                              className="quick-add-btn"
+                              onClick={() => {
+                                const newCheck = {
+                                  column: col.name,
+                                  check_type: 'missing_count',
+                                  name: `${col.name} - missing_count`
+                                };
+                                setChecksToExecute([...checksToExecute, newCheck]);
+                              }}
+                            >
+                              + {col.name}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="action-buttons">
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    setCurrentStep(3);
+                    setChecksToExecute([]);
+                  }}
+                  disabled={loading}
+                >
+                  ← Back to Selection
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => createCheckPlan(checksToExecute)}
+                  disabled={loading || checksToExecute.length === 0}
+                >
+                  {loading ? '⏳ Executing...' : `Execute ${checksToExecute.length} Checks →`}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Results & Reports */}
           {currentStep === 5 && runResults && (
             <div className="step-content">
               <h2>📈 Step 5: Results & Reports</h2>
@@ -286,17 +455,50 @@ export default function Dashboard() {
               <div className="results-display">
                 <div className="result-card">
                   <h3>✓ Check Execution Complete</h3>
-                  <div className="result-info">
-                    <p><strong>Status:</strong> {runResults.status || 'completed'}</p>
-                    <p><strong>Checks Run:</strong> {runResults.checks_run || '5'}</p>
-                    <p><strong>Passed:</strong> {runResults.passed || '-'}</p>
-                    <p><strong>Failed:</strong> {runResults.failed || '-'}</p>
+                  <div className="result-summary">
+                    <div className="summary-stat">
+                      <span className="stat-label">Total Checks:</span>
+                      <span className="stat-value">{runResults.total_checks || checksToExecute.length}</span>
+                    </div>
+                    <div className="summary-stat passed">
+                      <span className="stat-label">Passed:</span>
+                      <span className="stat-value">{runResults.passed_checks || 0}</span>
+                    </div>
+                    <div className="summary-stat failed">
+                      <span className="stat-label">Failed:</span>
+                      <span className="stat-value">{runResults.failed_checks || 0}</span>
+                    </div>
+                    <div className="summary-stat">
+                      <span className="stat-label">Status:</span>
+                      <span className="stat-value">{runResults.status || 'completed'}</span>
+                    </div>
                   </div>
                   
-                  {runResults.results && (
+                  {checksToExecute && checksToExecute.length > 0 && (
                     <div className="detailed-results">
-                      <h4>Detailed Results:</h4>
-                      <pre>{JSON.stringify(runResults.results, null, 2)}</pre>
+                      <h4>Executed Checks Details:</h4>
+                      <div className="checks-results-list">
+                        {checksToExecute.map((check, idx) => (
+                          <div key={idx} className="check-result-item">
+                            <div className="check-result-header">
+                              <span className="check-name">✓ {check.check_name || check.name}</span>
+                              {check.column && <span className="column-tag">{check.column}</span>}
+                              {check.check_type && <span className="type-tag">{check.check_type}</span>}
+                            </div>
+                            <div className="check-result-details">
+                              {check.rationale && <p className="rationale"><strong>Rationale:</strong> {check.rationale}</p>}
+                              {check.suggested_check_yaml && (
+                                <div className="yaml-preview">
+                                  <details>
+                                    <summary>View YAML Config</summary>
+                                    <pre>{check.suggested_check_yaml}</pre>
+                                  </details>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -310,12 +512,24 @@ export default function Dashboard() {
                       setMetadata(null);
                       setSuggestions(null);
                       setCheckPlan(null);
+                      setChecksToExecute([]);
                       setRunResults(null);
                     }}
                   >
                     ↻ Start New Check
                   </button>
-                  <button className="btn-secondary">
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => {
+                      const report = `Data Quality Check Results\n${'='.repeat(50)}\nTotal Checks: ${checksToExecute.length}\nStatus: ${runResults.status}\n\nChecks Executed:\n${checksToExecute.map(c => `- ${c.check_name || c.name}`).join('\n')}`;
+                      const blob = new Blob([report], { type: 'text/plain' });
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `dq-report-${Date.now()}.txt`;
+                      a.click();
+                    }}
+                  >
                     📥 Export Report
                   </button>
                 </div>

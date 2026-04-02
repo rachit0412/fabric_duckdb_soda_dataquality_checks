@@ -480,6 +480,397 @@
 }
 
 /* ════════════════════════════════════════ */
+/* Suggestions & Check Selection */
+/* ════════════════════════════════════════ */
+
+.suggestions-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 20px;
+}
+
+.suggestions-list, .manual-selection {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  background: #fafbfc;
+}
+
+.suggestions-list h3, .manual-selection h3 {
+  margin-top: 0;
+  color: #1e3a8a;
+  border-bottom: 2px solid #3b82f6;
+  padding-bottom: 10px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #666;
+  margin: 8px 0 15px 0;
+}
+
+.suggestion-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  border-left: 4px solid #3b82f6;
+  transition: all 0.2s;
+}
+
+.suggestion-item:hover {
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+  transform: translateX(2px);
+}
+
+.suggestion-item input[type="checkbox"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* ════════════════════════════════════════ */
+/* Step 4: Plan Review */
+/* ════════════════════════════════════════ */
+
+.plan-review {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin: 20px 0;
+}
+
+.checks-summary, .add-check-section {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.checks-summary h3, .add-check-section h3 {
+  margin-top: 0;
+  color: #1e3a8a;
+  border-bottom: 2px solid #3b82f6;
+  padding-bottom: 10px;
+}
+
+.checks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.check-item-review {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border-left: 4px solid #3b82f6;
+}
+
+.check-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.check-info strong {
+  font-size: 14px;
+}
+
+.column-badge, .type-badge, .confidence-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  margin-right: 6px;
+  width: fit-content;
+}
+
+.column-badge {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.type-badge {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.confidence-badge {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.btn-remove {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.btn-remove:hover {
+  background: #fecaca;
+  color: #7f1d1d;
+}
+
+.quick-add-checks {
+  margin-top: 15px;
+}
+
+.quick-add-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.quick-add-btn {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px dashed #3b82f6;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.quick-add-btn:hover {
+  background: #bfdbfe;
+  color: #1e3a8a;
+}
+
+/* ════════════════════════════════════════ */
+/* Step 5: Enhanced Results Display */
+/* ════════════════════════════════════════ */
+
+.result-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin: 20px 0;
+  padding: 20px;
+  background: #f0f9ff;
+  border-radius: 8px;
+}
+
+.summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border-left: 4px solid #3b82f6;
+}
+
+.summary-stat.passed {
+  border-left-color: #10b981;
+}
+
+.summary-stat.failed {
+  border-left-color: #ef4444;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #1e3a8a;
+}
+
+.summary-stat.passed .stat-value {
+  color: #10b981;
+}
+
+.summary-stat.failed .stat-value {
+  color: #ef4444;
+}
+
+.checks-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.check-result-item {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 15px;
+  border-left: 4px solid #10b981;
+}
+
+.check-result-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.check-name {
+  font-weight: 600;
+  color: #1e3a8a;
+  font-size: 14px;
+}
+
+.column-tag, .type-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.check-result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rationale {
+  font-size: 13px;
+  color: #666;
+  margin: 0;
+}
+
+.yaml-preview {
+  margin-top: 10px;
+}
+
+.yaml-preview details {
+  cursor: pointer;
+}
+
+.yaml-preview summary {
+  color: #3b82f6;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.yaml-preview pre {
+  background: #f3f4f6;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.suggestion-item input[type="checkbox"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.check-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.check-details label {
+  margin: 0;
+  cursor: pointer;
+}
+
+.check-type {
+  font-size: 12px;
+  background: #e0e7ff;
+  color: #3730a3;
+  padding: 2px 8px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.confidence {
+  font-size: 12px;
+  color: #059669;
+  font-weight: 500;
+}
+
+.rationale {
+  font-size: 13px;
+  color: #666;
+  margin: 0;
+  font-style: italic;
+}
+
+.columns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.column-selector {
+  background: white;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.column-selector label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.type {
+  font-size: 12px;
+  color: #666;
+  font-weight: normal;
+}
+
+.check-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.check-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: normal;
+  font-size: 13px;
+}
+
+.check-options input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* ════════════════════════════════════════ */
 /* Responsive Design */
 /* ════════════════════════════════════════ */
 
@@ -491,6 +882,10 @@
 
   .content-area {
     padding: 30px;
+  }
+
+  .suggestions-container {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -517,6 +912,15 @@
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 10px;
     margin: 0;
+  }
+
+  .suggestions-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .columns-grid {
+    grid-template-columns: 1fr;
   }
 
   .steps-list .step {

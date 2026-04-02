@@ -9,6 +9,7 @@ from typing import List, Optional
 from uuid import UUID
 from enum import Enum
 import logging
+import json
 from datetime import datetime
 
 from src.api.models import RunCreate, RunResponse, RunStatusResponse
@@ -40,10 +41,10 @@ async def execute_run(
         if not plan:
             raise HTTPException(status_code=404, detail="Check plan not found")
         
-        # Get metadata snapshot
+        # Get metadata snapshot from connection_id (stored in check plan)
         snapshot = db.query(MetadataSnapshot).filter(
-            MetadataSnapshot.id == plan.metadata_snapshot_id
-        ).first()
+            MetadataSnapshot.connection_id == plan.connection_id
+        ).order_by(MetadataSnapshot.created_at.desc()).first()
         if not snapshot:
             raise HTTPException(status_code=404, detail="Metadata snapshot not found")
         
@@ -58,8 +59,7 @@ async def execute_run(
         run = Run(
             check_plan_id=plan.id,
             status=RunStatus.PENDING.value,
-            connection_id=conn.id,
-            metadata_snapshot_id=snapshot.id,
+            connection_id=plan.connection_id,
         )
         
         db.add(run)
@@ -72,13 +72,16 @@ async def execute_run(
         # For now, mark as completed immediately
         # background_tasks.add_task(execute_checks_async, run.id, plan, conn, db)
         
+        # Parse checks from YAML
+        checks = json.loads(plan.checks_yaml) if plan.checks_yaml else []
+        
         return RunResponse(
             id=run.id,
             check_plan_id=run.check_plan_id,
             status=run.status,
             started_at=run.started_at,
             completed_at=run.completed_at,
-            total_checks=len(plan.checks_definition) if plan.checks_definition else 0,
+            total_checks=len(checks),
             passed_checks=0,
             failed_checks=0,
         )

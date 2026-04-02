@@ -24,13 +24,19 @@ async def create_check_plan(
 ):
     """Create a new check plan (collection of checks to execute)."""
     try:
-        # Verify snapshot exists
-        snapshot = db.query(MetadataSnapshot).filter(
-            MetadataSnapshot.id == request.metadata_snapshot_id
-        ).first()
+        # Resolve metadata snapshot from either metadata_snapshot_id or connection_id
+        snapshot = None
+        if request.metadata_snapshot_id:
+            snapshot = db.query(MetadataSnapshot).filter(
+                MetadataSnapshot.id == request.metadata_snapshot_id
+            ).first()
+        elif request.connection_id:
+            snapshot = db.query(MetadataSnapshot).filter(
+                MetadataSnapshot.connection_id == request.connection_id
+            ).order_by(MetadataSnapshot.created_at.desc()).first()
         
         if not snapshot:
-            raise HTTPException(status_code=404, detail="Metadata snapshot not found")
+            raise HTTPException(status_code=404, detail="Metadata snapshot not found. Provide either metadata_snapshot_id or connection_id")
         
         # Verify connection exists
         conn = db.query(Connection).filter(
@@ -42,13 +48,14 @@ async def create_check_plan(
         
         logger.info(f"Creating check plan: {request.name}")
         
-        # Create plan
+        # Create plan with correct field names from CheckPlan model
         plan = CheckPlan(
             name=request.name,
+            connection_id=snapshot.connection_id,
+            dataset_identifier='data',  # From metadata snapshot
             description=request.description,
-            metadata_snapshot_id=request.metadata_snapshot_id,
-            checks_definition=json.dumps(request.checks) if request.checks else json.dumps([]),
-            is_active=True,
+            checks_yaml=json.dumps(request.checks) if request.checks else json.dumps([]),
+            enabled=request.is_active if request.is_active is not None else True,
         )
         
         db.add(plan)
@@ -61,9 +68,9 @@ async def create_check_plan(
             id=plan.id,
             name=plan.name,
             description=plan.description,
-            metadata_snapshot_id=plan.metadata_snapshot_id,
+            metadata_snapshot_id=snapshot.id,  # Use the snapshot we retrieved
             check_count=len(request.checks) if request.checks else 0,
-            is_active=plan.is_active,
+            is_active=plan.enabled,  # Map database field 'enabled' to response field 'is_active'
             created_at=plan.created_at,
             created_by=plan.created_by,
         )
