@@ -1,0 +1,427 @@
+/* DataSourceConnect Component Styles */
+
+.data-source-connect {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40px 20px;
+}
+
+.connect-container {
+  max-width: 600px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.connect-container h2 {
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 28px;
+}
+
+.connect-container .subtitle {
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 14px;
+}
+
+/* ════════════════════════════════════════ */
+/* Existing Connections */
+/* ════════════════════════════════════════ */
+
+.existing-connections {
+  margin-bottom: 30px;
+}
+
+.existing-connections h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+
+.connection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.connection-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.connection-item:hover {
+  border-color: #667eea;
+  background: #f5f7ff;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.connection-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.connection-item .conn-name {
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+}
+
+.connection-item .conn-type {
+  background: #667eea;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  margin: 0 10px;
+}
+
+.connection-item .conn-date {
+  color: #999;
+  font-size: 12px;
+}
+
+.existing-connections hr {
+  border: none;
+  border-top: 1px dashed #ddd;
+  margin: 20px 0;
+}
+
+/* ════════════════════════════════════════ */
+/* Connection Form */
+/* ════════════════════════════════════════ */
+
+.connection-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.connection-form fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.connection-form fieldset:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Form Group */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group select {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="password"]:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group .hint {
+  font-size: 12px;
+  color: #999;
+  margin-top: -4px;
+}
+
+/* ════════════════════════════════════════ */
+/* Type Selector */
+/* ════════════════════════════════════════ */
+
+.type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.type-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+}
+
+.type-option input[type="radio"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.type-option input[type="radio"]:checked + .type-icon,
+.type-option input[type="radio"]:checked + .type-icon + .type-label {
+  color: #667eea;
+}
+
+.type-option:has(input[type="radio"]:checked) {
+  border-color: #667eea;
+  background: #f5f7ff;
+}
+
+.type-option:hover {
+  border-color: #667eea;
+  background: #f9fafb;
+}
+
+.type-icon {
+  font-size: 18px;
+}
+
+.type-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* ════════════════════════════════════════ */
+/* Messages & Buttons */
+/* ════════════════════════════════════════ */
+
+.error-message {
+  padding: 12px;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 6px;
+  color: #c33;
+  font-size: 14px;
+}
+
+.success-message {
+  padding: 12px;
+  background: #efe;
+  border: 1px solid #cfc;
+  border-radius: 6px;
+  color: #3c3;
+  font-size: 14px;
+}
+
+.btn-primary {
+  padding: 12px 24px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #5568d3;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ════════════════════════════════════════ */
+/* Config Description */
+/* ════════════════════════════════════════ */
+
+.config-description {
+  font-size: 13px;
+  color: #667eea;
+  margin-top: 10px;
+  margin-bottom: 0;
+  font-style: italic;
+}
+
+/* ════════════════════════════════════════ */
+/* Dual-Mode Selector (Link/Upload) */
+/* ════════════════════════════════════════ */
+
+.mode-selector label {
+  display: block;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+.mode-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fafbfc;
+  text-align: center;
+}
+
+.mode-option input[type="radio"] {
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.mode-option:has(input[type="radio"]:checked) {
+  border-color: #667eea;
+  background: #f5f7ff;
+}
+
+.mode-option:hover {
+  border-color: #667eea;
+  background: #f9fafb;
+}
+
+.mode-icon {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.mode-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.mode-desc {
+  font-size: 11px;
+  color: #999;
+  font-weight: normal;
+}
+
+/* ════════════════════════════════════════ */
+/* File Upload Area */
+/* ════════════════════════════════════════ */
+
+.file-upload-area {
+  position: relative;
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  padding: 30px 20px;
+  text-align: center;
+  background: #fafbfc;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.file-upload-area:hover {
+  border-color: #667eea;
+  background: #f5f7ff;
+}
+
+.file-upload-area input[type="file"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-hint {
+  pointer-events: none;
+}
+
+.upload-hint p {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.file-selected {
+  color: #3c3;
+  font-weight: 500;
+}
+
+/* ════════════════════════════════════════ */
+/* Hint Text */
+/* ════════════════════════════════════════ */
+
+.hint {
+  font-size: 12px;
+  color: #999;
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+@media (max-width: 600px) {
+  .connect-container {
+    padding: 20px;
+  }
+
+  .connect-container h2 {
+    font-size: 22px;
+  }
+
+  .type-selector {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-options {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .connection-item .conn-type {
+    margin: 5px 0 0 0;
+  }
+
+  .connection-item .conn-date {
+    width: 100%;
+    text-align: left;
+  }
+}

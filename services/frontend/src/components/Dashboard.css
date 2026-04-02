@@ -1,0 +1,390 @@
+/* Dashboard Component Styles */
+
+.dashboard {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+}
+
+/* ════════════════════════════════════════ */
+/* Header */
+/* ════════════════════════════════════════ */
+
+.dashboard-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 30px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-content h1 {
+  margin: 0 0 5px 0;
+  font-size: 32px;
+}
+
+.header-content p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+.api-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-badge {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.status-badge.healthy {
+  background: rgba(76, 175, 80, 0.3);
+  color: #c8e6c9;
+}
+
+.status-badge.unhealthy {
+  background: rgba(255, 193, 7, 0.3);
+  color: #ffe082;
+}
+
+.status-badge.offline {
+  background: rgba(244, 67, 54, 0.3);
+  color: #ef9a9a;
+}
+
+/* ════════════════════════════════════════ */
+/* Main Layout */
+/* ════════════════════════════════════════ */
+
+.dashboard-main {
+  display: flex;
+  flex: 1;
+  gap: 0;
+}
+
+.progress-sidebar {
+  width: 280px;
+  background: white;
+  padding: 30px 20px;
+  border-right: 1px solid #e0e0e0;
+  overflow-y: auto;
+}
+
+.progress-sidebar h3 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+
+/* ════════════════════════════════════════ */
+/* Steps List */
+/* ════════════════════════════════════════ */
+
+.steps-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 30px 0;
+}
+
+.steps-list .step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #f9fafb;
+  border: 1px solid transparent;
+}
+
+.steps-list .step.completed .step-number {
+  background: #4caf50;
+  color: white;
+}
+
+.steps-list .step.active {
+  background: #e8eaf6;
+  border-color: #667eea;
+}
+
+.steps-list .step.active .step-number {
+  background: #667eea;
+  color: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.steps-list .step.upcoming .step-number {
+  background: #e0e0e0;
+  color: #999;
+}
+
+.steps-list .step:hover:not(.upcoming) {
+  border-color: #667eea;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-weight: 700;
+  background: #ddd;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.step-name {
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* ════════════════════════════════════════ */
+/* Selected Connection Display */
+/* ════════════════════════════════════════ */
+
+.selected-connection {
+  padding: 15px;
+  background: #f0f4ff;
+  border: 1px solid #e3e8ff;
+  border-radius: 6px;
+  margin-top: 20px;
+}
+
+.selected-connection h4 {
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #667eea;
+  opacity: 0.8;
+  letter-spacing: 0.5px;
+}
+
+.conn-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conn-info p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.conn-info .conn-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.conn-info .conn-type {
+  color: #667eea;
+  font-weight: 500;
+}
+
+.btn-change {
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #667eea;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+
+.btn-change:hover {
+  border-color: #667eea;
+  background: #f5f7ff;
+}
+
+/* ════════════════════════════════════════ */
+/* Content Area */
+/* ════════════════════════════════════════ */
+
+.content-area {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+}
+
+.step-placeholder {
+  background: white;
+  padding: 40px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.step-placeholder h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 28px;
+}
+
+.step-placeholder p {
+  margin: 10px 0;
+  color: #666;
+  font-size: 16px;
+}
+
+.step-placeholder .note {
+  padding: 15px;
+  background: #e3f2fd;
+  border-left: 3px solid #2196f3;
+  border-radius: 4px;
+  margin: 20px 0;
+  color: #1565c0;
+  font-size: 14px;
+}
+
+/* ════════════════════════════════════════ */
+/* Buttons */
+/* ════════════════════════════════════════ */
+
+.btn-primary {
+  padding: 12px 24px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-block;
+  margin-top: 20px;
+}
+
+.btn-primary:hover {
+  background: #5568d3;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  padding: 12px 24px;
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-block;
+  margin-top: 20px;
+}
+
+.btn-secondary:hover {
+  background: #f5f7ff;
+}
+
+/* ════════════════════════════════════════ */
+/* Responsive Design */
+/* ════════════════════════════════════════ */
+
+@media (max-width: 1024px) {
+  .progress-sidebar {
+    width: 240px;
+    padding: 20px 15px;
+  }
+
+  .content-area {
+    padding: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 15px;
+  }
+
+  .dashboard-main {
+    flex-direction: column;
+  }
+
+  .progress-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 20px;
+  }
+
+  .steps-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+    margin: 0;
+  }
+
+  .steps-list .step {
+    margin-bottom: 0;
+    justify-content: center;
+    flex-direction: column;
+  }
+
+  .step-name {
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .selected-connection {
+    display: none;
+  }
+
+  .content-area {
+    padding: 20px;
+  }
+
+  .step-placeholder {
+    padding: 20px;
+  }
+
+  .step-placeholder h2 {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-header {
+    padding: 20px 15px;
+  }
+
+  .header-content h1 {
+    font-size: 24px;
+  }
+
+  .content-area {
+    padding: 15px;
+  }
+
+  .step-placeholder {
+    padding: 15px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+  }
+}
