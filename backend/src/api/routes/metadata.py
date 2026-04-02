@@ -47,8 +47,13 @@ async def profile_dataset(
             raise HTTPException(status_code=400, detail=f"Unsupported connection type: {conn.type}")
         
         # Profile the dataset
-        schema = connector.get_schema()
-        profile = connector.profile_dataset(tables=request.tables)
+        # For CSV/Parquet, use filename as dataset identifier; for Postgres use table name or provided dataset
+        dataset_id = "data"  # default
+        if request.tables and len(request.tables) > 0:
+            dataset_id = request.tables[0]
+        
+        schema = connector.get_schema(dataset_identifier=dataset_id)
+        profile = connector.profile_dataset(dataset_identifier=dataset_id, sample_size=None)
         
         # Store metadata snapshot
         snapshot = MetadataSnapshot(
