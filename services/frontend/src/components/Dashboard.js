@@ -6,6 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import DataSourceConnectV2 from './DataSourceConnectV2';
 import ResultsVisualization from './ResultsVisualization';
+import DetailedCheckResults from './DetailedCheckResults';
+import SuggestionsBrowser from './SuggestionsBrowser';
 import './Dashboard.css';
 
 // SODA Core Native Checks - Comprehensive List
@@ -123,6 +125,7 @@ export default function Dashboard() {
   const [apiStatus, setApiStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resultsView, setResultsView] = useState('detailed'); // 'detailed' or 'summary'
 
   const API_BASE = `http://${window.location.hostname}:8000/api/v1`;
 
@@ -403,110 +406,53 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Step 3: AI Suggestions */}
+          {/* Step 3: AI Suggestions & Check Selection */}
           {currentStep === 3 && suggestions && (
             <div className="step-content">
-              <h2>🤖 Step 3: AI-Suggested Checks</h2>
-              
+              <h2>🤖 Step 3: AI-Suggested Checks & Selection</h2>
+              <p className="step-description">
+                Review AI suggestions and select checks to execute. Use tabs, search, and filters for easier navigation.
+              </p>
+
               {loading && <p className="loading">🔄 Preparing checks...</p>}
               {error && <p className="error-message">{error}</p>}
               
-              <div className="suggestions-container">
-                {Array.isArray(suggestions) && suggestions.length > 0 ? (
-                  <div className="suggestions-list">
-                    <h3>🤖 AI-Recommended Checks</h3>
-                    <p className="subtitle">Based on your data analysis:</p>
-                    {suggestions.map((check, idx) => (
-                      <div key={idx} className="suggestion-item">
-                        <input type="checkbox" defaultChecked id={`ai-check-${idx}`} />
-                        <div className="check-details">
-                          <label htmlFor={`ai-check-${idx}`}><strong>{check.check_name || check.name}</strong></label>
-                          <span className="check-type">{check.check_type}</span>
-                          <span className="confidence">{Math.round((check.confidence || 0) * 100)}% confidence</span>
-                          {check.rationale && <p className="rationale">{check.rationale}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="note">No AI suggestions available.</p>
-                )}
-                
-                <div className="manual-selection">
-                  <h3>📋 Soda Native Checks</h3>
-                  <p className="subtitle">Manually add Soda checks by column or select all available checks:</p>
+              {/* Use new SuggestionsBrowser for better UX with many columns */}
+              <SuggestionsBrowser
+                suggestions={suggestions}
+                selectedIndexes={checksToExecute.map(c => suggestions.indexOf(c)).filter(idx => idx >= 0)}
+                onSelectChecks={(selectedIndexes) => {
+                  // Map selected indexes back to check objects
+                  const selected = selectedIndexes
+                    .map(idx => suggestions[idx])
+                    .filter(s => s);
                   
-                  {/* Show all available Soda checks */}
-                  <div className="all-soda-checks-section">
-                    <h4>All Available SODA Core Checks</h4>
-                    <div className="checks-by-category">
-                      {Object.entries(SODA_CHECKS).map(([categoryKey, category]) => (
-                        <div key={categoryKey} className="category-section">
-                          <div className="category-header">{category.category}</div>
-                          <div className="checks-grid">
-                            {category.checks.map((check) => (
-                              <div key={check.id} className="check-item">
-                                <input 
-                                  type="checkbox" 
-                                  id={`soda-all-${check.id}`}
-                                  className="soda-check"
-                                  data-check-id={check.id}
-                                  data-check-type={check.id}
-                                />
-                                <label htmlFor={`soda-all-${check.id}`}>
-                                  <span className="check-label">{check.label}</span>
-                                  <span className="check-description">{check.description}</span>
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  // Also add any manually selected Soda checks
+                  const manualSodaChecks = [];
+                  const columns = getColumnsFromMetadata(metadata);
+                  
+                  columns.forEach((col, colIdx) => {
+                    const applicableChecks = getApplicableChecks(col.type);
+                    Object.entries(applicableChecks).forEach(([categoryKey, category]) => {
+                      category.checks.forEach((check) => {
+                        const checkboxId = `col-${colIdx}-${check.id}`;
+                        const cb = document.getElementById(checkboxId);
+                        if (cb && cb.checked) {
+                          manualSodaChecks.push({
+                            column: col.name,
+                            check_type: check.id,
+                            name: `${col.name} - ${check.label}`,
+                            description: check.description,
+                            check_category: category.category
+                          });
+                        }
+                      });
+                    });
+                  });
 
-                  {/* Show column-specific checks if columns exist */}
-                  {getColumnsFromMetadata(metadata).length > 0 && (
-                    <div className="columns-specific-section">
-                      <h4>By Column</h4>
-                      <div className="columns-grid">
-                        {getColumnsFromMetadata(metadata).map((col, colIdx) => {
-                          const applicableChecks = getApplicableChecks(col.type);
-                          return (
-                            <div key={colIdx} className="column-selector">
-                              <label><strong>{col.name}</strong> <span className="type">({col.type})</span></label>
-                              <div className="check-options">
-                                {Object.entries(applicableChecks).map(([categoryKey, category]) => 
-                                  category.checks.length > 0 && (
-                                    <div key={categoryKey} className="check-category">
-                                      <div className="category-label">{category.category}</div>
-                                      {category.checks.map((check) => (
-                                        <div key={check.id} className="check-item">
-                                          <input 
-                                            type="checkbox" 
-                                            id={`col-${colIdx}-${check.id}`}
-                                            data-column={col.name}
-                                            data-check-id={check.id}
-                                            data-check-type={check.id}
-                                          />
-                                          <label htmlFor={`col-${colIdx}-${check.id}`}>
-                                            <span className="check-label">{check.label}</span>
-                                            <span className="check-description">{check.description}</span>
-                                          </label>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+                  setChecksToExecute([...selected, ...manualSodaChecks]);
+                }}
+              />
               
               <div className="action-buttons" style={{ marginTop: '20px' }}>
                 <button
@@ -514,69 +460,8 @@ export default function Dashboard() {
                   onClick={() => {
                     console.log('[Step 3] Check collection triggered');
                     
-                    // Collect AI suggestions that are checked
-                    const checkedAI = Array.from(document.querySelectorAll('input[id^="ai-check-"]:checked'))
-                      .map(cb => {
-                        const idx = parseInt(cb.id.replace('ai-check-', ''));
-                        return suggestions[idx];
-                      })
-                      .filter(s => s);
-                    
-                    // Collect global SODA checks (not tied to specific columns)
-                    const globalSodaChecks = Array.from(document.querySelectorAll('input[id^="soda-all-"]:checked'))
-                      .map(cb => {
-                        const checkId = cb.getAttribute('data-check-id');
-                        // Find the check details from SODA_CHECKS
-                        for (const [categoryKey, category] of Object.entries(SODA_CHECKS)) {
-                          const check = category.checks.find(c => c.id === checkId);
-                          if (check) {
-                            return {
-                              column: null,
-                              check_type: checkId,
-                              name: check.label,
-                              description: check.description,
-                              check_category: category.category,
-                              is_global: true
-                            };
-                          }
-                        }
-                        return null;
-                      })
-                      .filter(c => c);
-                    
-                    // Collect column-specific manually selected Soda checks
-                    const manualChecks = [];
-                    const columns = getColumnsFromMetadata(metadata);
-                    console.log('[Step 3] Metadata columns available:', columns.length, 'columns');
-                    
-                    if (columns.length > 0) {
-                      columns.forEach((col, colIdx) => {
-                        // Get all applicable checks for this column
-                        const applicableChecks = getApplicableChecks(col.type);
-                        
-                        Object.entries(applicableChecks).forEach(([categoryKey, category]) => {
-                          category.checks.forEach((check) => {
-                            const checkboxId = `col-${colIdx}-${check.id}`;
-                            const cb = document.getElementById(checkboxId);
-                            if (cb && cb.checked) {
-                              manualChecks.push({
-                                column: col.name,
-                                check_type: check.id,
-                                name: `${col.name} - ${check.label}`,
-                                description: check.description,
-                                check_category: category.category
-                              });
-                            }
-                          });
-                        });
-                      });
-                    }
-                    
-                    const allChecks = [...checkedAI, ...globalSodaChecks, ...manualChecks];
+                    const allChecks = checksToExecute;
                     console.log('[Step 3] Check collection result:', {
-                      ai_suggestions: checkedAI.length,
-                      global_soda: globalSodaChecks.length,
-                      manual_column: manualChecks.length,
                       total: allChecks.length
                     });
                     
@@ -589,9 +474,9 @@ export default function Dashboard() {
                       console.warn('[Step 3]', errMsg);
                     }
                   }}
-                  disabled={loading}
+                  disabled={loading || checksToExecute.length === 0}
                 >
-                  {loading ? '⏳ Creating Plan...' : `Create & Execute Plan → (${suggestions?.length || 0} suggested)`}
+                  {loading ? '⏳ Creating Plan...' : `Create & Execute Plan (${checksToExecute.length} selected) →`}
                 </button>
               </div>
             </div>
@@ -734,8 +619,49 @@ export default function Dashboard() {
             <div className="step-content">
               <h2>📈 Step 5: Results & Reports</h2>
               
-              {/* Show visualization component if metrics are available */}
-              {metrics ? (
+              {/* View Selector Buttons */}
+              <div className="results-view-selector" style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+                <button
+                  className={`view-btn ${resultsView === 'detailed' ? 'active' : ''}`}
+                  onClick={() => setResultsView('detailed')}
+                  style={{
+                    padding: '10px 16px',
+                    border: resultsView === 'detailed' ? '2px solid #007bff' : '2px solid #ddd',
+                    background: resultsView === 'detailed' ? '#007bff' : 'white',
+                    color: resultsView === 'detailed' ? 'white' : '#333',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  🔍 Detailed Check Results
+                </button>
+                <button
+                  className={`view-btn ${resultsView === 'summary' ? 'active' : ''}`}
+                  onClick={() => setResultsView('summary')}
+                  style={{
+                    padding: '10px 16px',
+                    border: resultsView === 'summary' ? '2px solid #007bff' : '2px solid #ddd',
+                    background: resultsView === 'summary' ? '#007bff' : 'white',
+                    color: resultsView === 'summary' ? 'white' : '#333',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  📊 Summary View
+                </button>
+              </div>
+
+              {/* Detailed Results View */}
+              {resultsView === 'detailed' && runId && (
+                <DetailedCheckResults runId={runId} />
+              )}
+
+              {/* Summary Results View (old visualization) */}
+              {resultsView === 'summary' && metrics ? (
                 <>
                   <ResultsVisualization runId={runId} metrics={metrics} planId={checkPlan?.id} />
                   <div className="action-buttons">
@@ -757,92 +683,11 @@ export default function Dashboard() {
                     </button>
                   </div>
                 </>
-              ) : (
-                <div className="results-display">
-                  <div className="result-card">
-                    <h3>✓ Check Execution Complete</h3>
-                    <div className="result-summary">
-                      <div className="summary-stat">
-                        <span className="stat-label">Total Checks:</span>
-                        <span className="stat-value">{runResults.total_checks || checksToExecute.length}</span>
-                      </div>
-                      <div className="summary-stat passed">
-                        <span className="stat-label">Passed:</span>
-                        <span className="stat-value">{runResults.passed_checks || 0}</span>
-                      </div>
-                      <div className="summary-stat failed">
-                        <span className="stat-label">Failed:</span>
-                        <span className="stat-value">{runResults.failed_checks || 0}</span>
-                      </div>
-                      <div className="summary-stat">
-                        <span className="stat-label">Status:</span>
-                        <span className="stat-value">{runResults.status || 'completed'}</span>
-                      </div>
-                    </div>
-                  
-                    {checksToExecute && checksToExecute.length > 0 && (
-                      <div className="detailed-results">
-                        <h4>Executed Checks Details:</h4>
-                        <div className="checks-results-list">
-                          {checksToExecute.map((check, idx) => (
-                            <div key={idx} className="check-result-item">
-                              <div className="check-result-header">
-                                <span className="check-name">✓ {check.check_name || check.name}</span>
-                                {check.column && <span className="column-tag">{check.column}</span>}
-                                {check.check_type && <span className="type-tag">{check.check_type}</span>}
-                              </div>
-                              <div className="check-result-details">
-                                {check.rationale && <p className="rationale"><strong>Rationale:</strong> {check.rationale}</p>}
-                                {check.suggested_check_yaml && (
-                                  <div className="yaml-preview">
-                                    <details>
-                                      <summary>View YAML Config</summary>
-                                      <pre>{check.suggested_check_yaml}</pre>
-                                    </details>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="action-buttons">
-                    <button
-                      className="btn-primary"
-                      onClick={() => {
-                        setCurrentStep(1);
-                        setSelectedConnection(null);
-                        setMetadata(null);
-                        setSuggestions(null);
-                        setCheckPlan(null);
-                        setChecksToExecute([]);
-                        setRunResults(null);
-                        setRunId(null);
-                        setMetrics(null);
-                      }}
-                    >
-                      ↻ Start New Check
-                    </button>
-                    <button 
-                      className="btn-secondary"
-                      onClick={() => {
-                        const report = `Data Quality Check Results\n${'='.repeat(50)}\nTotal Checks: ${checksToExecute.length}\nStatus: ${runResults.status}\n\nChecks Executed:\n${checksToExecute.map(c => `- ${c.check_name || c.name}`).join('\n')}`;
-                        const blob = new Blob([report], { type: 'text/plain' });
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `dq-report-${Date.now()}.txt`;
-                        a.click();
-                      }}
-                    >
-                      📥 Export Report
-                    </button>
-                  </div>
+              ) : resultsView === 'summary' ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                  <p>No metrics available. Please run a data quality check first.</p>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 

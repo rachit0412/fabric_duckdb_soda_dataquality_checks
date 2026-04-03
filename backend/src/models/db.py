@@ -94,21 +94,54 @@ class Run(Base):
     created_at = Column(DateTime(timezone=True), default=func.now(), index=True)
 
 class CheckResult(Base):
-    """Per-check execution result."""
+    """Per-check execution result with comprehensive details."""
     __tablename__ = "check_results"
     
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     run_id = Column(PG_UUID(as_uuid=True), nullable=False, index=True)
+    
+    # Basic Check Identity
     check_name = Column(String(255), nullable=False)
     check_type = Column(String(50))
-    status = Column(String(50), nullable=False, index=True)
+    column_name = Column(String(255), index=True)  # Column being checked
+    status = Column(String(50), nullable=False, index=True)  # pass, fail, warn, error
+    
+    # Metric Details (detailed level)
     metric_name = Column(String(255))
-    metric_value = Column(Float)
-    metric_threshold = Column(Float)
-    query_used = Column(Text)
-    execution_time_ms = Column(Integer)
-    sample_failing_rows = Column(JSONB)
-    error_message = Column(Text)
+    metric_value = Column(Float)  # Actual value found
+    expected_value = Column(Float)  # Expected/threshold value
+    metric_threshold = Column(Float)  # Tolerance threshold
+    metric_unit = Column(String(100))  # e.g., 'count', 'percent', '%', 'rows'
+    
+    # Validation Rule Details
+    validation_rule = Column(Text)  # Full rule description (e.g., "NOT NULL", "matches regex", "between 0-100")
+    comparison_operator = Column(String(50))  # =, !=, >, <, >=, <=, contains, matches, etc.
+    
+    # Detailed Results (lowest level breakdown)
+    total_rows = Column(Integer)  # Total rows in dataset
+    affected_rows_count = Column(Integer)  # Number of rows affected/failing
+    affected_rows_percent = Column(Float)  # Percentage of affected rows
+    
+    # Sample Failing Rows (detailed inspection)
+    sample_failing_rows = Column(JSONB)  # First N rows that failed (with context)
+    sample_passing_rows = Column(JSONB)  # Example of passing rows (for comparison)
+    
+    # Query & Execution Details
+    query_used = Column(Text)  # Exact SQL/DuckDB query executed
+    execution_time_ms = Column(Integer)  # How long the check took
+    memory_used_mb = Column(Float)  # Memory consumed during execution
+    
+    # Error/Warning Details
+    error_message = Column(Text)  # If check errored
+    warning_message = Column(Text)  # If check has warnings
+    remediation_steps = Column(JSONB)  # Suggested fixes as array
+    
+    # Additional Context
+    validation_context = Column(JSONB)  # Full context: {rule, operator, threshold, etc}
+    check_metadata = Column(JSONB)  # Custom metadata about this check
+    data_quality_dimension = Column(String(100))  # Completeness, Uniqueness, Validity, etc.
+    severity_level = Column(String(50))  # critical, high, medium, low
+    
     created_at = Column(DateTime(timezone=True), default=func.now())
 
 class JobQueue(Base):

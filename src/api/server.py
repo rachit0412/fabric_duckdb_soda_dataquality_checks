@@ -1921,5 +1921,467 @@ async def get_results_by_column_detailed(run_id: str, column_filter: Optional[st
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================================
+# DETAILED CHECK RESULTS ENDPOINTS - Granular Level Information
+# ============================================================================
+
+@app.get("/api/v1/results/runs/{run_id}/checks/grid")
+async def get_checks_grid(
+    run_id: str,
+    column_filter: Optional[str] = None,
+    status_filter: Optional[str] = None,  # pass, fail, warn, error
+    check_type_filter: Optional[str] = None,
+    sort_by: Optional[str] = None,  # column, status, metric_value, affected_rows
+    page: int = 1,
+    page_size: int = 20
+):
+    """
+    Detailed Grid View of ALL Checks - Lowest Level Information
+    
+    Returns every single check with complete details:
+    - Column name
+    - Check name & type
+    - Status (pass/fail/warn)
+    - Metric value vs threshold
+    - Affected rows count & percentage
+    - Query used
+    - Execution time
+    
+    WITH PAGINATION + FILTERING + SORTING
+    """
+    try:
+        if run_id not in run_states:
+            raise HTTPException(status_code=404, detail="Run not found")
+        
+        state = run_states[run_id]
+        results = state.get("results", [])
+        
+        # Flatten all results for grid view
+        grid_items = []
+        for result in results:
+            item = {
+                "id": f"{run_id}_{len(grid_items)}",
+                "check_name": result.get("check", "Unknown"),
+                "check_type": result.get("type", "generic"),
+                "column_name": result.get("column", "TABLE_LEVEL"),
+                "status": result.get("status", "unknown"),
+                "metric_name": result.get("details", {}).get("metric_name", ""),
+                "metric_value": result.get("details", {}).get("result", None),
+                "metric_threshold": result.get("details", {}).get("threshold", None),
+                "affected_rows_count": result.get("details", {}).get("affected_rows", 0),
+                "affected_rows_percent": result.get("details", {}).get("affected_percent", 0),
+                "total_rows": result.get("details", {}).get("total_rows", 0),
+                "query_used": result.get("details", {}).get("query", ""),
+                "execution_time_ms": result.get("execution_time", 0),
+                "error_message": result.get("error", ""),
+                "message": result.get("message", ""),
+                "sample_failing_rows": result.get("details", {}).get("sample_rows", []),
+                "validation_rule": result.get("details", {}).get("rule", ""),
+                "dimension": categorize_check(result.get("check", ""))
+            }
+            grid_items.append(item)
+        
+        # Apply filters
+        if column_filter:
+            grid_items = [i for i in grid_items if column_filter.lower() in i["column_name"].lower()]
+        
+        if status_filter:
+            grid_items = [i for i in grid_items if i["status"].lower() == status_filter.lower()]
+        
+        if check_type_filter:
+            grid_items = [i for i in grid_items if check_type_filter.lower() in i["check_name"].lower()]
+        
+        # Apply sorting
+        if sort_by == "column":
+            grid_items.sort(key=lambda x: x["column_name"])
+        elif sort_by == "status":
+            grid_items.sort(key=lambda x: (x["status"] != "pass", x["status"]))
+        elif sort_by == "affected_rows":
+            grid_items.sort(key=lambda x: x["affected_rows_percent"], reverse=True)
+        elif sort_by == "metric_value":
+            grid_items.sort(key=lambda x: x["metric_value"] if x["metric_value"] is not None else 0, reverse=True)
+        
+        # Pagination
+        total_items = len(grid_items)
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        paginated_items = grid_items[start_idx:end_idx]
+        
+        return {
+            "run_id": run_id,
+            "total_checks": len(results),
+            "page": page,
+            "page_size": page_size,
+            "total_items": total_items,
+            "total_pages": (total_items + page_size - 1) // page_size,
+            "items": paginated_items,
+            "summary": {
+                "passed": sum(1 for i in grid_items if i["status"] == "pass"),
+                "failed": sum(1 for i in grid_items if i["status"] == "fail"),
+                "warned": sum(1 for i in grid_items if i["status"] == "warn"),
+                "error": sum(1 for i in grid_items if i["status"] == "error"),
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get checks grid: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/results/runs/{run_id}/checks/{check_index}/details")
+async def get_check_details(run_id: str, check_index: int):
+    """
+    Deep Drill-Down into a SINGLE CHECK - Maximum Detail
+    
+    Returns complete information about one check:
+    - Full validation rule
+    - Comparison operator
+    - Expected vs Actual value
+    - ALL failing rows with context
+    - Query used
+    - Execution metrics
+    - Remediation steps
+    - Suggested fixes
+    """
+    try:
+        if run_id not in run_states:
+            raise HTTPException(status_code=404, detail="Run not found")
+        
+        state = run_states[run_id]
+        results = state.get("results", [])
+        
+        if check_index >= len(results):
+            raise HTTPException(status_code=404, detail="Check not found")
+        
+        check = results[check_index]
+        details = check.get("details", {})
+        
+        # Build comprehensive detail response
+        return {
+            "run_id": run_id,
+            "check_index": check_index,
+            "check_identity": {
+                "check_name": check.get("check", "Unknown"),
+                "check_type": check.get("type", "generic"),
+                "column_name": check.get("column", "TABLE_LEVEL"),
+                "dimension": categorize_check(check.get("check", ""))
+            },
+            "execution_status": {
+                "status": check.get("status", "unknown"),
+                "message": check.get("message", ""),
+                "error": check.get("error", ""),
+                "execution_time_ms": check.get("execution_time", 0),
+                "completed_at": state.get("completed_at")
+            },
+            "validation_rule": {
+                "rule_description": details.get("rule", ""),
+                "comparison_operator": details.get("operator", ""),
+                "expected_value": details.get("threshold", None),
+                "actual_value": details.get("result", None),
+                "unit": details.get("unit", "")
+            },
+            "impacted_data": {
+                "total_rows": details.get("total_rows", 0),
+                "affected_rows_count": details.get("affected_rows", 0),
+                "affected_rows_percentage": details.get("affected_percent", 0),
+                "passing_rows_count": (details.get("total_rows", 0) - details.get("affected_rows", 0))
+            },
+            "sample_data": {
+                "failing_rows": details.get("sample_rows", []),
+                "failing_rows_context": details.get("sample_with_context", []),
+                "sample_passing_rows": details.get("passing_sample", [][:3]),  # Show 3 examples of passing data
+            },
+            "query_information": {
+                "query_used": check.get("query", details.get("query", "")),
+                "query_description": f"Check '{check.get('check', 'unknown')}' on column '{check.get('column', 'TABLE')}'"
+            },
+            "remediation": {
+                "suggested_fixes": _get_remediation_steps(
+                    check.get("check", ""),
+                    check.get("status", "unknown"),
+                    details.get("affected_rows", 0),
+                    details.get("total_rows", 0)
+                ),
+                "severity": _classify_severity(
+                    check.get("status", "unknown"),
+                    details.get("affected_percent", 0)
+                ),
+                "priority": _calculate_priority(
+                    check.get("type", ""),
+                    details.get("affected_percent", 0),
+                    check.get("status", "")
+                )
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get check details: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/results/runs/{run_id}/column/{column_name}/insights")
+async def get_column_insights(run_id: str, column_name: str):
+    """
+    Complete Insights for a Single Column - All Checks That Touched It
+    
+    Shows:
+    - All checks executed on this column
+    - Quality breakdown by check type
+    - Most critical issues
+    - Data samples (passing + failing)
+    - Recommendations
+    """
+    try:
+        if run_id not in run_states:
+            raise HTTPException(status_code=404, detail="Run not found")
+        
+        state = run_states[run_id]
+        results = state.get("results", [])
+        
+        # Filter results for this column
+        column_checks = [r for r in results if r.get("column") == column_name]
+        
+        if not column_checks:
+            raise HTTPException(status_code=404, detail=f"No checks found for column '{column_name}'")
+        
+        # Group by check type
+        checks_by_type = {}
+        for check in column_checks:
+            check_type = check.get("type", "generic")
+            if check_type not in checks_by_type:
+                checks_by_type[check_type] = []
+            checks_by_type[check_type].append(check)
+        
+        # Build insights
+        insights = {
+            "column_name": column_name,
+            "run_id": run_id,
+            "total_checks_on_column": len(column_checks),
+            "checks_breakdown": {
+                "passed": sum(1 for c in column_checks if c.get("status") == "pass"),
+                "failed": sum(1 for c in column_checks if c.get("status") == "fail"),
+                "warned": sum(1 for c in column_checks if c.get("status") == "warn"),
+                "error": sum(1 for c in column_checks if c.get("status") == "error"),
+            },
+            "by_check_type": [
+                {
+                    "check_type": check_type,
+                    "count": len(checks),
+                    "passed": sum(1 for c in checks if c.get("status") == "pass"),
+                    "failed": sum(1 for c in checks if c.get("status") == "fail"),
+                    "checks": [
+                        {
+                            "name": c.get("check"),
+                            "status": c.get("status"),
+                            "message": c.get("message"),
+                            "affected_rows": c.get("details", {}).get("affected_rows", 0)
+                        }
+                        for c in checks
+                    ]
+                }
+                for check_type, checks in checks_by_type.items()
+            ],
+            "critical_issues": [
+                {
+                    "check": c.get("check"),
+                    "status": c.get("status"),
+                    "message": c.get("message"),
+                    "affected_rows": c.get("details", {}).get("affected_rows", 0),
+                    "affected_percent": c.get("details", {}).get("affected_percent", 0),
+                    "sample_rows": c.get("details", {}).get("sample_rows", [])[:3]
+                }
+                for c in sorted(
+                    [x for x in column_checks if x.get("status") in ["fail", "error"]],
+                    key=lambda x: x.get("details", {}).get("affected_percent", 0),
+                    reverse=True
+                )[:5]  # Top 5 critical issues
+            ],
+            "data_samples": {
+                "failing": [
+                    sample for check in column_checks 
+                    for sample in check.get("details", {}).get("sample_rows", [])[:2]
+                ][:5],
+                "summary": {
+                    "data_quality_score": calculate_quality_score(
+                        sum(1 for c in column_checks if c.get("status") == "pass"),
+                        len(column_checks)
+                    ) if column_checks else 100.0
+                }
+            }
+        }
+        
+        return insights
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get column insights: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/results/runs/{run_id}/checks/comparison")
+async def get_checks_comparison(
+    run_id: str,
+    dimension: Optional[str] = None  # completeness, uniqueness, validity, etc.
+):
+    """
+    Compare All Checks Across Dimensions
+    
+    Shows patterns and relationships:
+    - Which dimension has most failures
+    - Column-by-column comparison
+    - Check type distribution
+    - Severity distribution
+    """
+    try:
+        if run_id not in run_states:
+            raise HTTPException(status_code=404, detail="Run not found")
+        
+        state = run_states[run_id]
+        results = state.get("results", [])
+        
+        # Group by dimension
+        by_dimension = {}
+        for result in results:
+            dim = categorize_check(result.get("check", ""))
+            if dim not in by_dimension:
+                by_dimension[dim] = {"passed": 0, "failed": 0, "warned": 0, "error": 0, "checks": []}
+            
+            status = result.get("status", "unknown")
+            by_dimension[dim][status] = by_dimension[dim].get(status, 0) + 1
+            by_dimension[dim]["checks"].append({
+                "name": result.get("check"),
+                "column": result.get("column", "TABLE"),
+                "status": status
+            })
+        
+        # Group by column
+        by_column = {}
+        for result in results:
+            column = result.get("column", "TABLE_LEVEL")
+            if column not in by_column:
+                by_column[column] = {"passed": 0, "failed": 0, "warned": 0, "error": 0, "quality_score": 0}
+            
+            status = result.get("status", "unknown")
+            by_column[column][status] = by_column[column].get(status, 0) + 1
+        
+        # Calculate quality scores per column
+        for column, stats in by_column.items():
+            total = sum(1 for r in results if r.get("column", "TABLE_LEVEL") == column)
+            passed = stats.get("passed", 0)
+            by_column[column]["quality_score"] = calculate_quality_score(passed, total) if total > 0 else 100.0
+        
+        return {
+            "run_id": run_id,
+            "total_checks": len(results),
+            "by_dimension": by_dimension,
+            "by_column": by_column,
+            "top_failing_dimensions": sorted(
+                [(dim, stats["failed"]) for dim, stats in by_dimension.items()],
+                key=lambda x: x[1],
+                reverse=True
+            )[:5],
+            "top_failing_columns": sorted(
+                [(col, stats["failed"]) for col, stats in by_column.items()],
+                key=lambda x: x[1],
+                reverse=True
+            )[:5]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get checks comparison: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Helper functions for detailed results
+
+def _get_remediation_steps(check_name: str, status: str, affected_rows: int, total_rows: int) -> List[str]:
+    """Generate remediation steps based on check type and failure"""
+    if status == "pass":
+        return ["No action needed - check passed"]
+    
+    steps = []
+    check_lower = check_name.lower()
+    
+    if "missing" in check_lower or "null" in check_lower:
+        steps.extend([
+            f"Identify {affected_rows} rows with missing/NULL values",
+            "Fill missing values with appropriate defaults or imputation",
+            "Validate data source to prevent future NULL values"
+        ])
+    elif "duplicate" in check_lower:
+        steps.extend([
+            f"Identify {affected_rows} duplicate rows",
+            "Remove duplicates or merge identical records",
+            "Add unique constraints to prevent future duplicates"
+        ])
+    elif "match" in check_lower or "valid" in check_lower or "format" in check_lower:
+        steps.extend([
+            f"Review {affected_rows} rows with invalid format",
+            "Standardize values to correct format",
+            "Add validation rules at data entry point"
+        ])
+    elif "range" in check_lower or "threshold" in check_lower:
+        steps.extend([
+            f"Review {affected_rows} outlier values",
+            "Determine if values are errors or legitimate anomalies",
+            "Apply data transformations or correction rules as needed"
+        ])
+    else:
+        steps.extend([
+            f"Review {affected_rows} rows failing this check",
+            "Determine root cause of failure",
+            "Implement correction measures"
+        ])
+    
+    return steps
+
+
+def _classify_severity(status: str, affected_percent: float) -> str:
+    """Classify severity based on status and impact"""
+    if status == "error":
+        return "CRITICAL"
+    elif status == "fail":
+        if affected_percent > 50:
+            return "CRITICAL"
+        elif affected_percent > 20:
+            return "HIGH"
+        else:
+            return "MEDIUM"
+    elif status == "warn":
+        return "LOW"
+    else:
+        return "INFO"
+
+
+def _calculate_priority(check_type: str, affected_percent: float, status: str) -> int:
+    """Calculate priority score (1-10, higher = more urgent)"""
+    base_score = 1
+    
+    # Penalize by status
+    if status == "error":
+        base_score += 5
+    elif status == "fail":
+        base_score += 3
+    elif status == "warn":
+        base_score += 1
+    
+    # Penalize by impact
+    if affected_percent > 50:
+        base_score += 3
+    elif affected_percent > 20:
+        base_score += 2
+    elif affected_percent > 5:
+        base_score += 1
+    
+    # Penalize by check type (some types matter more than others)
+    if "duplicate" in check_type.lower() or "missing" in check_type.lower():
+        base_score += 1
+    
+    return min(base_score, 10)
+
+
 if __name__ == "__main__":
     start_api_server()
