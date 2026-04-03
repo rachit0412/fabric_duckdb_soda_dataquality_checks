@@ -162,7 +162,60 @@ class CheckResultResponse(BaseModel):
     metrics: Optional[Dict[str, Any]] = None
     created_at: datetime
 
+# ============== Column-Level Summary Models ==============
+class CheckCategorySummary(BaseModel):
+    """Summary of checks by category for a column"""
+    category: str
+    total: int
+    passed: int
+    failed: int
+    pass_rate: float
+    checks: List[Dict[str, Any]] = []  # List of {check_name, outcome, message}
+
+class ColumnChecksSummary(BaseModel):
+    """Complete summary of all checks for a single column"""
+    column_name: str
+    column_type: Optional[str] = None
+    total_checks: int
+    passed_checks: int
+    failed_checks: int
+    warned_checks: int = 0
+    quality_score: float  # 0-100, based on pass_rate
+    status: str  # PASS, WARN, FAIL, ERROR
+    check_categories: List[CheckCategorySummary]
+    top_issues: Optional[List[Dict[str, Any]]] = None  # Top 3 failing checks
+    
+class TableLevelChecksSummary(BaseModel):
+    """Summary of table-level checks (non-column specific)"""
+    total_checks: int
+    passed_checks: int
+    failed_checks: int
+    checks: List[Dict[str, Any]] = []  # List of {check_name, outcome, message}
+
+class ResultsSummaryByColumn(BaseModel):
+    """Column-organized view of results - COMPACT for browsing many columns"""
+    run_id: UUID
+    check_plan_id: UUID
+    status: str
+    summary_stats: Dict[str, Any]  # {total_columns, critical_columns, columns_by_quality, etc.}
+    columns: List[ColumnChecksSummary]  # Ordered by quality_score (worst first)
+    table_level_checks: Optional[TableLevelChecksSummary] = None
+    total_columns: int
+    columns_with_failures: int
+    completed_at: Optional[datetime] = None
+
+class DetailedResultsByColumn(BaseModel):
+    """Column-organized view with FULL details for each check"""
+    run_id: UUID
+    check_plan_id: UUID
+    status: str
+    summary_stats: Dict[str, Any]
+    columns: Dict[str, List[CheckResultResponse]]  # {column_name: [detailed results]}
+    table_level_checks: Optional[List[CheckResultResponse]] = None
+    completed_at: Optional[datetime] = None
+
 class ResultsResponse(BaseModel):
+    """Legacy flat results format (for backward compatibility)"""
     run_id: UUID
     check_plan_id: UUID
     status: str
