@@ -176,6 +176,61 @@ class MetricsResponse(BaseModel):
     checks_by_status: Dict[str, int]
 
 
+# Column-Level Results Models
+class CheckCategorySummary(BaseModel):
+    """Summary of checks by category for a column"""
+    category: str
+    total: int
+    passed: int
+    failed: int
+    pass_rate: float
+    checks: List[Dict[str, Any]] = []
+
+
+class ColumnChecksSummary(BaseModel):
+    """Complete summary of all checks for a single column"""
+    column_name: str
+    column_type: Optional[str] = None
+    total_checks: int
+    passed_checks: int
+    failed_checks: int
+    warned_checks: int = 0
+    quality_score: float  # 0-100, based on pass_rate
+    status: str  # PASS, WARN, FAIL, ERROR
+    check_categories: List[CheckCategorySummary]
+    top_issues: Optional[List[Dict[str, Any]]] = None  # Top 3 failing checks
+
+
+class TableLevelChecksSummary(BaseModel):
+    """Summary of table-level checks (non-column specific)"""
+    total_checks: int
+    passed_checks: int
+    failed_checks: int
+    checks: List[Dict[str, Any]] = []
+
+
+class ResultsSummaryByColumn(BaseModel):
+    """Column-organized view of results - COMPACT for browsing many columns"""
+    run_id: str
+    status: str
+    summary_stats: Dict[str, Any]
+    columns: List[ColumnChecksSummary]
+    table_level_checks: Optional[TableLevelChecksSummary] = None
+    total_columns: int
+    columns_with_failures: int
+    completed_at: Optional[str] = None
+
+
+class DetailedResultsByColumn(BaseModel):
+    """Column-organized view with FULL details for each check"""
+    run_id: str
+    status: str
+    summary_stats: Dict[str, Any]
+    columns: Dict[str, List[Dict[str, Any]]]  # {column_name: [detailed results]}
+    table_level_checks: Optional[List[Dict[str, Any]]] = None
+    completed_at: Optional[str] = None
+
+
 @app.post("/api/upload-scan")
 async def upload_and_scan(
     background_tasks: BackgroundTasks,
@@ -1582,6 +1637,287 @@ async def get_run_metrics(run_id: str):
             }
     except Exception as e:
         logger.error(f"Error retrieving metrics: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Helper functions for column-level results
+def categorize_check(check_name: str) -> str:
+    """Infer check category from check name"""
+    name_lower = check_name.lower() if check_name else ""
+    if 'missing' in name_lower or 'blank' in name_lower or 'null' in name_lower:
+        return 'Completeness'
+    elif 'duplicate' in name_lower:
+        return 'Uniqueness'
+    elif 'invalid' in name_lower or 'pattern' in name_lower or 'format' in name_lower:
+        return 'Validity'
+    elif 'anomaly' in name_lower or 'outlier' in name_lower:
+        return 'Anomaly Detection'
+    elif 'row_count' in name_lower or 'volume' in name_lower:
+        return 'Volume'
+    elif 'schema' in name_lower or 'type' in name_lower:
+        return 'Schema'
+    elif 'min' in name_lower or 'max' in name_lower or 'avg' in name_lower or 'stddev' in name_lower:
+        return 'Statistical'
+    elif 'fresh' in name_lower or 'date' in name_lower or 'recency' in name_lower:
+        return 'Freshness'
+    else:
+        return 'Other'
+
+
+def calculate_quality_score(passed: int, total: int) -> float:
+    """Calculate quality score 0-100 based on check results"""
+    if total == 0:
+        return 100.0
+    return round((passed / total) * 100, 2)
+
+
+def get_status_from_score(quality_score: float) -> str:
+    """Determine status badge from quality score"""
+    if quality_score >= 95:
+        return 'PASS'
+    elif quality_score >= 80:
+        return 'WARN'
+    elif quality_score >= 50:
+        return 'FAIL'
+    else:
+        return 'ERROR'
+
+
+@app.get("/api/v1/results/runs/{run_id}/results/by-column/summary", response_model=ResultsSummaryByColumn)
+async def get_results_by_column_summary(run_id: str):
+    """
+    Get results organized by COLUMN with compact summaries.
+    Perfect for browsing datasets with 100+ columns.
+    
+    Returns:
+    - Column-level quality scores
+    - Check breakdown by category per column
+    - Top failing checks per column
+    - Summary statistics about overall quality
+    """
+    try:
+        # Get run state
+        if run_id not in run_states:
+            raise HTTPException(status_code=404, detail="Run not found")
+        
+        state = run_states[run_id]
+        results = state.get("results", [])
+        
+        if not results:
+            return ResultsSummaryByColumn(
+                run_id=run_id,
+                status=state["status"],
+                summary_stats={},
+                columns=[],
+                total_columns=0,
+                columns_with_failures=0,
+                completed_at=state.get("completed_at")
+            )
+        
+        # Group by column
+        by_column: Dict[str, List[Dict[str, Any]]] = {}
+        table_level_results: List[Dict[str, Any]] = []
+        
+        for result in results:
+            column_name = result.get("column")
+            
+            # If no column specified, treat as table-level check
+            if not column_name:
+                table_level_results.append(result)
+            else:
+                if column_name not in by_column:
+                    by_column[column_name] = []
+                by_column[column_name].append(result)
+        
+        # Build column summaries
+        column_summaries: List[ColumnChecksSummary] = []
+        
+        for column_name, column_results in by_column.items():
+            passed = sum(1 for r in column_results if r.get("status") == "pass")
+            failed = sum(1 for r in column_results if r.get("status") == "fail")
+            warned = sum(1 for r in column_results if r.get("status") == "warn")
+            total = len(column_results)
+            
+            quality_score = calculate_quality_score(passed, total)
+            status = get_status_from_score(quality_score)
+            
+            # Group by category
+            by_category: Dict[str, List[Dict[str, Any]]] = {}
+            for result in column_results:
+                check_name = result.get("check", "unknown")
+                category = categorize_check(check_name)
+                if category not in by_category:
+                    by_category[category] = []
+                by_category[category].append(result)
+            
+            # Build category summaries
+            category_summaries: List[CheckCategorySummary] = []
+            for category, cat_results in by_category.items():
+                cat_passed = sum(1 for r in cat_results if r.get("status") == "pass")
+                cat_failed = sum(1 for r in cat_results if r.get("status") == "fail")
+                cat_total = len(cat_results)
+                
+                category_summaries.append(CheckCategorySummary(
+                    category=category,
+                    total=cat_total,
+                    passed=cat_passed,
+                    failed=cat_failed,
+                    pass_rate=round((cat_passed / cat_total * 100), 2) if cat_total > 0 else 100.0,
+                    checks=[
+                        {
+                            'check_name': r.get('check', 'unknown'),
+                            'status': r.get('status', 'unknown'),
+                            'message': r.get('message', '')
+                        }
+                        for r in cat_results
+                    ]
+                ))
+            
+            # Get top failing checks (up to 3)
+            failing_checks = [r for r in column_results if r.get("status") != "pass"]
+            top_issues = [
+                {
+                    'check_name': r.get('check', 'unknown'),
+                    'status': r.get('status', 'unknown'),
+                    'message': r.get('message', ''),
+                    'details': r.get('details', {})
+                }
+                for r in sorted(failing_checks, key=lambda x: x.get('check', ''))[:3]
+            ] if failing_checks else None
+            
+            column_summaries.append(ColumnChecksSummary(
+                column_name=column_name,
+                total_checks=total,
+                passed_checks=passed,
+                failed_checks=failed,
+                warned_checks=warned,
+                quality_score=quality_score,
+                status=status,
+                check_categories=category_summaries,
+                top_issues=top_issues
+            ))
+        
+        # Sort by quality score (worst first)
+        column_summaries.sort(key=lambda x: x.quality_score)
+        
+        # Calculate table-level summary
+        all_passed = sum(1 for r in results if r.get("status") == "pass")
+        all_failed = sum(1 for r in results if r.get("status") == "fail")
+        columns_with_failures = sum(1 for col_sum in column_summaries if col_sum.failed_checks > 0)
+        
+        return ResultsSummaryByColumn(
+            run_id=run_id,
+            status=state["status"],
+            summary_stats={
+                'total_columns': len(by_column),
+                'total_columns_failed': columns_with_failures,
+                'total_checks': len(results),
+                'checks_passed': all_passed,
+                'checks_failed': all_failed,
+                'overall_quality_score': calculate_quality_score(all_passed, len(results)) if results else 100.0
+            },
+            columns=column_summaries,
+            table_level_checks=TableLevelChecksSummary(
+                total_checks=len(table_level_results),
+                passed_checks=sum(1 for r in table_level_results if r.get("status") == "pass"),
+                failed_checks=sum(1 for r in table_level_results if r.get("status") == "fail"),
+                checks=[
+                    {
+                        'check_name': r.get('check', 'unknown'),
+                        'status': r.get('status', 'unknown'),
+                        'message': r.get('message', '')
+                    }
+                    for r in table_level_results
+                ]
+            ) if table_level_results else None,
+            total_columns=len(by_column),
+            columns_with_failures=columns_with_failures,
+            completed_at=state.get("completed_at")
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get column summary results: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/results/runs/{run_id}/results/by-column/detailed", response_model=DetailedResultsByColumn)
+async def get_results_by_column_detailed(run_id: str, column_filter: Optional[str] = None, limit_columns: Optional[int] = None):
+    """
+    Get results organized by COLUMN with FULL check details.
+    Useful for deep-diving into specific columns.
+    
+    Returns:
+    - All check results grouped by column
+    - Complete details for each check result
+    - Support for filtering and limiting columns
+    """
+    try:
+        # Get run state
+        if run_id not in run_states:
+            raise HTTPException(status_code=404, detail="Run not found")
+        
+        state = run_states[run_id]
+        results = state.get("results", [])
+        
+        if not results:
+            return DetailedResultsByColumn(
+                run_id=run_id,
+                status=state["status"],
+                summary_stats={},
+                columns={},
+                completed_at=state.get("completed_at")
+            )
+        
+        # Group by column
+        columns_dict: Dict[str, List[Dict[str, Any]]] = {}
+        table_level_results: List[Dict[str, Any]] = []
+        
+        for result in results:
+            column_name = result.get("column")
+            
+            if not column_name:
+                table_level_results.append(result)
+            else:
+                if column_name not in columns_dict:
+                    columns_dict[column_name] = []
+                columns_dict[column_name].append(result)
+        
+        # Apply filters
+        if column_filter:
+            columns_dict = {
+                k: v for k, v in columns_dict.items()
+                if column_filter.lower() in k.lower()
+            }
+        
+        # Apply limit
+        if limit_columns:
+            columns_dict = dict(list(columns_dict.items())[:limit_columns])
+        
+        # Calculate summary stats
+        all_cols = list(columns_dict.values())
+        total_results = sum(len(r) for r in all_cols) + len(table_level_results)
+        passed = sum(sum(1 for r in col_results if r.get("status") == "pass") for col_results in all_cols)
+        failed = sum(sum(1 for r in col_results if r.get("status") == "fail") for col_results in all_cols)
+        
+        return DetailedResultsByColumn(
+            run_id=run_id,
+            status=state["status"],
+            summary_stats={
+                'total_columns': len(columns_dict),
+                'total_checks': total_results,
+                'passed_checks': passed,
+                'failed_checks': failed,
+                'overall_quality_score': calculate_quality_score(passed, total_results) if total_results > 0 else 100.0
+            },
+            columns=columns_dict,
+            table_level_checks=table_level_results if table_level_results else None,
+            completed_at=state.get("completed_at")
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get detailed column results: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
