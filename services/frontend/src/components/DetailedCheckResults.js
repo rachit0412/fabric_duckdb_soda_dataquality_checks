@@ -14,7 +14,7 @@ import './DetailedCheckResults.css';
 
 const DetailedCheckResults = ({ runId }) => {
   const [view, setView] = useState('grid'); // grid, details, insights, comparison
-  const [gridData, setGridData] = useState([]);
+  const [gridData, setGridData] = useState(null);
   const [selectedCheck, setSelectedCheck] = useState(null);
   const [checkDetails, setCheckDetails] = useState(null);
   const [columnInsights, setColumnInsights] = useState(null);
@@ -44,17 +44,8 @@ const DetailedCheckResults = ({ runId }) => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({
-        column_filter: columnFilter,
-        status_filter: statusFilter,
-        check_type_filter: checkTypeFilter,
-        sort_by: sortBy,
-        page,
-        page_size: pageSize
-      });
-      
       const response = await fetch(
-        `/api/v1/results/runs/${runId}/checks/grid?${params}`
+        `/api/v1/results/runs/${runId}/results`
       );
       
       if (!response.ok) {
@@ -62,12 +53,79 @@ const DetailedCheckResults = ({ runId }) => {
       }
       
       const data = await response.json();
-      setGridData(data);
+      
+      // Transform flat results into grid format
+      let transformedData = (data.results || []).map((result, idx) => ({
+        index: idx,
+        check_name: result.check_name || 'Unknown',
+        column: result.details?.column || 'N/A',
+        outcome: result.outcome || 'unknown',
+        message: result.message || '',
+        affected_rows: result.metrics?.rows_affected || result.details?.rows_affected || 0,
+        passed_rows: result.metrics?.passed_rows || 0,
+        failed_rows: result.metrics?.failed_rows || 0,
+        metrics: result.metrics || {},
+        created_at: result.created_at
+      }));
+      
+      // Apply filters
+      if (columnFilter) {
+        transformedData = transformedData.filter(r => 
+          r.column.toLowerCase().includes(columnFilter.toLowerCase())
+        );
+      }
+      
+      if (statusFilter) {
+        transformedData = transformedData.filter(r => r.outcome === statusFilter);
+      }
+      
+      if (checkTypeFilter) {
+        transformedData = transformedData.filter(r => 
+          r.check_name.toLowerCase().includes(checkTypeFilter.toLowerCase())
+        );
+      }
+      
+      // Apply sorting
+      transformedData.sort((a, b) => {
+        let aVal, bVal;
+        switch(sortBy) {
+          case 'column':
+            aVal = a.column;
+            bVal = b.column;
+            break;
+          case 'status':
+            aVal = a.outcome;
+            bVal = b.outcome;
+            break;
+          case 'affected_rows':
+            aVal = a.affected_rows;
+            bVal = b.affected_rows;
+            break;
+          default:
+            aVal = a.check_name;
+            bVal = b.check_name;
+        }
+        return typeof aVal === 'string' 
+          ? aVal.localeCompare(bVal)
+          : aVal - bVal;
+      });
+      
+      // Paginate
+      const start = (page - 1) * pageSize;
+      const paginatedData = transformedData.slice(start, start + pageSize);
+      
+      setGridData({
+        data: paginatedData,
+        totalCount: transformedData.length,
+        totalChecks: data.total_checks,
+        passedChecks: data.passed_checks,
+        failedChecks: data.failed_checks
+      });
       setError(null);
     } catch (error) {
       console.error('Failed to load grid data:', error);
       setError(`Failed to load results: ${error.message}`);
-      setGridData([]);
+      setGridData(null);
     } finally {
       setLoading(false);
     }
@@ -78,7 +136,7 @@ const DetailedCheckResults = ({ runId }) => {
     setError(null);
     try {
       const response = await fetch(
-        `/api/v1/results/runs/${runId}/checks/${checkIndex}/details`
+        `/api/v1/results/runs/${runId}/results`
       );
       
       if (!response.ok) {
@@ -86,7 +144,21 @@ const DetailedCheckResults = ({ runId }) => {
       }
       
       const data = await response.json();
-      setCheckDetails(data);
+      const result = data.results?.[checkIndex];
+      
+      if (!result) {
+        throw new Error('Check result not found');
+      }
+      
+      setCheckDetails({
+        check_name: result.check_name,
+        outcome: result.outcome,
+        message: result.message,
+        details: result.details || {},
+        metrics: result.metrics || {},
+        failed_rows: result.failed_rows || [],
+        created_at: result.created_at
+      });
       setSelectedCheck(checkIndex);
       setView('details');
       setError(null);
@@ -103,7 +175,7 @@ const DetailedCheckResults = ({ runId }) => {
     setError(null);
     try {
       const response = await fetch(
-        `/api/v1/results/runs/${runId}/column/${columnName}/insights`
+        `/api/v1/results/runs/${runId}/results`
       );
       
       if (!response.ok) {
@@ -111,7 +183,23 @@ const DetailedCheckResults = ({ runId }) => {
       }
       
       const data = await response.json();
-      setColumnInsights(data);
+      
+      // Extract insights for this column
+      const columnResults = (data.results || []).filter(r => 
+        r.details?.column === columnName || r.check_name?.toLowerCase().includes(columnName.toLowerCase())
+      );
+      
+      const passCount = columnResults.filter(r => r.outcome === 'pass').length;
+      const failCount = columnResults.filter(r => r.outcome === 'fail').length;
+      
+      setColumnInsights({
+        column_name: columnName,
+        total_checks: columnResults.length,
+        passed_checks: passCount,
+        failed_checks: failCount,
+        quality_score: columnResults.length > 0 ? Math.round((passCount / columnResults.length) * 100) : 0,
+        checks: columnResults
+      });
       setSelectedColumn(columnName);
       setView('insights');
       setError(null);
@@ -128,7 +216,7 @@ const DetailedCheckResults = ({ runId }) => {
     setError(null);
     try {
       const response = await fetch(
-        `/api/v1/results/runs/${runId}/checks/comparison`
+        `/api/v1/results/runs/${runId}/results`
       );
       
       if (!response.ok) {
@@ -136,7 +224,24 @@ const DetailedCheckResults = ({ runId }) => {
       }
       
       const data = await response.json();
-      setComparisonData(data);
+      
+      // Generate comparison data from results
+      const byStatus = {
+        pass: (data.results || []).filter(r => r.outcome === 'pass'),
+        fail: (data.results || []).filter(r => r.outcome === 'fail'),
+        warn: (data.results || []).filter(r => r.outcome === 'warn')
+      };
+      
+      setComparisonData({
+        total_checks: data.total_checks,
+        passed_checks: data.passed_checks,
+        failed_checks: data.failed_checks,
+        by_status: byStatus,
+        summary: {
+          pass_rate: data.total_checks > 0 ? Math.round((data.passed_checks / data.total_checks) * 100) : 0,
+          fail_rate: data.total_checks > 0 ? Math.round((data.failed_checks / data.total_checks) * 100) : 0
+        }
+      });
       setError(null);
     } catch (error) {
       console.error('Failed to load comparison data:', error);
@@ -152,14 +257,12 @@ const DetailedCheckResults = ({ runId }) => {
       return <div className="no-data">No checks available. Run a data quality check first.</div>;
     }
 
-    const items = gridData.items || gridData || [];
+    const items = gridData.data || [];
     const hasItems = Array.isArray(items) && items.length > 0;
 
     if (!hasItems) {
       return <div className="no-data">No checks available. Try adjusting your filters.</div>;
     }
-
-    const summary = gridData.summary || { passed: 0, failed: 0, warned: 0, error: 0 };
 
     return (
       <div className="grid-view">
@@ -185,8 +288,6 @@ const DetailedCheckResults = ({ runId }) => {
             <option value="">All Status</option>
             <option value="pass">Passed</option>
             <option value="fail">Failed</option>
-            <option value="warn">Warned</option>
-            <option value="error">Error</option>
           </select>
           <select
             value={sortBy}
@@ -196,26 +297,22 @@ const DetailedCheckResults = ({ runId }) => {
             <option value="column">Sort by Column</option>
             <option value="status">Sort by Status</option>
             <option value="affected_rows">Sort by Affected Rows</option>
-            <option value="metric_value">Sort by Metric Value</option>
+            <option value="check_name">Sort by Check Name</option>
           </select>
         </div>
 
         <div className="grid-summary">
           <div className="summary-card passed">
-            <div className="summary-label">Passed</div>
-            <div className="summary-value">{summary.passed || 0}</div>
+            <div className="summary-label">Total Passed</div>
+            <div className="summary-value">{gridData.passedChecks || 0}</div>
           </div>
           <div className="summary-card failed">
-            <div className="summary-label">Failed</div>
-            <div className="summary-value">{summary.failed || 0}</div>
+            <div className="summary-label">Total Failed</div>
+            <div className="summary-value">{gridData.failedChecks || 0}</div>
           </div>
-          <div className="summary-card warned">
-            <div className="summary-label">Warned</div>
-            <div className="summary-value">{summary.warned || 0}</div>
-          </div>
-          <div className="summary-card error">
-            <div className="summary-label">Error</div>
-            <div className="summary-value">{summary.error || 0}</div>
+          <div className="summary-card total">
+            <div className="summary-label">Total Checks</div>
+            <div className="summary-value">{gridData.totalChecks || 0}</div>
           </div>
         </div>
 
@@ -225,47 +322,31 @@ const DetailedCheckResults = ({ runId }) => {
               <th>Check Name</th>
               <th>Column</th>
               <th>Status</th>
-              <th>Metric</th>
-              <th>Value vs Threshold</th>
               <th>Affected Rows</th>
-              <th>Exec Time (ms)</th>
+              <th>Message</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {gridData.items.map((item, idx) => (
-              <tr key={idx} className={`status-${item.status}`}>
+            {items.map((item, idx) => (
+              <tr key={idx} className={`status-${item.outcome}`}>
                 <td className="check-name">
                   <strong>{item.check_name}</strong>
-                  <br />
-                  <span className="dimension">{item.dimension}</span>
                 </td>
-                <td>{item.column_name}</td>
+                <td>{item.column}</td>
                 <td>
-                  <span className={`status-badge ${item.status}`}>
-                    {item.status.toUpperCase()}
+                  <span className={`status-badge status-${item.outcome}`}>
+                    {item.outcome.toUpperCase()}
                   </span>
                 </td>
-                <td>{item.metric_name}</td>
-                <td className="metric-comparison">
-                  <div>{item.metric_value}</div>
-                  {item.metric_threshold !== null && (
-                    <div className="threshold">vs {item.metric_threshold}</div>
-                  )}
-                </td>
-                <td>
-                  <div>{item.affected_rows_count} rows</div>
-                  {item.affected_rows_percent > 0 && (
-                    <div className="percentage">({item.affected_rows_percent.toFixed(1)}%)</div>
-                  )}
-                </td>
-                <td>{item.execution_time_ms}ms</td>
+                <td>{item.affected_rows || 0}</td>
+                <td className="message">{item.message}</td>
                 <td>
                   <button
-                    className="btn-details"
-                    onClick={() => loadCheckDetails(idx)}
+                    onClick={() => loadCheckDetails(item.index)}
+                    className="btn-view"
                   >
-                    View Details
+                    View
                   </button>
                 </td>
               </tr>
@@ -282,10 +363,10 @@ const DetailedCheckResults = ({ runId }) => {
             Previous
           </button>
           <span className="page-info">
-            Page {page} of {gridData.total_pages}
+            Page {page} of {Math.ceil(gridData.totalCount / pageSize)}
           </span>
           <button
-            disabled={page >= gridData.total_pages}
+            disabled={page >= Math.ceil(gridData.totalCount / pageSize)}
             onClick={() => setPage(page + 1)}
           >
             Next
@@ -308,150 +389,82 @@ const DetailedCheckResults = ({ runId }) => {
         </button>
 
         <div className="details-header">
-          <h2>{check.check_identity.check_name}</h2>
-          <span className={`status-badge ${check.execution_status.status}`}>
-            {check.execution_status.status.toUpperCase()}
+          <h2>{check.check_name}</h2>
+          <span className={`status-badge status-${check.outcome}`}>
+            {check.outcome.toUpperCase()}
           </span>
         </div>
 
-        {/* Check Identity */}
+        {/* Check Information */}
         <section className="details-section">
-          <h3>Check Identity</h3>
+          <h3>Check Information</h3>
           <div className="detail-grid">
             <div className="detail-item">
-              <label>Check Type:</label>
-              <span>{check.check_identity.check_type}</span>
+              <label>Check Name:</label>
+              <span>{check.check_name}</span>
             </div>
             <div className="detail-item">
-              <label>Column:</label>
-              <span>{check.check_identity.column_name}</span>
+              <label>Outcome:</label>
+              <span className={`status-badge status-${check.outcome}`}>{check.outcome}</span>
             </div>
             <div className="detail-item">
-              <label>Data Quality Dimension:</label>
-              <span className="dimension">{check.check_identity.dimension}</span>
+              <label>Executed:</label>
+              <span>{new Date(check.created_at).toLocaleString()}</span>
             </div>
           </div>
         </section>
 
-        {/* Validation Rule */}
-        <section className="details-section">
-          <h3>Validation Rule</h3>
-          <div className="rule-box">
-            <p><strong>Rule:</strong> {check.validation_rule.rule_description}</p>
-            <div className="rule-details">
-              <div className="detail-item">
-                <label>Operator:</label>
-                <span>{check.validation_rule.comparison_operator}</span>
-              </div>
-              <div className="detail-item">
-                <label>Expected:</label>
-                <span className="value-box">{check.validation_rule.expected_value}</span>
-              </div>
-              <div className="detail-item">
-                <label>Actual:</label>
-                <span className="value-box">{check.validation_rule.actual_value}</span>
-              </div>
-              <div className="detail-item">
-                <label>Unit:</label>
-                <span>{check.validation_rule.unit || '-'}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Impacted Data */}
-        <section className="details-section">
-          <h3>Impacted Data</h3>
-          <div className="impact-metrics">
-            <div className="impact-card">
-              <div className="metric-label">Total Rows</div>
-              <div className="metric-value">{check.impacted_data.total_rows}</div>
-            </div>
-            <div className="impact-card">
-              <div className="metric-label">Affected Rows</div>
-              <div className="metric-value">{check.impacted_data.affected_rows_count}</div>
-            </div>
-            <div className="impact-card">
-              <div className="metric-label">Percentage</div>
-              <div className="metric-value">{check.impacted_data.affected_rows_percentage.toFixed(2)}%</div>
-            </div>
-            <div className="impact-card">
-              <div className="metric-label">Passing Rows</div>
-              <div className="metric-value">{check.impacted_data.passing_rows_count}</div>
-            </div>
-          </div>
-        </section>
-
-        {/* Sample Failing Rows */}
-        {check.sample_data.failing_rows && check.sample_data.failing_rows.length > 0 && (
+        {/* Message */}
+        {check.message && (
           <section className="details-section">
-            <h3>Sample Failing Rows ({check.sample_data.failing_rows.length} shown)</h3>
-            <div className="sample-rows">
-              {check.sample_data.failing_rows.map((row, idx) => (
-                <div key={idx} className="row-item">
-                  <code>{JSON.stringify(row, null, 2)}</code>
+            <h3>Message</h3>
+            <div className="message-box">
+              <p>{check.message}</p>
+            </div>
+          </section>
+        )}
+
+        {/* Metrics */}
+        {check.metrics && Object.keys(check.metrics).length > 0 && (
+          <section className="details-section">
+            <h3>Metrics</h3>
+            <div className="metrics-grid">
+              {Object.entries(check.metrics).map(([key, value]) => (
+                <div key={key} className="metric-item">
+                  <label>{key}:</label>
+                  <span className="value-box">{JSON.stringify(value)}</span>
                 </div>
               ))}
             </div>
           </section>
         )}
 
-        {/* Query Information */}
-        <section className="details-section">
-          <h3>Query Information</h3>
-          <div className="query-box">
-            <p><strong>Description:</strong> {check.query_information.query_description}</p>
-            <pre className="query-text">{check.query_information.query_used}</pre>
-          </div>
-        </section>
+        {/* Failed Rows */}
+        {check.failed_rows && check.failed_rows.length > 0 && (
+          <section className="details-section">
+            <h3>Failed Rows ({check.failed_rows.length} shown)</h3>
+            <div className="sample-rows">
+              {check.failed_rows.slice(0, 10).map((row, idx) => (
+                <div key={idx} className="row-item">
+                  <code>{JSON.stringify(row, null, 2)}</code>
+                </div>
+              ))}
+              {check.failed_rows.length > 10 && (
+                <div className="row-item"><em>... and {check.failed_rows.length - 10} more rows</em></div>
+              )}
+            </div>
+          </section>
+        )}
 
-        {/* Execution Metrics */}
-        <section className="details-section">
-          <h3>Execution Metrics</h3>
-          <div className="exec-metrics">
-            <div className="metric-item">
-              <label>Execution Time:</label>
-              <span>{check.execution_status.execution_time_ms}ms</span>
+        {/* Details */}
+        {check.details && (
+          <section className="details-section">
+            <h3>Details</h3>
+            <div className="details-box">
+              <pre>{JSON.stringify(check.details, null, 2)}</pre>
             </div>
-            <div className="metric-item">
-              <label>Completed at:</label>
-              <span>{check.execution_status.completed_at}</span>
-            </div>
-            {check.execution_status.error && (
-              <div className="metric-item error">
-                <label>Error:</label>
-                <span>{check.execution_status.error}</span>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Remediation */}
-        <section className="details-section">
-          <h3>Remediation Actions</h3>
-          <div className="remediation">
-            <div className="severity">
-              <label>Severity:</label>
-              <span className={`severity-badge ${check.remediation.severity.toLowerCase()}`}>
-                {check.remediation.severity}
-              </span>
-            </div>
-            <div className="priority">
-              <label>Priority:</label>
-              <div className="priority-bar" style={{width: `${(check.remediation.priority / 10) * 100}%`}}>
-                {check.remediation.priority}/10
-              </div>
-            </div>
-            <div className="suggested-fixes">
-              <label>Suggested Fixes:</label>
-              <ol>
-                {check.remediation.suggested_fixes.map((fix, idx) => (
-                  <li key={idx}>{fix}</li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
       </div>
     );
   };
@@ -581,94 +594,70 @@ const DetailedCheckResults = ({ runId }) => {
 
         <h2>Checks Comparison & Analysis</h2>
 
-        {/* Top Failing Dimensions */}
+        {/* Summary Stats */}
         <section className="comparison-section">
-          <h3>Top Failing Dimensions</h3>
-          <div className="comparison-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Dimension</th>
-                  <th>Failed Checks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonData.top_failing_dimensions.map(([dim, count], idx) => (
-                  <tr key={idx}>
-                    <td>{dim}</td>
-                    <td className="count-cell">{count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <h3>Overall Summary</h3>
+          <div className="summary-stats">
+            <div className="stat-card">
+              <div className="stat-label">Total Checks</div>
+              <div className="stat-value">{comparisonData.total_checks}</div>
+            </div>
+            <div className="stat-card passed">
+              <div className="stat-label">Passed Checks</div>
+              <div className="stat-value">{comparisonData.passed_checks}</div>
+            </div>
+            <div className="stat-card failed">
+              <div className="stat-label">Failed Checks</div>
+              <div className="stat-value">{comparisonData.failed_checks}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Pass Rate</div>
+              <div className="stat-value">{comparisonData.summary?.pass_rate || 0}%</div>
+            </div>
           </div>
         </section>
 
-        {/* Top Failing Columns */}
+        {/* Status Breakdown */}
         <section className="comparison-section">
-          <h3>Top Failing Columns</h3>
-          <div className="comparison-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Column</th>
-                  <th>Failed Checks</th>
-                  <th>Quality Score</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonData.top_failing_columns.map(([col, count], idx) => {
-                  const colStats = comparisonData.by_column[col];
-                  return (
-                    <tr key={idx}>
-                      <td><strong>{col}</strong></td>
-                      <td className="count-cell">{count}</td>
-                      <td className="score-cell">
-                        {colStats.quality_score.toFixed(1)}%
-                      </td>
-                      <td>
-                        <button
-                          className="btn-small"
-                          onClick={() => loadColumnInsights(col)}
-                        >
-                          Insights
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* All Dimensions Breakdown */}
-        <section className="comparison-section">
-          <h3>All Dimensions Breakdown</h3>
-          <div className="dimensions-grid">
-            {Object.entries(comparisonData.by_dimension).map(([dim, stats]) => (
-              <div key={dim} className="dimension-card">
-                <h4>{dim}</h4>
-                <div className="stat">
-                  <span className="label">Passed:</span>
-                  <span className="value passed">{stats.passed}</span>
-                </div>
-                <div className="stat">
-                  <span className="label">Failed:</span>
-                  <span className="value failed">{stats.failed}</span>
-                </div>
-                <div className="stat">
-                  <span className="label">Warned:</span>
-                  <span className="value warned">{stats.warned}</span>
-                </div>
-                <div className="stat">
-                  <span className="label">Error:</span>
-                  <span className="value error">{stats.error}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <h3>Checks by Status</h3>
+          <table className="comparison-table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Count</th>
+                <th>Percentage</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="status-pass">
+                <td><strong>Passed</strong></td>
+                <td>{comparisonData.by_status?.pass?.length || 0}</td>
+                <td>
+                  {comparisonData.total_checks > 0
+                    ? (((comparisonData.by_status?.pass?.length || 0) / comparisonData.total_checks) * 100).toFixed(1)
+                    : 0}%
+                </td>
+              </tr>
+              <tr className="status-fail">
+                <td><strong>Failed</strong></td>
+                <td>{comparisonData.by_status?.fail?.length || 0}</td>
+                <td>
+                  {comparisonData.total_checks > 0
+                    ? (((comparisonData.by_status?.fail?.length || 0) / comparisonData.total_checks) * 100).toFixed(1)
+                    : 0}%
+                </td>
+              </tr>
+              <tr className="status-warn">
+                <td><strong>Warned</strong></td>
+                <td>{comparisonData.by_status?.warn?.length || 0}</td>
+                <td>
+                  {comparisonData.total_checks > 0
+                    ? (((comparisonData.by_status?.warn?.length || 0) / comparisonData.total_checks) * 100).toFixed(1)
+                    : 0}%
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </section>
       </div>
     );

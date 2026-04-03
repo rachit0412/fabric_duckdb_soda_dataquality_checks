@@ -158,6 +158,9 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ connection_id: connectionId }),
       });
+      if (!res.ok) {
+        throw new Error(`API Error: ${res.status} - ${res.statusText}`);
+      }
       const data = await res.json();
       setMetadata(data);
       // Persist metadata to localStorage for cross-step access
@@ -182,6 +185,9 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ connection_id: connectionId, limit: 10 }),
       });
+      if (!res.ok) {
+        throw new Error(`API Error: ${res.status} - ${res.statusText}`);
+      }
       const data = await res.json();
       setSuggestions(data.suggestions || []);
       console.log('[Step 3] Received', data.suggestions?.length || 0, 'AI suggestions');
@@ -230,6 +236,9 @@ export default function Dashboard() {
           checks: checks,
         }),
       });
+      if (!res.ok) {
+        throw new Error(`API Error: ${res.status} - ${res.statusText}`);
+      }
       const data = await res.json();
       setCheckPlan(data);
       executeCheckPlan(data.id);
@@ -248,7 +257,16 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ check_plan_id: planId }),
       });
+      
+      if (!res.ok) {
+        throw new Error(`API Error: ${res.status} - ${res.statusText}`);
+      }
+      
       const data = await res.json();
+      if (!data.id) {
+        throw new Error('Run creation failed: No run ID returned');
+      }
+      
       setRunResults(data);
       setRunId(data.id); // Store run ID for metrics
       
@@ -409,69 +427,153 @@ export default function Dashboard() {
           {/* Step 3: AI Suggestions & Check Selection */}
           {currentStep === 3 && suggestions && (
             <div className="step-content">
-              <h2>🤖 Step 3: AI-Suggested Checks & Selection</h2>
+              <h2>🤖 Step 3: Select Checks to Execute</h2>
               <p className="step-description">
-                Review AI suggestions and select checks to execute. Use tabs, search, and filters for easier navigation.
+                Choose from AI suggestions, SODA checks, or add column-specific checks.
               </p>
 
               {loading && <p className="loading">🔄 Preparing checks...</p>}
               {error && <p className="error-message">{error}</p>}
               
-              {/* Use new SuggestionsBrowser for better UX with many columns */}
-              <SuggestionsBrowser
-                suggestions={suggestions}
-                selectedIndexes={checksToExecute.map(c => suggestions.indexOf(c)).filter(idx => idx >= 0)}
-                onSelectChecks={(selectedIndexes) => {
-                  // Map selected indexes back to check objects
-                  const selected = selectedIndexes
-                    .map(idx => suggestions[idx])
-                    .filter(s => s);
-                  
-                  // Also add any manually selected Soda checks
-                  const manualSodaChecks = [];
-                  const columns = getColumnsFromMetadata(metadata);
-                  
-                  columns.forEach((col, colIdx) => {
-                    const applicableChecks = getApplicableChecks(col.type);
-                    Object.entries(applicableChecks).forEach(([categoryKey, category]) => {
-                      category.checks.forEach((check) => {
-                        const checkboxId = `col-${colIdx}-${check.id}`;
-                        const cb = document.getElementById(checkboxId);
-                        if (cb && cb.checked) {
-                          manualSodaChecks.push({
-                            column: col.name,
-                            check_type: check.id,
-                            name: `${col.name} - ${check.label}`,
-                            description: check.description,
-                            check_category: category.category
-                          });
-                        }
-                      });
-                    });
-                  });
+              {/* AI SUGGESTIONS BROWSER */}
+              <div style={{ marginBottom: '30px' }}>
+                <h3>🤖 AI-Recommended Checks</h3>
+                <p style={{ marginBottom: '15px', color: '#666' }}>Smart suggestions from analyzing your data</p>
+                <SuggestionsBrowser
+                  suggestions={suggestions}
+                  selectedIndexes={checksToExecute
+                    .filter(c => c.from === 'ai' || !c.from)
+                    .map((checkToExecute) => {
+                      return suggestions.findIndex(s => 
+                        s.check_name === checkToExecute.check_name || 
+                        s.name === checkToExecute.name
+                      );
+                    })
+                    .filter(idx => idx >= 0)}
+                  onSelectChecks={(selectedIndexes) => {
+                    const selected = selectedIndexes
+                      .map(idx => ({ ...suggestions[idx], from: 'ai' }))
+                      .filter(s => s);
+                    
+                    // Keep manual checks, replace AI checks
+                    const manualChecks = checksToExecute.filter(c => c.from === 'manual');
+                    setChecksToExecute([...selected, ...manualChecks]);
+                  }}
+                />
+              </div>
 
-                  setChecksToExecute([...selected, ...manualSodaChecks]);
-                }}
-              />
+              {/* MANUAL SODA CHECKS */}
+              <div style={{ marginBottom: '30px' }}>
+                <h3>📋 SODA Core Native Checks</h3>
+                <p style={{ marginBottom: '15px', color: '#666' }}>Manually select checks from SODA catalog</p>
+                
+                <div className="checks-by-category">
+                  {Object.entries(SODA_CHECKS).map(([categoryKey, category]) => (
+                    <div key={categoryKey} className="category-section" style={{ marginBottom: '15px', padding: '12px', background: '#f5f5f5', borderRadius: '6px' }}>
+                      <div className="category-header" style={{ fontWeight: 'bold', marginBottom: '10px', color: '#333' }}>
+                        {category.category}
+                      </div>
+                      <div className="checks-grid" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                        {category.checks.map((check) => (
+                          <div key={check.id} className="check-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input 
+                              type="checkbox" 
+                              id={`soda-all-${check.id}`}
+                              checked={checksToExecute.some(c => c.from === 'manual' && c.check_type === check.id && !c.column)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setChecksToExecute([...checksToExecute, {
+                                    column: null,
+                                    check_type: check.id,
+                                    name: check.label,
+                                    description: check.description,
+                                    check_category: category.category,
+                                    from: 'manual'
+                                  }]);
+                                } else {
+                                  setChecksToExecute(checksToExecute.filter(c => !(c.from === 'manual' && c.check_type === check.id && !c.column)));
+                                }
+                              }}
+                            />
+                            <label htmlFor={`soda-all-${check.id}`} style={{ cursor: 'pointer' }}>
+                              <span style={{ fontWeight: '500' }}>{check.label}</span>
+                              <span style={{ fontSize: '12px', color: '#666', display: 'block' }}>{check.description}</span>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* COLUMN-SPECIFIC CHECKS */}
+              {getColumnsFromMetadata(metadata).length > 0 && (
+                <div style={{ marginBottom: '30px' }}>
+                  <h3>🔍 Column-Specific Checks</h3>
+                  <p style={{ marginBottom: '15px', color: '#666' }}>Select checks for individual columns</p>
+                  
+                  <div className="columns-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' }}>
+                    {getColumnsFromMetadata(metadata).map((col, colIdx) => {
+                      const applicableChecks = getApplicableChecks(col.type);
+                      return (
+                        <div key={colIdx} className="column-selector" style={{ background: '#f9f9f9', padding: '12px', borderRadius: '6px', border: '1px solid #e0e0e0' }}>
+                          <label style={{ fontWeight: '600', marginBottom: '10px', display: 'block' }}>
+                            📊 {col.name}
+                            <span style={{ fontSize: '12px', color: '#999', fontWeight: 'normal' }}>({col.type})</span>
+                          </label>
+                          <div className="check-options" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {Object.entries(applicableChecks).map(([categoryKey, category]) => 
+                              category.checks.length > 0 && (
+                                <div key={categoryKey} className="check-category">
+                                  <div className="category-label" style={{ fontSize: '11px', fontWeight: '600', color: '#666', marginBottom: '4px' }}>
+                                    {category.category}
+                                  </div>
+                                  {category.checks.map((check) => (
+                                    <div key={check.id} className="check-item" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                                      <input 
+                                        type="checkbox" 
+                                        id={`col-${colIdx}-${check.id}`}
+                                        checked={checksToExecute.some(c => c.from === 'manual' && c.column === col.name && c.check_type === check.id)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setChecksToExecute([...checksToExecute, {
+                                              column: col.name,
+                                              check_type: check.id,
+                                              name: `${col.name} - ${check.label}`,
+                                              description: check.description,
+                                              check_category: category.category,
+                                              from: 'manual'
+                                            }]);
+                                          } else {
+                                            setChecksToExecute(checksToExecute.filter(c => !(c.from === 'manual' && c.column === col.name && c.check_type === check.id)));
+                                          }
+                                        }}
+                                      />
+                                      <label htmlFor={`col-${colIdx}-${check.id}`} style={{ cursor: 'pointer', flex: 1 }}>
+                                        {check.label}
+                                      </label>
+                                    </div>
+                                  ))}
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               
-              <div className="action-buttons" style={{ marginTop: '20px' }}>
+              <div className="action-buttons" style={{ marginTop: '30px' }}>
                 <button
                   className="btn-primary"
                   onClick={() => {
-                    console.log('[Step 3] Check collection triggered');
-                    
-                    const allChecks = checksToExecute;
-                    console.log('[Step 3] Check collection result:', {
-                      total: allChecks.length
-                    });
-                    
-                    if (allChecks.length > 0) {
-                      console.log('[Step 3] Proceeding to Step 4 with', allChecks.length, 'checks');
-                      preparePlan(allChecks);
+                    if (checksToExecute.length > 0) {
+                      preparePlan(checksToExecute);
                     } else {
-                      const errMsg = 'Please select at least one check';
-                      setError(errMsg);
-                      console.warn('[Step 3]', errMsg);
+                      setError('Please select at least one check');
                     }
                   }}
                   disabled={loading || checksToExecute.length === 0}

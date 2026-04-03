@@ -21,6 +21,18 @@ const SuggestionsBrowser = ({ suggestions, onSelectChecks, selectedIndexes = [] 
   const [selectedAll, setSelectedAll] = useState(false);
   const [dimensionFilter, setDimensionFilter] = useState('all');
 
+  // Define extractDimension BEFORE using it in useMemo
+  const extractDimension = (sugg) => {
+    const yaml = sugg.suggested_check_yaml || '';
+    if (yaml.includes('missing')) return 'Completeness';
+    if (yaml.includes('invalid') || yaml.includes('pattern')) return 'Validity';
+    if (yaml.includes('duplicate') || yaml.includes('uniqueness')) return 'Uniqueness';
+    if (yaml.includes('referential')) return 'Referential';
+    if (yaml.includes('consistency')) return 'Consistency';
+    if (yaml.includes('accuracy')) return 'Accuracy';
+    return 'Other';
+  };
+
   // Group suggestions by type, dimension, column
   const groupedData = useMemo(() => {
     if (!suggestions) return {};
@@ -52,17 +64,6 @@ const SuggestionsBrowser = ({ suggestions, onSelectChecks, selectedIndexes = [] 
 
     return { byType, byDimension, byColumn, dimensions: Array.from(dimensions).sort() };
   }, [suggestions]);
-
-  const extractDimension = (sugg) => {
-    const yaml = sugg.suggested_check_yaml || '';
-    if (yaml.includes('missing')) return 'Completeness';
-    if (yaml.includes('invalid') || yaml.includes('pattern')) return 'Validity';
-    if (yaml.includes('duplicate') || yaml.includes('uniqueness')) return 'Uniqueness';
-    if (yaml.includes('referential')) return 'Referential';
-    if (yaml.includes('consistency')) return 'Consistency';
-    if (yaml.includes('accuracy')) return 'Accuracy';
-    return 'Other';
-  };
 
   // Filter suggestions based on search + dimension filter
   const filteredSuggestions = useMemo(() => {
