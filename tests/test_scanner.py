@@ -52,16 +52,13 @@ class TestEnhancedDataQualityScanner:
         # Create mock scan with results
         mock_scan = Mock()
         
-        # Create mock checks
-        mock_check_pass = Mock()
-        mock_check_pass.outcome = "pass"
-        mock_check_pass.name = "row_count"
-        
-        mock_check_fail = Mock()
-        mock_check_fail.outcome = "fail"
-        mock_check_fail.name = "missing_count"
-        
-        mock_scan.get_checks.return_value = [mock_check_pass, mock_check_fail]
+        # Configure mock to return scan results with checks dict
+        mock_scan.get_scan_results.return_value = {
+            'checks': [
+                {'outcome': 'pass', 'name': 'row_count'},
+                {'outcome': 'fail', 'name': 'missing_count'},
+            ]
+        }
         
         # Parse results
         results = scanner.parse_scan_results(mock_scan, "test_table")
