@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean
 
 # Copy application code with correct ownership
-COPY --chown=appuser:appuser src/ ./src/
+COPY --chown=appuser:appuser backend/src/ ./src/
 COPY --chown=appuser:appuser soda_duckdb/ ./soda_duckdb/
 
 # Create necessary directories
