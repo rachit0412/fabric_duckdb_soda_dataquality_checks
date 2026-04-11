@@ -1,15 +1,30 @@
 """
-Heuristic-based check suggestion engine.
+Data Quality Checks Suggestions Engine (M3)
 
-Maps metadata patterns to Soda Core check recommendations.
-Leverages all free Soda Core features for comprehensive data quality.
+Implements intelligent check suggestions based on dataset profiling:
+- 12-rule suggestion engine with confidence scoring
+- Rule categorization (Volume, Completeness, Uniqueness, Validity, Freshness, Statistical)
+- Soda YAML generation
+- Severity assessment
 """
 
-from typing import List, Dict, Any
+from enum import Enum
+from typing import List, Dict, Any, Optional
 from uuid import UUID, uuid4
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class RuleCategory(str, Enum):
+    """Data quality rule categories for M3."""
+    VOLUME = "volume"
+    COMPLETENESS = "completeness"
+    UNIQUENESS = "uniqueness"
+    VALIDITY = "validity"
+    FRESHNESS = "freshness"
+    STATISTICAL = "statistical"
+
 
 class SuggestionRule:
     """Base class for a suggestion rule."""
@@ -26,8 +41,11 @@ class SuggestionRule:
         """Generate a check suggestion if applicable."""
         raise NotImplementedError
 
+
+# M3: 12-Rule Catalog Implementation
+
 class NullCheckForPKRule(SuggestionRule):
-    """Suggest null check for key-like columns."""
+    """Rule 1: Null check for key-like columns (Completeness)."""
     def __init__(self):
         super().__init__("null_check_for_pk_like", "Completeness", "missing_count")
     
@@ -36,7 +54,7 @@ class NullCheckForPKRule(SuggestionRule):
         distinct_count = column.get("distinct_count", 0)
         row_count = column.get("row_count", 1)
         
-        # PK or highly unique + non-nullable
+        # PK or highly unique
         if is_pk or distinct_count > 0.99 * row_count:
             return not column.get("nullable", True)
         return False
@@ -47,7 +65,10 @@ class NullCheckForPKRule(SuggestionRule):
             "rule_id": self.rule_id,
             "check_name": f"{col_name} is not null",
             "check_type": self.check_type,
-            "rationale": "Column appears to be a key or ID; expect no NULLs",
+            "category": RuleCategory.COMPLETENESS.value,
+            "confidence": 0.95,
+            "severity": "critical",
+            "rationale": "Column appears to be a key/ID; expect no NULLs",
             "confidence": 0.95,
             "suggested_yaml": f"checks:\n  - name: '{col_name} is not null'\n    type: missing_count\n    column: {col_name}\n    fail: when > 0"
         }
