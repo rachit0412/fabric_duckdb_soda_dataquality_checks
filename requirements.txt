@@ -39,3 +39,5 @@ opencensus-ext-azure==1.1.13
 
 # Utilities
 python-dateutil==2.9.0
+python-magic==0.4.27
+cryptography==46.0.7
