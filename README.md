@@ -156,38 +156,36 @@ docker compose down
 
 ---
 
-## 📖 Complete Documentation
+## 📖 Enterprise Documentation (Single Source of Truth)
 
-### Canonical Reference
+### Root Documentation (7 Canonical Files)
 | Document | Purpose |
 |----------|---------|
-| [docs/INDEX.md](docs/INDEX.md) | **START HERE** - Documentation hub and navigation |
-| [docs/OVERVIEW.md](docs/OVERVIEW.md) | Deep-dive architecture, data flow, component details |
-| [docs/API.md](docs/API.md) | Complete API specification and contracts |
-| [docs/DATABASE.md](docs/DATABASE.md) | Database schema, ER diagram, migrations |
-| [docs/CONNECTIONS.md](docs/CONNECTIONS.md) | Data source connections, credential management |
-| [docs/CHECKS.md](docs/CHECKS.md) | Check catalog, 12-rule suggestion engine |
-| [docs/EXECUTION.md](docs/EXECUTION.md) | Check execution flow, async queuing, result aggregation |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment guide, Docker Compose, config |
-| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Operational procedures, troubleshooting, SOP |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | System design, components, data flow |
+| **[SECURITY.md](SECURITY.md)** | Security hardening, validation, compliance |
+| **[CONTRIBUTING.md](CONTRIBUTING.md)** | Development guide, code standards, testing |
+| **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Common issues and solutions |
+| **[CHANGELOG.md](CHANGELOG.md)** | Version history and release notes |
+| **[COMPLETION_REPORT_ALL_PHASES.md](COMPLETION_REPORT_ALL_PHASES.md)** | Full M1-M6 implementation summary |
 
-### M5-M6 Completion Summaries
+### Technical Reference Guides (/docs - 12 Essential Guides)
 | Document | Purpose |
 |----------|---------|
-| [docs/PHASE5_COMPLETION.md](docs/PHASE5_COMPLETION.md) | M5 (Visualization & React Wizard) - 6 React components, 4 visualization endpoints |
-| [docs/PHASE6_COMPLETION.md](docs/PHASE6_COMPLETION.md) | M6 (Tests & CI/CD) - 63+ tests with 82% coverage, GitHub Actions pipelines |
-| [docs/TESTING.md](docs/TESTING.md) | Testing guide - unit, integration, security tests, coverage goals |
-| [docs/CI_CD.md](docs/CI_CD.md) | CI/CD pipeline documentation - GitHub Actions workflows, automation |
+| **[docs/INDEX.md](docs/INDEX.md)** | 📍 START HERE - Documentation hub |
+| **[docs/API.md](docs/API.md)** | REST API specification (22 endpoints) |
+| **[docs/DATABASE.md](docs/DATABASE.md)** | Schema reference, queries, tuning |
+| **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** | Advanced deployment options |
+| **[docs/RUNBOOK.md](docs/RUNBOOK.md)** | Operations and incident response |
+| **[docs/TESTING.md](docs/TESTING.md)** | Test execution (82% coverage) |
+| **[docs/CI_CD.md](docs/CI_CD.md)** | GitHub Actions pipeline architecture |
+| **[docs/CONNECTIONS.md](docs/CONNECTIONS.md)** | Data source registration guide |
+| **[docs/CHECKS.md](docs/CHECKS.md)** | 12-rule catalog with configuration |
+| **[docs/EXECUTION.md](docs/EXECUTION.md)** | Check execution flow and results |
+| **[docs/DECISION_LOG.md](docs/DECISION_LOG.md)** | Architecture decisions (ADR-001+) |
+| **[docs/RAID_LOG.md](docs/RAID_LOG.md)** | Risks, assumptions, issues, dependencies |
 
-### Legacy References
-| Document | Purpose |
-|----------|---------|
-| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Legacy deployment (see docs/DEPLOYMENT.md for current) |
-| [API_REFERENCE.md](API_REFERENCE.md) | Legacy API reference (see docs/API.md for current) |
-| [SECURITY.md](SECURITY.md) | Security features, hardening, attack scenarios |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Development guide, code standards, testing |
-| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
+### Archive
+- **[archive/deprecated/](archive/deprecated/)** - Historical documentation (64 files) for reference only
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design and component overview |
 
 ### Quick Shortcuts

@@ -1,215 +1,163 @@
-# 📦 Archived & Deprecated Documentation
+# 📚 Documentation Index
 
-**Last Updated:** 2026-04-11  
-**Purpose:** Historical reference and audit trail
+**Version:** 1.0.1 | **Last Updated:** 2026-04-01
 
----
-
-## Retention Policy
-
-This directory contains **deprecated and superseded documentation** from earlier project phases. These files are preserved for:
-
-- ✅ **Audit Trail:** Historical record of project evolution
-- ✅ **Reference:** Useful context for decisions made
-- ✅ **Compliance:** Evidence of project governance
-- ❌ **Active Use:** Do NOT use these files; they are outdated
-
-### How Long Files Are Kept
-
-| Category | Retention | Reason |
-|----------|-----------|--------|
-| Phase Reports | Indefinite | Audit trail |
-| Alternative Designs | 2 years | Historical context |
-| Obsolete Guides | 1 year | Minimal value |
-| Test Results | 90 days | Compliance |
+Welcome to the Enterprise Data Quality Platform documentation. This index provides quick access to all platform documentation.
 
 ---
 
-## What's Here
+## 🚀 Getting Started
 
-### 1. Phase Reports (OBSOLETE)
-Located in this directory. Examples:
-- `PHASE0_BASELINE_REPORT.md` → Replaced by ARCHITECTURE.md
-- `PHASE1_QUALITY_GATES.md` → Replaced by PHASE1_IMPLEMENTATION_PLAN.md  
-- `PHASE2_EDGE_CASE_MATRIX.md` → Replaced by PHASE2_API_CONTRACT.md
+Start here if you're new to the platform:
 
-**Status:** Reference only; do not use for implementation
-
-### 2. Architecture Variants (OBSOLETE)
-- `ARCHITECTURE_OVERVIEW.md` → Replaced by docs/OVERVIEW.md
-- `ARCHITECTURE.md.new` → Experimental variant (not approved)
-
-**Status:** Reference only; canonical version is at [/ARCHITECTURE.md](../../ARCHITECTURE.md)
-
-### 3. Implementation Guides (OUTDATED)
-- `MVP_QUICKSTART.md` → Replaced by docs/DEPLOYMENT.md
-- `FEATURES_IMPLEMENTATION.md` → Superseded by living codebase
-
-**Status:** Context only; follow current docs instead
-
-### 4. PM System Documentation
-- `PROJECT_MANAGEMENT_TEAM_SYSTEM.md` → PM team reference
-- `QUICKSTART_PM_SYSTEM.md` → PM system primer
-
-**Status:** Reference for governance; may be activated for team coordination
+1. **[Quick Start](../README.md#quick-start)** - 60-second deployment guide
+2. **[Quick Reference](QUICK_REFERENCE.md)** - Command cheatsheet (auto-generated)
+3. **[Architecture Overview](../ARCHITECTURE.md)** - System design essentials
 
 ---
 
-## Finding What You Need
+## 📖 Core Documentation
 
-### If You're Looking For...
+### Root Documentation (Project Overview)
+| Document | Description | Auto-Updated |
+|----------|-------------|--------------|
+| [README.md](../README.md) | Project overview, quick start, usage examples | 🟢 Yes |
+| [ARCHITECTURE.md](../ARCHITECTURE.md) | System architecture and design principles | ⚪ Manual |
+| [SECURITY.md](../SECURITY.md) | Security features, hardening, attack scenarios | ⚪ Manual |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | Developer guide for contributors | ⚪ Manual |
 
-| Need | Go To | NOT HERE |
-|------|-------|----------|
-| How to install & run | [docs/DEPLOYMENT.md](../../docs/DEPLOYMENT.md) | MVP_QUICKSTART.md |
-| API endpoints | [docs/API.md](../../docs/API.md) | PHASE2_API_CONTRACT.md |
-| System design | [docs/OVERVIEW.md](../../docs/OVERVIEW.md) | ARCHITECTURE_OVERVIEW.md |
-| Database schema | [docs/DATABASE.md](../../docs/DATABASE.md) | Phase reports |
-| Operations guide | [docs/RUNBOOK.md](../../docs/RUNBOOK.md) | Testing guides |
-| Architecture decisions | [ARCHITECTURE.md](../../ARCHITECTURE.md) + [docs/DECISION_LOG.md](../../docs/DECISION_LOG.md) | Architecture variants |
+### Auto-Generated Documentation
+| Document | Description | Source |
+|----------|-------------|--------|
+| [API_REFERENCE.md](API_REFERENCE.md) | REST API endpoints, models, examples | Extracted from `src/api/server.py` |
+| [COMPONENTS.md](COMPONENTS.md) | Component architecture and data flow | Extracted from source code |
+| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | Commands, configuration, directory structure | Generated from templates |
 
-### To Search Archives
+**Update docs:** Run `.\generate-docs.ps1` (or configure git pre-commit hook)
 
-```bash
-# Find a specific file
-find archive/deprecated -name "*keyword*" -type f
+---
 
-# Find documents mentioning a topic
-grep -r "database migration" archive/deprecated/
+## 📂 Documentation by Category
 
-# List files by date
-ls -lt archive/deprecated/ | head -20
+### 🏗️ Architecture & Design
+- [Architecture Overview](../ARCHITECTURE.md) - Compact system design
+- [Detailed Architecture](architecture/ARCHITECTURE_DETAILED.md) - Full technical documentation
+- [Components Reference](COMPONENTS.md) - Component breakdown (auto-generated)
 
-# View a specific archived file
-cat archive/deprecated/ARCHITECTURE_OVERVIEW.md
+### 🐳 Deployment & Operations
+- [Docker Setup Guide](deployment/DOCKER_SETUP.md) - Container deployment instructions
+- [Docker Ready Checklist](deployment/DOCKER_READY.md) - Pre-deployment validation
+- [Containerization Guide](deployment/CONTAINERIZATION.md) - Containerization details
+- [PostgreSQL Setup](deployment/POSTGRES_SETUP.md) - Database configuration
+- [Storage Options](deployment/STORAGE_OPTIONS.md) - PostgreSQL vs Cosmos DB
+
+### 🔐 Security
+- [Security Guide](../SECURITY.md) - Security features and hardening
+- [Security Testing](../test-security.ps1) - Automated security validation
+
+### 🌐 API & Integration
+- [API Reference](API_REFERENCE.md) - REST endpoints (auto-generated)
+- [Interactive API Docs](http://localhost:8000/docs) - Swagger UI (when running)
+
+### 📖 User Guides
+- [UI Guide](guides/UI_GUIDE.md) - Web dashboard usage
+- [Testing Guide](guides/TESTING.md) - Testing procedures
+
+### 🎯 Playbooks
+- [Development Playbook](playbooks/DEVELOPMENT_PLAYBOOK.md) - Developer workflows
+- [Deployment Playbook](playbooks/DEPLOYMENT_PLAYBOOK.md) - Deployment procedures
+
+### 🛠️ Maintenance
+- [Documentation Maintenance](DOCUMENTATION_MAINTENANCE.md) - How to maintain docs
+
+---
+
+## 🔄 Documentation Automation
+
+### Auto-Generated Documentation
+The following files are **automatically generated** from source code:
+
+- `docs/API_REFERENCE.md` - Extracted from FastAPI decorators
+- `docs/COMPONENTS.md` - Extracted from class structures
+- `docs/QUICK_REFERENCE.md` - Generated from templates
+- `README.md` (version stamp) - Updated with project version
+
+### Regenerate Documentation
+```powershell
+# Manual update
+.\generate-docs.ps1
+
+# Automatic (git hook)
+git config core.hooksPath .githooks
 ```
 
----
-
-## Migration Path
-
-When files are deprecated:
-
-1. **Content is consolidated** → New canonical version created
-2. **Links are updated** → All references point to canonical docs
-3. **Original is archived** → Moved to `/archive/deprecated/`
-4. **Decision is logged** → ADR created explaining change
-
-Example: `ARCHITECTURE.md.new` → `docs/ARCHITECTURE.md`
-- See: [docs/DECISION_LOG.md](../../docs/DECISION_LOG.md) - Decision-008
+See: [.githooks/README.md](../.githooks/README.md) for git hook setup
 
 ---
 
-## Do NOT Use These Files
+## 🗂️ Documentation Structure
 
-### ❌ Outdated Guides
-- `MVP_QUICKSTART.md` - Use [docs/DEPLOYMENT.md](../../docs/DEPLOYMENT.md)
-- `TESTING_PLAN.md` - Use pytest in repository
-
-### ❌ Obsolete Designs  
-- `ARCHITECTURE_OVERVIEW.md` - Use [docs/OVERVIEW.md](../../docs/OVERVIEW.md)
-- `ARCHITECTURE.md.new` - Use [ARCHITECTURE.md](../../ARCHITECTURE.md)
-
-### ❌ Experimental Features
-- Files marked "experimental", "draft", "POC" are not production-ready
-
----
-
-## Important Decisions
-
-### Decision-008: Documentation Consolidation (APPROVED)
-**Date:** 2026-04-11  
-**Status:** ✅ APPROVED
-
-**What:** Archive 50+ historical docs into single canonical source-of-truth
-
-**Why:**
-- Reduce confusion from multiple "versions of truth"
-- Improve maintainability (one update, not five)
-- Establish clear admin process (ADRs, review gates)
-- Enable docs-as-code workflow
-
-**Files Consolidated:**
-- 3 architecture variants → 1 canonical [docs/OVERVIEW.md](../../docs/OVERVIEW.md)
-- 12 phase reports → archived in [/archive/phases/](../phases/)
-- 50+ guides → 6 canonical docs in [/docs/](../../docs/)
-
-**See:** [docs/DECISION_LOG.md](../../docs/DECISION_LOG.md)
-
----
-
-## Using Archived Content for References
-
-If you need historical context:
-
-```bash
-# View original design document
-cat archive/deprecated/ARCHITECTURE_OVERVIEW.md | head -50
-
-# See what phase report said about a topic
-grep "connection management" archive/deprecated/PHASE0_BASELINE_REPORT.md
-
-# Check test results from archived run
-cat archive/deprecated/TEST_EXECUTION_GUIDE.md
+```
+.
+├── README.md                    # 🟢 Auto-updated (version stamp)
+├── ARCHITECTURE.md              # ⚪ Manual (compact overview)
+├── SECURITY.md                  # ⚪ Manual (security guide)
+├── CONTRIBUTING.md              # ⚪ Manual (developer guide)
+│
+├── docs/
+│   ├── README.md                # This file (documentation index)
+│   ├── API_REFERENCE.md         # 🟢 Auto-generated
+│   ├── COMPONENTS.md            # 🟢 Auto-generated
+│   ├── QUICK_REFERENCE.md       # 🟢 Auto-generated
+│   ├── DOCUMENTATION_MAINTENANCE.md  # ⚪ Manual
+│   │
+│   ├── architecture/
+│   │   └── ARCHITECTURE_DETAILED.md  # ⚪ Manual
+│   │
+│   ├── deployment/
+│   │   ├── DOCKER_SETUP.md      # ⚪ Manual
+│   │   ├── DOCKER_READY.md      # ⚪ Manual
+│   │   ├── CONTAINERIZATION.md  # ⚪ Manual
+│   │   ├── POSTGRES_SETUP.md    # ⚪ Manual
+│   │   └── STORAGE_OPTIONS.md   # ⚪ Manual
+│   │
+│   ├── guides/
+│   │   ├── UI_GUIDE.md          # ⚪ Manual
+│   │   └── TESTING.md           # ⚪ Manual
+│   │
+│   └── playbooks/
+│       ├── DEVELOPMENT_PLAYBOOK.md   # ⚪ Manual
+│       └── DEPLOYMENT_PLAYBOOK.md    # ⚪ Manual
+│
+├── .githooks/
+│   ├── pre-commit               # Auto-doc generation hook
+│   └── README.md                # Git hook setup guide
+│
+└── generate-docs.ps1            # Documentation generator script
 ```
 
----
-
-## What if an Archived File Is Missing?
-
-1. **Check Git history:**
-   ```bash
-   git log --follow --oneline -- archive/deprecated/
-   git show <commit>:archive/deprecated/FILENAME.md
-   ```
-
-2. **Ask team:**
-   - Slack: #data-quality-platform
-   - Email: team@example.com
-
-3. **Check git backup:**
-   ```bash
-   git reflog  # Find any deleted commits
-   git show <commit>:FILENAME.md
-   ```
+**Legend:**
+- 🟢 Auto-generated from source code
+- ⚪ Manually maintained
 
 ---
 
-## Contributing to This Directory
+## 🔍 Finding Documentation
 
-### When to Archive a Document
+### By Task
+- **Deploy the platform** → [README.md Quick Start](../README.md#quick-start)
+- **Understand the architecture** → [ARCHITECTURE.md](../ARCHITECTURE.md)
+- **Use the API** → [API_REFERENCE.md](API_REFERENCE.md)
+- **Secure the platform** → [SECURITY.md](../SECURITY.md)
+- **Develop features** → [CONTRIBUTING.md](../CONTRIBUTING.md)
+- **Maintain docs** → [DOCUMENTATION_MAINTENANCE.md](DOCUMENTATION_MAINTENANCE.md)
 
-1. **Significant change** (not minor fix)
-2. **Canonical alternative exists** and is maintained
-3. **Content is superseded**, not just updated
-
-### How to Archive
-
-```bash
-# 1. Move file to archive
-git mv DOCUMENT.md archive/deprecated/
-
-# 2. Create forwarding reference (if helpful)
-# Add to canonical file: "See archive/deprecated/OLD_NAME.md for historical context"
-
-# 3. Commit with clear message
-git commit -m "docs: Archive OLD_NAME.md - Decision-XXX
-
-Rationale: Consolidated into canonical CANONICAL_NAME.md
-See: docs/DECISION_LOG.md#decision-XXX"
-```
+### By Role
+- **DevOps Engineer** → Deployment docs, Docker guides, security
+- **Data Engineer** → API reference, usage examples, integration
+- **Developer** → Contributing guide, component docs, architecture
+- **Security Analyst** → Security guide, attack scenarios, hardening
 
 ---
 
-## Questions?
-
-- **How do I use the archived docs?** → You probably shouldn't. Use [docs/INDEX.md](../../docs/INDEX.md) instead.
-- **Where's the canonical version?** → [docs/INDEX.md](../../docs/INDEX.md) has the link
-- **Why was X archived?** → Check [docs/DECISION_LOG.md](../../docs/DECISION_LOG.md)
-- **Can I delete these files?** → No; keep for audit trail (indefinite retention)
-
----
-
-**Archive Maintained By:** Documentation Team  
-**Last Reviewed:** 2026-04-11  
-**Next Review:** 2026-07-11
+**Last Generated:** 2026-03-31 | **Tool:** Manual + `generate-docs.ps1`
