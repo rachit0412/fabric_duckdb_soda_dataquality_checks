@@ -11,6 +11,7 @@ import logging.config
 import json
 import sys
 import os
+from datetime import datetime, timezone
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -94,10 +95,23 @@ app.add_middleware(
 @app.get("/health")
 async def health():
     """Health check endpoint."""
+    try:
+        # Try to connect to database
+        from src.storage.db import SessionLocal
+        db = SessionLocal()
+        db.execute("SELECT 1")
+        db.close()
+        db_status = "connected"
+    except Exception as e:
+        logger.warning(f"Database health check failed: {e}")
+        db_status = "disconnected"
+    
     return {
         "status": "ok",
+        "version": "1.0.0",
+        "database": db_status,
         "app": settings.APP_NAME,
-        "version": settings.APP_VERSION
+        "timestamp": str(datetime.now(timezone.utc))
     }
 
 # Include routers

@@ -208,6 +208,83 @@
 
 ---
 
+### ADR-009: Docs-as-Code Baseline — Canonical Documentation
+- **ID:** ADR-009
+- **Title:** Establish single source of truth for documentation; docs-as-code workflow
+- **Status:** APPROVED (implemented 2026-04-11)
+- **Approved By:** Technical PM, Documentation Lead
+- **Approved Date:** 2026-04-11
+- **Decision:** Consolidate 50+ documentation files into 6 canonical documents in `/docs/`; establish update discipline
+- **Rationale:**
+  - Multiple doc versions create confusion and inconsistency
+  - Docs must stay in sync with code changes
+  - Documentation is as important as code; treat with same rigor
+  - Single source of truth enables reliable reference for team and customers
+- **Approved Implementation:**
+  1. **Canonical Docs (in `/docs/`):**
+     - `INDEX.md` - Navigation hub and single entry point
+     - `OVERVIEW.md` - Architecture deep-dive with diagrams
+     - `API.md` - Complete REST API specification
+     - `DATABASE.md` - Schema reference, migrations, queries
+     - `DEPLOYMENT.md` - Setup for local dev, Docker, production
+     - `RUNBOOK.md` - Operations guide, troubleshooting, incident response
+  2. **Process:**
+     - Every code change must include doc update (same PR)
+     - Weekly docs audit (Friday)
+     - Link validation before merge
+     - ADRs for any doc structure changes
+  3. **Archive** (`/archive/`)
+     - `/archive/deprecated/` - Old deployment guides, variants
+     - `/archive/phases/` - Phase reports (historical)
+     - `/archive/README.md` - Retention policy and search guide
+  4. **Verification:**
+     - No broken internal links (automated check)
+     - All API endpoints documented within 24 hours of code merge
+     - All decision reasons documented in DECISION_LOG.md or ADRs
+
+- **What Replaced:**
+  - ~~PHASE0_BASELINE_REPORT.md~~ → docs/OVERVIEW.md (high-level summary) + ARCHITECTURE.md (decisions)
+  - ~~PHASE1_QUALITY_GATES.md~~ → docs/INDEX.md (nav) + PHASE1_IMPLEMENTATION_PLAN.md (in root, temporary reference)
+  - ~~PHASE2_API_CONTRACT.md~~ → docs/API.md (normative spec)
+  - ~~PHASE2_EDGE_CASE_MATRIX.md~~ → Removed (test details, not customer-facing)
+  - ~~MVP_QUICKSTART.md~~ → docs/DEPLOYMENT.md
+  - ~~ARCHITECTURE_OVERVIEW.md~~ → docs/OVERVIEW.md + ARCHITECTURE.md
+  - All test guides → CONTRIBUTING.md (dev instructions only)
+
+- **Key Principle:** Documentation is a first-class artifact; if code changes but docs don't, it's a bug
+
+- **Timeline:** Completed in M1 (2026-04-11)
+
+- **Evidence:**
+  - Created: `/docs/INDEX.md`, `/docs/OVERVIEW.md`, `/docs/API.md`, `/docs/DATABASE.md`, `/docs/DEPLOYMENT.md`, `/docs/RUNBOOK.md`
+  - Updated: `.env.example` with comprehensive configuration reference
+  - Created: `/archive/deprecated/README.md` with retention policy
+  - Updated: `/backend/src/main.py` health check to return `database: connected`
+
+- **Impact:**
+  - Team now has single entry point: [docs/INDEX.md](INDEX.md)
+  - New contributors follow canonical docs only
+  - Support and operations use RUNBOOK.md for procedures
+  - API consumers use API.md as source of truth
+
+- **Future Extensions (v1.1+):**
+  - [ ] Add WIZARD_GUIDE.md when React wizard implemented
+  - [ ] Add CHECKS_GUIDE.md when suggestions engine complete
+  - [ ] Update DEPLOYMENT.md with production checklists
+  - [ ] Create troubleshooting guides for common errors
+
+- **Related ADRs:**
+  - ADR-001 (DuckDB)
+  - ADR-002 (Soda)
+  - ADR-003 (FastAPI + SQLAlchemy)
+
+- **Related Files:**
+  - [docs/INDEX.md](INDEX.md) - Navigation hub
+  - [archive/deprecated/README.md](../../archive/deprecated/README.md) - Archive policy
+  - [CONTRIBUTING.md](../../CONTRIBUTING.md) - Developer setup
+
+---
+
 ## DECISION TEMPLATE (For New Decisions)
 
 **Use this format when recording a new decision:**
