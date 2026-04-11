@@ -255,3 +255,173 @@ async def get_quality_by_column(
     except Exception as e:
         logger.error(f"Failed to get quality scoreboard: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/runs/{run_id}/anomalies")
+async def get_run_anomalies(
+    run_id: UUID,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Detect and return statistical anomalies from check results.
+    Uses Z-score and IQR methods to identify unusual patterns.
+    """
+    try:
+        # Get run
+        run = db.query(Run).filter(Run.id == run_id).first()
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        
+        # Get all results for this run
+        results = db.query(CheckResult).filter(CheckResult.run_id == run_id).all()
+        
+        anomalies = []
+        
+        # Detect anomalies
+        for result in results:
+            is_anomaly = False
+            anomaly_type = None
+            severity = "medium"
+            
+            # Z-score anomaly detection for numeric metrics
+            if result.metric_value is not None and result.expected_value is not None:
+                if result.expected_value != 0:
+                    z_score = abs((result.metric_value - result.expected_value) / result.metric_threshold) if result.metric_threshold else 0
+                    if z_score > 3:  # 3-sigma rule
+                        is_anomaly = True
+                        anomaly_type = "statistical_outlier"
+                        severity = "high"
+            
+            # IQR-based detection for affected rows percentage
+            if result.affected_rows_percent is not None:
+                if result.affected_rows_percent > 50:  # More than 50% affected is unusual
+                    is_anomaly = True
+                    anomaly_type = "high_failure_rate"
+                    severity = "high"
+                elif result.affected_rows_percent > 25:
+                    is_anomaly = True
+                    anomaly_type = "moderate_failure_rate"
+                    severity = "medium"
+            
+            # Pattern-based: unexpected check failures
+            if result.status == "fail" and result.severity_level == "critical":
+                is_anomaly = True
+                anomaly_type = "critical_failure"
+                severity = "critical"
+            
+            if is_anomaly:
+                anomalies.append({
+                    "check_name": result.check_name,
+                    "column_name": result.column_name,
+                    "type": anomaly_type,
+                    "severity": severity,
+                    "metric_value": result.metric_value,
+                    "expected_value": result.expected_value,
+                    "affected_rows_percent": result.affected_rows_percent,
+                    "message": result.error_message or result.warning_message or "Anomaly detected",
+                    "remediation": result.remediation_steps or [],
+                })
+        
+        return {
+            "run_id": str(run_id),
+            "anomaly_count": len(anomalies),
+            "anomalies": sorted(anomalies, key=lambda x: {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(x["severity"], 4))
+        }
+    
+    except Exception as e:
+        logger.error(f"Failed to detect anomalies: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/runs/{run_id}/drill-down")
+async def get_run_drill_down(
+    run_id: UUID,
+    column_name: str = None,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get detailed column-level check results with sample failing/passing rows.
+    Allows drilling down from overview to specific column details.
+    """
+    try:
+        # Get run
+        run = db.query(Run).filter(Run.id == run_id).first()
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        
+        # Get results filtered by column if specified
+        query = db.query(CheckResult).filter(CheckResult.run_id == run_id)
+        if column_name:
+            query = query.filter(CheckResult.column_name == column_name)
+        
+        results = query.all()
+        
+        # Group by column
+        columns_detail = {}
+        for result in results:
+            col = result.column_name or "unknown"
+            
+            if col not in columns_detail:
+                columns_detail[col] = {
+                    "column_name": col,
+                    "total_rows": result.total_rows,
+                    "checks": [],
+                    "health_score": 100.0,
+                    "data_quality_dimensions": {},
+                }
+            
+            # Add check details
+            check_detail = {
+                "check_name": result.check_name,
+                "check_type": result.check_type,
+                "status": result.status,
+                "metric_name": result.metric_name,
+                "metric_value": result.metric_value,
+                "expected_value": result.expected_value,
+                "affected_rows_count": result.affected_rows_count,
+                "affected_rows_percent": result.affected_rows_percent,
+                "validation_rule": result.validation_rule,
+                "severity": result.severity_level,
+                "data_quality_dimension": result.data_quality_dimension,
+                "error_message": result.error_message,
+                "sample_failing_rows": result.sample_failing_rows or [],
+                "sample_passing_rows": result.sample_passing_rows or [],
+                "remediation_steps": result.remediation_steps or [],
+            }
+            
+            columns_detail[col]["checks"].append(check_detail)
+            
+            # Track data quality dimensions
+            if result.data_quality_dimension:
+                dim = result.data_quality_dimension
+                if dim not in columns_detail[col]["data_quality_dimensions"]:
+                    columns_detail[col]["data_quality_dimensions"][dim] = {"passed": 0, "failed": 0}
+                
+                if result.status == "pass":
+                    columns_detail[col]["data_quality_dimensions"][dim]["passed"] += 1
+                else:
+                    columns_detail[col]["data_quality_dimensions"][dim]["failed"] += 1
+            
+            # Calculate health score (0-100)
+            total_checks = len(columns_detail[col]["checks"])
+            failed_checks = sum(1 for c in columns_detail[col]["checks"] if c["status"] != "pass")
+            health_score = ((total_checks - failed_checks) / total_checks * 100) if total_checks > 0 else 100
+            columns_detail[col]["health_score"] = round(health_score, 2)
+        
+        # If specific column requested, return just that column
+        if column_name and column_name in columns_detail:
+            return {
+                "run_id": str(run_id),
+                "column": columns_detail[column_name]
+            }
+        
+        # Otherwise return all columns
+        return {
+            "run_id": str(run_id),
+            "total_columns": len(columns_detail),
+            "columns": list(columns_detail.values())
+        }
+    
+    except Exception as e:
+        logger.error(f"Failed to get drill-down details: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))

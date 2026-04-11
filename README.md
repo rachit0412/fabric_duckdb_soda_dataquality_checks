@@ -158,10 +158,32 @@ docker compose down
 
 ## 📖 Complete Documentation
 
+### Canonical Reference
 | Document | Purpose |
 |----------|---------|
-| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Production deployment, Docker setup, configuration |
-| [API_REFERENCE.md](API_REFERENCE.md) | REST API endpoints with examples (auto-generated) |
+| [docs/INDEX.md](docs/INDEX.md) | **START HERE** - Documentation hub and navigation |
+| [docs/OVERVIEW.md](docs/OVERVIEW.md) | Deep-dive architecture, data flow, component details |
+| [docs/API.md](docs/API.md) | Complete API specification and contracts |
+| [docs/DATABASE.md](docs/DATABASE.md) | Database schema, ER diagram, migrations |
+| [docs/CONNECTIONS.md](docs/CONNECTIONS.md) | Data source connections, credential management |
+| [docs/CHECKS.md](docs/CHECKS.md) | Check catalog, 12-rule suggestion engine |
+| [docs/EXECUTION.md](docs/EXECUTION.md) | Check execution flow, async queuing, result aggregation |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment guide, Docker Compose, config |
+| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Operational procedures, troubleshooting, SOP |
+
+### M5-M6 Completion Summaries
+| Document | Purpose |
+|----------|---------|
+| [docs/PHASE5_COMPLETION.md](docs/PHASE5_COMPLETION.md) | M5 (Visualization & React Wizard) - 6 React components, 4 visualization endpoints |
+| [docs/PHASE6_COMPLETION.md](docs/PHASE6_COMPLETION.md) | M6 (Tests & CI/CD) - 63+ tests with 82% coverage, GitHub Actions pipelines |
+| [docs/TESTING.md](docs/TESTING.md) | Testing guide - unit, integration, security tests, coverage goals |
+| [docs/CI_CD.md](docs/CI_CD.md) | CI/CD pipeline documentation - GitHub Actions workflows, automation |
+
+### Legacy References
+| Document | Purpose |
+|----------|---------|
+| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Legacy deployment (see docs/DEPLOYMENT.md for current) |
+| [API_REFERENCE.md](API_REFERENCE.md) | Legacy API reference (see docs/API.md for current) |
 | [SECURITY.md](SECURITY.md) | Security features, hardening, attack scenarios |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development guide, code standards, testing |
@@ -172,6 +194,7 @@ docker compose down
 - 🚀 **Interactive API Docs** (live try-it-out): http://localhost:8000/docs
 - 📊 **Dashboard**: http://localhost:3000
 - 💻 **Source Code**: See [backend/](backend/) and [frontend/](frontend/)
+- 📚 **All Docs**: See [docs/](docs/) directory
 
 ---
 
