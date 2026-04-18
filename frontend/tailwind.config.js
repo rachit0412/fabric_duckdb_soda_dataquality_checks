@@ -4,6 +4,7 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
@@ -12,17 +13,14 @@ export default {
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
-        // Observatory dark palette
         observatory: {
-          bg: '#0a0e1a',
-          'bg-deep': '#060911',
-          surface: 'rgba(255,255,255,0.04)',
-          'surface-hover': 'rgba(255,255,255,0.07)',
-          'surface-active': 'rgba(255,255,255,0.10)',
-          border: 'rgba(255,255,255,0.06)',
-          'border-hover': 'rgba(255,255,255,0.12)',
+          bg: 'var(--bg)',
+          surface: 'var(--glass-bg)',
+          'surface-hover': 'var(--glass-hover-bg)',
+          border: 'var(--glass-border)',
+          'border-hover': 'var(--glass-hover-border)',
         },
-        // Cyan accent — the signature glow
+        // Cyan accent
         cyan: {
           50: '#ecfeff',
           100: '#cffafe',
@@ -58,11 +56,11 @@ export default {
           500: '#f59e0b',
           600: '#d97706',
         },
-        // Text hierarchy
-        'text-primary': '#e2e8f0',
-        'text-secondary': '#94a3b8',
-        'text-muted': '#475569',
-        'text-dim': '#334155',
+        // Text hierarchy (adapts to theme via CSS vars)
+        'text-primary': 'var(--text-1)',
+        'text-secondary': 'var(--text-2)',
+        'text-muted': 'var(--text-3)',
+        'text-dim': 'var(--text-4)',
       },
       boxShadow: {
         'glow-cyan': '0 0 20px rgba(6,182,212,0.15), 0 0 60px rgba(6,182,212,0.05)',

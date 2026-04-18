@@ -1,11 +1,13 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import {
   Database, FileSearch, Lightbulb, FileCheck, PlayCircle,
-  BarChart3, LineChart, LayoutDashboard, Activity,
+  BarChart3, LineChart, LayoutDashboard, Activity, Sun, Moon,
 } from 'lucide-react';
+import { useTheme } from './ThemeContext';
 
 export function Layout() {
   const location = useLocation();
+  const { theme, toggle } = useTheme();
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -21,11 +23,11 @@ export function Layout() {
   const currentPage = navigation.find(n => n.href === location.pathname)?.name || 'Dashboard';
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'linear-gradient(145deg, #0a0e1a 0%, #0f172a 50%, #0a0e1a 100%)' }}>
+    <div className="min-h-screen flex" style={{ background: 'linear-gradient(145deg, var(--bg-from) 0%, var(--bg-mid) 50%, var(--bg-to) 100%)' }}>
 
       {/* ── Icon Rail ── */}
-      <aside className="fixed inset-y-0 left-0 z-40 w-[60px] flex flex-col items-center py-4 glass border-r-0"
-        style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(10,14,26,0.85)', backdropFilter: 'blur(24px)' }}>
+      <aside className="fixed inset-y-0 left-0 z-40 w-[60px] flex flex-col items-center py-4"
+        style={{ background: 'var(--rail-bg)', backdropFilter: 'blur(24px)', borderRight: '1px solid var(--rail-border)' }}>
 
         {/* Logo Mark */}
         <div className="mb-6 relative group">
@@ -53,8 +55,11 @@ export function Layout() {
           ))}
         </nav>
 
-        {/* Bottom: status */}
-        <div className="mt-auto">
+        {/* Bottom: theme toggle + status */}
+        <div className="mt-auto flex flex-col items-center gap-2">
+          <button onClick={toggle} className="theme-toggle" title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}>
+            {theme === 'dark' ? <Sun className="w-[16px] h-[16px]" /> : <Moon className="w-[16px] h-[16px]" />}
+          </button>
           <div className="rail-item group">
             <span className="pulse-dot-emerald" />
             <span className="rail-tooltip">System Healthy</span>
@@ -67,22 +72,22 @@ export function Layout() {
 
         {/* ── Top Bar ── */}
         <header className="sticky top-0 z-30 h-12 flex items-center justify-between px-6"
-          style={{ background: 'rgba(10,14,26,0.7)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          style={{ background: 'var(--topbar-bg)', backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--topbar-border)' }}>
           {/* Left: Section */}
           <div className="flex items-center gap-2">
-            <span className="text-text-muted text-xs font-mono uppercase tracking-wider">Observatory</span>
-            <span className="text-text-dim">/</span>
-            <span className="text-cyan-400 text-sm font-heading font-medium">{currentPage}</span>
+            <span className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Observatory</span>
+            <span style={{ color: 'var(--text-4)' }}>/</span>
+            <span className="text-sm font-heading font-medium" style={{ color: 'var(--accent-text)' }}>{currentPage}</span>
           </div>
 
           {/* Right: Status */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-xs">
               <span className="pulse-dot-emerald" />
-              <span className="text-text-secondary font-mono">API Connected</span>
+              <span className="font-mono" style={{ color: 'var(--text-2)' }}>API Connected</span>
             </div>
-            <div className="h-4 w-px bg-white/[0.08]" />
-            <span className="text-text-muted text-xs font-mono">v1.0.1</span>
+            <div className="h-4 w-px" style={{ background: 'var(--divider)' }} />
+            <span className="text-xs font-mono" style={{ color: 'var(--text-3)' }}>v1.0.1</span>
           </div>
         </header>
 

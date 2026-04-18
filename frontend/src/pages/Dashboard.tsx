@@ -57,7 +57,7 @@ export function Dashboard() {
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center space-y-4">
           <div className="relative mx-auto w-10 h-10">
-            <div className="absolute inset-0 rounded-full" style={{ border: '2px solid rgba(255,255,255,0.06)' }} />
+            <div className="absolute inset-0 rounded-full" style={{ border: '2px solid var(--glass-border)' }} />
             <div className="absolute inset-0 rounded-full animate-spin" style={{ border: '2px solid transparent', borderTopColor: '#06b6d4' }} />
           </div>
           <p className="text-text-secondary text-sm font-mono">Initializing observatory...</p>
@@ -87,14 +87,14 @@ export function Dashboard() {
           <div
             className="ring-gauge flex-shrink-0 w-28 h-28 rounded-full"
             style={{
-              background: `conic-gradient(#06b6d4 0deg, #22d3ee ${ringDeg}deg, rgba(255,255,255,0.06) ${ringDeg}deg, rgba(255,255,255,0.06) 360deg)`,
+              background: `conic-gradient(#06b6d4 0deg, #22d3ee ${ringDeg}deg, var(--ring-empty) ${ringDeg}deg, var(--ring-empty) 360deg)`,
               boxShadow: stats.successRate > 80 ? '0 0 30px rgba(6,182,212,0.15)' : '0 0 20px rgba(244,63,94,0.1)',
             }}
           >
             <div className="ring-gauge-inner">
               <div className="text-center">
                 <span className="stat-number text-3xl text-glow-cyan">{stats.successRate}</span>
-                <span className="text-cyan-400 text-sm font-heading">%</span>
+                <span className="text-sm font-heading" style={{ color: 'var(--accent-text)' }}>%</span>
                 <p className="text-[10px] text-text-muted font-mono mt-0.5 uppercase tracking-wider">Quality</p>
               </div>
             </div>
@@ -248,7 +248,7 @@ export function Dashboard() {
           ].map((step) => (
             <div key={step.n} className="flex items-start gap-3">
               <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-mono font-bold"
-                style={{ background: 'rgba(6,182,212,0.15)', color: '#22d3ee', boxShadow: '0 0 10px rgba(6,182,212,0.1)' }}>
+                style={{ background: 'rgba(6,182,212,0.15)', color: 'var(--accent-text)', boxShadow: '0 0 10px rgba(6,182,212,0.1)' }}>
                 {step.n}
               </span>
               <p className="text-xs text-text-secondary leading-relaxed">{step.text}</p>

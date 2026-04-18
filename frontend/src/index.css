@@ -4,57 +4,167 @@
 
 /* ═══════════════════════════════════════════
    DATA OBSERVATORY — Design System
-   Deep navy + cyan glow + glass surfaces
+   Day & Night dual-theme
    ═══════════════════════════════════════════ */
+
+/* ─── Theme Tokens ─── */
+:root {
+  --bg: #f8fafc;
+  --bg-from: #f8fafc;
+  --bg-mid: #f1f5f9;
+  --bg-to: #f8fafc;
+
+  --glass-bg: rgba(255,255,255,0.65);
+  --glass-hover-bg: rgba(255,255,255,0.85);
+  --glass-border: rgba(15,23,42,0.08);
+  --glass-hover-border: rgba(15,23,42,0.14);
+  --glass-shadow: 0 1px 3px rgba(15,23,42,0.05), 0 4px 16px rgba(15,23,42,0.04);
+  --glass-hover-shadow: 0 2px 8px rgba(15,23,42,0.07), 0 8px 28px rgba(15,23,42,0.06);
+  --glass-inset: inset 0 1px 0 0 rgba(255,255,255,0.7);
+
+  --text-1: #0f172a;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+  --text-4: #cbd5e1;
+
+  --input-bg: rgba(15,23,42,0.03);
+  --input-border: rgba(15,23,42,0.12);
+  --input-focus-bg: rgba(255,255,255,0.9);
+  --input-placeholder: #94a3b8;
+
+  --rail-bg: rgba(248,250,252,0.92);
+  --topbar-bg: rgba(248,250,252,0.88);
+  --rail-border: rgba(15,23,42,0.07);
+  --topbar-border: rgba(15,23,42,0.06);
+
+  --tooltip-bg: #0f172a;
+  --tooltip-border: rgba(255,255,255,0.1);
+  --tooltip-shadow: 0 4px 16px rgba(0,0,0,0.25);
+
+  --ring-inner: #f8fafc;
+  --ring-empty: rgba(15,23,42,0.07);
+
+  --badge-bg: rgba(15,23,42,0.05);
+  --badge-border: rgba(15,23,42,0.08);
+
+  --rail-hover-bg: rgba(15,23,42,0.06);
+  --dot-grid-color: rgba(15,23,42,0.05);
+  --scrollbar-thumb: rgba(15,23,42,0.1);
+  --scrollbar-hover: rgba(15,23,42,0.2);
+  --selection-bg: rgba(6,182,212,0.15);
+  --selection-color: #0f172a;
+  --divider: rgba(15,23,42,0.08);
+  --border-base: rgba(15,23,42,0.08);
+  --btn-secondary-hover-bg: rgba(15,23,42,0.05);
+  --btn-secondary-hover-border: rgba(15,23,42,0.12);
+  --btn-ghost-hover-bg: rgba(15,23,42,0.05);
+  --delete-hover-bg: rgba(244,63,94,0.08);
+
+  --accent-text: #0891b2;
+
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0a0e1a;
+  --bg-from: #0a0e1a;
+  --bg-mid: #0f172a;
+  --bg-to: #0a0e1a;
+
+  --glass-bg: rgba(255,255,255,0.03);
+  --glass-hover-bg: rgba(255,255,255,0.06);
+  --glass-border: rgba(255,255,255,0.06);
+  --glass-hover-border: rgba(255,255,255,0.10);
+  --glass-shadow: none;
+  --glass-hover-shadow: 0 0 20px rgba(6,182,212,0.08);
+  --glass-inset: inset 0 1px 0 0 rgba(255,255,255,0.04);
+
+  --text-1: #e2e8f0;
+  --text-2: #94a3b8;
+  --text-3: #475569;
+  --text-4: #334155;
+
+  --input-bg: rgba(255,255,255,0.04);
+  --input-border: rgba(255,255,255,0.08);
+  --input-focus-bg: rgba(255,255,255,0.06);
+  --input-placeholder: #475569;
+
+  --rail-bg: rgba(10,14,26,0.85);
+  --topbar-bg: rgba(10,14,26,0.7);
+  --rail-border: rgba(255,255,255,0.06);
+  --topbar-border: rgba(255,255,255,0.05);
+
+  --tooltip-bg: rgba(15,23,42,0.95);
+  --tooltip-border: rgba(255,255,255,0.1);
+  --tooltip-shadow: 0 4px 12px rgba(0,0,0,0.4);
+
+  --ring-inner: #0a0e1a;
+  --ring-empty: rgba(255,255,255,0.06);
+
+  --badge-bg: rgba(255,255,255,0.05);
+  --badge-border: rgba(255,255,255,0.06);
+
+  --rail-hover-bg: rgba(255,255,255,0.06);
+  --dot-grid-color: rgba(148,163,184,0.07);
+  --scrollbar-thumb: rgba(255,255,255,0.08);
+  --scrollbar-hover: rgba(255,255,255,0.14);
+  --selection-bg: rgba(6,182,212,0.3);
+  --selection-color: #e2e8f0;
+  --divider: rgba(255,255,255,0.08);
+  --border-base: rgba(255,255,255,0.06);
+  --btn-secondary-hover-bg: rgba(255,255,255,0.07);
+  --btn-secondary-hover-border: rgba(255,255,255,0.12);
+  --btn-ghost-hover-bg: rgba(255,255,255,0.06);
+  --delete-hover-bg: rgba(244,63,94,0.1);
+
+  --accent-text: #22d3ee;
+
+  color-scheme: dark;
+}
 
 @layer base {
   *, *::before, *::after {
-    border-color: rgba(255,255,255,0.06);
-  }
-
-  html {
-    color-scheme: dark;
+    border-color: var(--border-base);
   }
 
   body {
-    @apply font-sans text-text-primary antialiased;
-    background: #0a0e1a;
+    @apply font-sans antialiased;
+    color: var(--text-1);
+    background: var(--bg);
   }
 
-  /* Selection highlight — cyan */
   ::selection {
-    background: rgba(6,182,212,0.3);
-    color: #e2e8f0;
+    background: var(--selection-bg);
+    color: var(--selection-color);
   }
 
-  /* Custom scrollbar — dark themed */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.08);
+    background: var(--scrollbar-thumb);
     border-radius: 3px;
   }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
 }
 
 @layer components {
 
   /* ─── Glass Surface ─── */
   .glass {
-    background: rgba(255,255,255,0.03);
+    background: var(--glass-bg);
     backdrop-filter: blur(24px) saturate(1.2);
     -webkit-backdrop-filter: blur(24px) saturate(1.2);
-    border: 1px solid rgba(255,255,255,0.06);
-    box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.04);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-inset), var(--glass-shadow);
   }
 
   .glass-hover {
     @apply glass transition-all duration-300;
   }
   .glass-hover:hover {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.10);
-    box-shadow: 0 0 20px rgba(6,182,212,0.08), inset 0 1px 0 0 rgba(255,255,255,0.05);
+    background: var(--glass-hover-bg);
+    border-color: var(--glass-hover-border);
+    box-shadow: var(--glass-inset), var(--glass-hover-shadow);
   }
 
   /* ─── Buttons ─── */
@@ -63,7 +173,7 @@
       font-medium text-sm px-4 py-2.5 rounded-xl
       transition-all duration-200 active:scale-[0.97];
     background: linear-gradient(135deg, #06b6d4, #0891b2);
-    color: #0a0e1a;
+    color: #fff;
     box-shadow: 0 0 20px rgba(6,182,212,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
   }
   .btn-primary:hover {
@@ -77,19 +187,25 @@
 
   .btn-secondary {
     @apply glass inline-flex items-center justify-center gap-2
-      text-text-secondary font-medium text-sm px-4 py-2.5 rounded-xl
-      hover:text-text-primary transition-all duration-200 active:scale-[0.97];
+      font-medium text-sm px-4 py-2.5 rounded-xl
+      transition-all duration-200 active:scale-[0.97];
+    color: var(--text-2);
   }
   .btn-secondary:hover {
-    background: rgba(255,255,255,0.07);
-    border-color: rgba(255,255,255,0.12);
+    color: var(--text-1);
+    background: var(--btn-secondary-hover-bg);
+    border-color: var(--btn-secondary-hover-border);
   }
 
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2
-      text-text-secondary font-medium text-sm px-3 py-2 rounded-lg
-      hover:text-text-primary hover:bg-white/[0.06]
+      font-medium text-sm px-3 py-2 rounded-lg
       transition-all duration-150;
+    color: var(--text-2);
+  }
+  .btn-ghost:hover {
+    color: var(--text-1);
+    background: var(--btn-ghost-hover-bg);
   }
 
   /* ─── Card (Glass panel) ─── */
@@ -101,19 +217,19 @@
     @apply glass-hover rounded-2xl p-6;
   }
 
-  /* ─── Inputs (dark observatory) ─── */
+  /* ─── Inputs ─── */
   .input {
-    @apply w-full px-3.5 py-2.5 text-sm font-sans
-      text-text-primary rounded-xl transition-all duration-200;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    @apply w-full px-3.5 py-2.5 text-sm font-sans rounded-xl transition-all duration-200;
+    color: var(--text-1);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
   }
-  .input::placeholder { color: #475569; }
+  .input::placeholder { color: var(--input-placeholder); }
   .input:focus {
     outline: none;
     border-color: rgba(6,182,212,0.5);
     box-shadow: 0 0 0 3px rgba(6,182,212,0.12), 0 0 20px rgba(6,182,212,0.06);
-    background: rgba(255,255,255,0.06);
+    background: var(--input-focus-bg);
   }
 
   select.input {
@@ -124,38 +240,50 @@
     padding-right: 36px;
   }
 
-  /* ─── Badges (glass chips) ─── */
+  /* ─── Badges ─── */
   .badge {
     @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.06);
+    background: var(--badge-bg);
+    border: 1px solid var(--badge-border);
   }
 
   .badge-success {
-    color: #34d399;
+    color: #059669;
     background: rgba(16,185,129,0.1);
     border-color: rgba(16,185,129,0.2);
+  }
+  .dark .badge-success {
+    color: #34d399;
     box-shadow: 0 0 10px rgba(16,185,129,0.08);
   }
 
   .badge-error {
-    color: #fb7185;
+    color: #e11d48;
     background: rgba(244,63,94,0.1);
     border-color: rgba(244,63,94,0.2);
+  }
+  .dark .badge-error {
+    color: #fb7185;
     box-shadow: 0 0 10px rgba(244,63,94,0.08);
   }
 
   .badge-warning {
-    color: #fbbf24;
+    color: #d97706;
     background: rgba(245,158,11,0.1);
     border-color: rgba(245,158,11,0.15);
+  }
+  .dark .badge-warning {
+    color: #fbbf24;
     box-shadow: 0 0 10px rgba(245,158,11,0.06);
   }
 
   .badge-info {
-    color: #22d3ee;
+    color: #0891b2;
     background: rgba(6,182,212,0.1);
     border-color: rgba(6,182,212,0.2);
+  }
+  .dark .badge-info {
+    color: #22d3ee;
     box-shadow: 0 0 10px rgba(6,182,212,0.08);
   }
 
@@ -171,52 +299,47 @@
   }
   .pulse-dot-cyan {
     @apply pulse-dot;
-    background: #22d3ee;
+    background: #06b6d4;
     box-shadow: 0 0 8px rgba(6,182,212,0.5);
   }
   .pulse-dot-emerald {
     @apply pulse-dot;
-    background: #34d399;
+    background: #10b981;
     box-shadow: 0 0 8px rgba(16,185,129,0.5);
   }
   .pulse-dot-rose {
     @apply pulse-dot;
-    background: #fb7185;
+    background: #f43f5e;
     box-shadow: 0 0 8px rgba(244,63,94,0.5);
   }
 
-  /* ─── Quality Ring Gauge (conic-gradient) ─── */
+  /* ─── Quality Ring Gauge ─── */
   .ring-gauge {
     @apply relative rounded-full;
-    background: conic-gradient(
-      #06b6d4 0deg,
-      #22d3ee var(--ring-value, 0deg),
-      rgba(255,255,255,0.06) var(--ring-value, 0deg),
-      rgba(255,255,255,0.06) 360deg
-    );
   }
   .ring-gauge-inner {
     @apply absolute inset-[6px] rounded-full flex items-center justify-center;
-    background: #0a0e1a;
+    background: var(--ring-inner);
   }
 
   /* ─── Dot Grid Background ─── */
   .dot-grid {
-    background-image: radial-gradient(circle, rgba(148,163,184,0.07) 1px, transparent 1px);
+    background-image: radial-gradient(circle, var(--dot-grid-color) 1px, transparent 1px);
     background-size: 24px 24px;
   }
 
   /* ─── Icon Rail (nav item) ─── */
   .rail-item {
     @apply relative flex items-center justify-center w-10 h-10 rounded-xl
-      text-text-muted transition-all duration-200 cursor-pointer;
+      transition-all duration-200 cursor-pointer;
+    color: var(--text-3);
   }
   .rail-item:hover {
-    @apply text-text-secondary;
-    background: rgba(255,255,255,0.06);
+    color: var(--text-2);
+    background: var(--rail-hover-bg);
   }
   .rail-item-active {
-    @apply text-cyan-400;
+    color: var(--accent-text);
     background: rgba(6,182,212,0.1);
     box-shadow: 0 0 16px rgba(6,182,212,0.12);
   }
@@ -230,12 +353,13 @@
   /* ─── Tooltip ─── */
   .rail-tooltip {
     @apply absolute left-full ml-3 px-2.5 py-1.5 text-xs font-medium
-      text-text-primary rounded-lg whitespace-nowrap
+      rounded-lg whitespace-nowrap
       opacity-0 pointer-events-none transition-all duration-150
       translate-x-1;
-    background: rgba(15,23,42,0.95);
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    color: #e2e8f0;
+    background: var(--tooltip-bg);
+    border: 1px solid var(--tooltip-border);
+    box-shadow: var(--tooltip-shadow);
   }
   .rail-item:hover .rail-tooltip {
     @apply opacity-100 translate-x-0;
@@ -243,8 +367,22 @@
 
   /* ─── Stat number styling ─── */
   .stat-number {
-    @apply font-heading text-4xl font-bold tracking-tight text-text-primary;
+    @apply font-heading text-4xl font-bold tracking-tight;
+    color: var(--text-1);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* ─── Theme toggle ─── */
+  .theme-toggle {
+    @apply flex items-center justify-center w-8 h-8 rounded-lg
+      transition-all duration-200 cursor-pointer;
+    color: var(--text-3);
+    background: transparent;
+    border: none;
+  }
+  .theme-toggle:hover {
+    color: var(--text-1);
+    background: var(--rail-hover-bg);
   }
 }
 

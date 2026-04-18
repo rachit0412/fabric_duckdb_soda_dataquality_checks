@@ -37,7 +37,7 @@ export function Runs() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="relative w-8 h-8">
-          <div className="absolute inset-0 rounded-full" style={{ border: '2px solid rgba(255,255,255,0.06)' }} />
+          <div className="absolute inset-0 rounded-full" style={{ border: '2px solid var(--glass-border)' }} />
           <div className="absolute inset-0 rounded-full animate-spin" style={{ border: '2px solid transparent', borderTopColor: '#06b6d4' }} />
         </div>
       </div>
@@ -73,7 +73,7 @@ export function Runs() {
                     </div>
                     <div>
                       <h3 className="text-sm font-heading font-semibold text-text-primary">
-                        Run <span className="font-mono text-cyan-400">#{run.id.slice(0, 8)}</span>
+                        Run <span className="font-mono" style={{ color: 'var(--accent-text)' }}>#{run.id.slice(0, 8)}</span>
                       </h3>
                       <p className="text-xs text-text-secondary flex items-center gap-1.5 mt-0.5 font-mono">
                         <Clock className="w-3 h-3 text-text-muted" />
@@ -84,9 +84,9 @@ export function Runs() {
                       </p>
                       <div className="flex items-center gap-3 mt-2">
                         <span className="text-xs text-text-muted font-mono">Total <span className="text-text-secondary">{run.total_checks}</span></span>
-                        <span className="text-xs font-mono" style={{ color: '#34d399' }}>Pass <span>{run.passed_checks}</span></span>
-                        <span className="text-xs font-mono" style={{ color: '#fb7185' }}>Fail <span>{run.failed_checks}</span></span>
-                        <span className="text-xs font-mono" style={{ color: '#fbbf24' }}>Warn <span>{run.warning_checks}</span></span>
+                        <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400">Pass <span>{run.passed_checks}</span></span>
+                        <span className="text-xs font-mono text-rose-600 dark:text-rose-400">Fail <span>{run.failed_checks}</span></span>
+                        <span className="text-xs font-mono text-amber-600 dark:text-amber-400">Warn <span>{run.warning_checks}</span></span>
                       </div>
                     </div>
                   </div>

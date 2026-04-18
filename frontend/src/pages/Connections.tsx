@@ -69,7 +69,7 @@ export function Connections() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="relative w-8 h-8">
-          <div className="absolute inset-0 rounded-full" style={{ border: '2px solid rgba(255,255,255,0.06)' }} />
+          <div className="absolute inset-0 rounded-full" style={{ border: '2px solid var(--glass-border)' }} />
           <div className="absolute inset-0 rounded-full animate-spin" style={{ border: '2px solid transparent', borderTopColor: '#06b6d4' }} />
         </div>
       </div>
@@ -166,7 +166,9 @@ export function Connections() {
                   </span>
                 )}
                 <button onClick={() => handleTest(conn.id)} className="btn-ghost text-xs">Test</button>
-                <button onClick={() => handleDelete(conn.id)} className="p-2 text-text-muted hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-all">
+                <button onClick={() => handleDelete(conn.id)} className="p-2 rounded-lg transition-all" style={{ color: 'var(--text-3)' }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#f43f5e'; e.currentTarget.style.background = 'var(--delete-hover-bg)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.background = 'transparent'; }}>
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
