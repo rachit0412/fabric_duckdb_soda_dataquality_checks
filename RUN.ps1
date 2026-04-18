@@ -111,8 +111,8 @@ while ($elapsed -lt $maxWait) {
     
     try {
         # Check API health
-        $apiResponse = curl -s "http://localhost:8000/api/health" -o /dev/null -w "%{http_code}" 2>&1
-        if ($apiResponse -eq "200") {
+        $apiResponse = Invoke-WebRequest -Uri "http://localhost:8001/api/health" -UseBasicParsing -Method Get -ErrorAction SilentlyContinue
+        if ($apiResponse.StatusCode -eq 200) {
             $healthy = $true
             break
         }
@@ -137,9 +137,10 @@ Write-Host ""
 
 Write-Host "ACCESS POINTS:" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "   => FastAPI Interactive Docs: http://localhost:8000/docs" -ForegroundColor White
-Write-Host "   => OpenAPI Schema: http://localhost:8000/openapi.json" -ForegroundColor White
-Write-Host "   => API Server: http://localhost:8000" -ForegroundColor White
+Write-Host "   => Dashboard: http://localhost:3010" -ForegroundColor White
+Write-Host "   => FastAPI Interactive Docs: http://localhost:8001/docs" -ForegroundColor White
+Write-Host "   => OpenAPI Schema: http://localhost:8001/openapi.json" -ForegroundColor White
+Write-Host "   => API Server: http://localhost:8001" -ForegroundColor White
 Write-Host ""
 
 Write-Host "USEFUL COMMANDS:" -ForegroundColor Cyan
@@ -160,7 +161,7 @@ Write-Host ""
 
 Write-Host "NEXT STEPS:" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "   1. Open http://localhost:8000/docs in your browser to test the API" -ForegroundColor White
+Write-Host "   1. Open http://localhost:3010 for the dashboard or http://localhost:8001/docs for the API" -ForegroundColor White
 Write-Host "   2. Try a sample scan: POST /api/v1/runs" -ForegroundColor White
 Write-Host "   3. View results: GET /api/v1/results" -ForegroundColor White
 Write-Host "   4. Check logs: docker compose logs -f data-quality-api" -ForegroundColor White

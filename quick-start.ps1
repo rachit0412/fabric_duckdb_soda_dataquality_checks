@@ -72,9 +72,9 @@ if ($LASTEXITCODE -eq 0) {
     
     Write-Output ""
     Write-Output "🌐 Access Points:"
-    Write-Output "   Dashboard:    http://localhost:8000"
-    Write-Output "   API Docs:     http://localhost:8000/docs"
-    Write-Output "   Health Check: http://localhost:8000/api/health"
+    Write-Output "   Dashboard:    http://localhost:3010"
+    Write-Output "   API Docs:     http://localhost:8001/docs"
+    Write-Output "   Health Check: http://localhost:8001/api/health"
     Write-Output ""
     Write-Output "📋 Useful Commands:"
     Write-Output "   View logs:    docker compose logs -f data-quality-api"
@@ -90,7 +90,7 @@ if ($LASTEXITCODE -eq 0) {
     
     while ($waited -lt $maxWait) {
         try {
-            $response = Invoke-WebRequest -Uri "http://localhost:8000/api/health" -UseBasicParsing -ErrorAction SilentlyContinue
+            $response = Invoke-WebRequest -Uri "http://localhost:8001/api/health" -UseBasicParsing -ErrorAction SilentlyContinue
             if ($response.StatusCode -eq 200) {
                 $healthy = $true
                 break
@@ -107,7 +107,7 @@ if ($LASTEXITCODE -eq 0) {
         Write-Output ""
         Write-Output "🎉 Opening dashboard in browser..."
         Start-Sleep -Seconds 2
-        Start-Process "http://localhost:8000"
+        Start-Process "http://localhost:3010"
     } else {
         Write-Output "⚠️  Services started but health check timeout."
         Write-Output "   Check logs: docker compose logs -f"
@@ -185,9 +185,9 @@ if ($existingContainers) {
         "continue" {
             Write-Host "`n✅ Using existing containers" -ForegroundColor Green
             Write-Host "`nAccess Points:" -ForegroundColor Cyan
-            Write-Host "  API:      http://localhost:8000" -ForegroundColor White
-            Write-Host "  API Docs: http://localhost:8000/docs" -ForegroundColor White
-            Write-Host "  Health:   http://localhost:8000/api/health" -ForegroundColor White
+            Write-Host "  Dashboard: http://localhost:3010" -ForegroundColor White
+            Write-Host "  API Docs:  http://localhost:8001/docs" -ForegroundColor White
+            Write-Host "  Health:    http://localhost:8001/api/health" -ForegroundColor White
             exit 0
         }
         default {
@@ -244,7 +244,7 @@ while (-not $ready -and $attempt -lt $maxAttempts) {
         $dbReady = $dbHealth -match "accepting connections"
         
         # Check API
-        $apiHealth = Invoke-RestMethod -Uri "http://localhost:8000/api/health" -Method Get -ErrorAction SilentlyContinue
+        $apiHealth = Invoke-RestMethod -Uri "http://localhost:8001/api/health" -Method Get -ErrorAction SilentlyContinue
         $apiReady = $apiHealth.status -eq "healthy"
         
         if ($dbReady -and $apiReady) {
@@ -281,14 +281,15 @@ Write-Host @"
 Your Data Quality Platform is now running!
 
 📍 Access Points:
-   API:          http://localhost:8000
-   API Docs:     http://localhost:8000/docs
-   Health Check: http://localhost:8000/api/health
+    Dashboard:    http://localhost:3010
+    API:          http://localhost:8001
+    API Docs:     http://localhost:8001/docs
+    Health Check: http://localhost:8001/api/health
 
 🎯 What You Can Do Now:
 
    1. View API Documentation:
-      → Open: http://localhost:8000/docs
+    → Open: http://localhost:8001/docs
 
    2. Run a Health Check:
       → .\manage.ps1 test

@@ -1,8 +1,8 @@
 # Enterprise Data Quality Platform
 # Production-ready containerized setup with PostgreSQL + FastAPI
 # Run with: docker compose up -d
-# Access API: http://localhost:8000
-# Access API Docs: http://localhost:8000/docs
+# Access API: http://localhost:8001
+# Access API Docs: http://localhost:8001/docs
 # View logs: docker compose logs -f data-quality-api
 
 services:
@@ -109,7 +109,7 @@ services:
           memory: 512M
     
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "${API_PORT:-8001}:8000"
     
     volumes:
       # Mount volumes for write operations
@@ -168,7 +168,7 @@ services:
     restart: unless-stopped
     
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_PORT:-3010}:80"
     
     depends_on:
       - data-quality-api

@@ -15,13 +15,13 @@
 .\quick-start.ps1
 
 # 3. Open dashboard
-# Local: http://localhost:3000
+# Local: http://localhost:3010
 # Codespaces: http://127.0.0.1:3002
 ```
 
 **Ready!** You now have:**
 - ✅ Web dashboard (modern UI, responsive)
-- ✅ FastAPI REST API on port 8000
+- ✅ FastAPI REST API on port 8001
 - ✅ PostgreSQL for history + DuckDB for processing
 - ✅ Production security (non-root, read-only FS, hardened)
 
@@ -44,7 +44,7 @@
 - **Scan History**: Full audit trail of all scans with metadata
 
 ### 🛠️ REST API
-- **FastAPI** on port 8000 with interactive Swagger docs
+- **FastAPI** on port 8001 with interactive Swagger docs
 - **Endpoints**: `/api/scan`, `/api/history/{table_name}`, `/api/trends/{table_name}`
 - **HTML Reports**: Generated with interactive Plotly charts
 - **Programmatic Access**: Full Python SDK + REST
@@ -60,8 +60,8 @@
 
 | Use Case | Tool | Details |
 |----------|------|---------|
-| I want the web dashboard | Open `http://localhost:3000` | Modern UI, point-and-click |
-| I want REST API | Call `http://localhost:8000/docs` | Swagger UI, live try-it-out |
+| I want the web dashboard | Open `http://localhost:3010` | Modern UI, point-and-click |
+| I want REST API | Call `http://localhost:8001/docs` | Swagger UI, live try-it-out |
 | I want to run scans programmatically | Use Python SDK | `from src.core.scanner import EnhancedDataQualityScanner` |
 | I want historical data + trends | Query PostgreSQL | Scans auto-saved to DB |
 | I want production deployment | Read [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Docker, orchestration, monitoring |
@@ -72,7 +72,7 @@
 
 ```
 ┌────────────────────────────────────────────────┐
-│         FastAPI Server (Port 8000)            │
+│         FastAPI Server (Port 8001)            │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
 │  │ Scanner  │→ │ Profiler │→ │ Anomaly  │    │
 │  │ (Soda)   │  │          │  │ Detector │    │
@@ -90,7 +90,7 @@
 │          └──────────────────┘                 │
 └────────────────────────────────────────────────┘
 
-React Dashboard (Port 3000) ↔ FastAPI Server
+React Dashboard (Port 3010) ↔ FastAPI Server
 ```
 
 **Key Points:**
@@ -106,14 +106,14 @@ For detailed architecture, see [ARCHITECTURE.md](ARCHITECTURE.md)
 ## 🛠️ Usage
 
 ### Web Dashboard (Easiest)
-1. Navigate to `http://localhost:3000`
+1. Navigate to `http://localhost:3010`
 2. Upload CSV or select data path
 3. Choose checks to run
 4. Review results with interactive charts
 
 ### REST API
 ```bash
-curl -X POST "http://localhost:8000/api/scan" \
+curl -X POST "http://localhost:8001/api/scan" \
   -H "Content-Type: application/json" \
   -d '{
     "csv_path": "data/customers.csv",
@@ -189,8 +189,8 @@ docker compose down
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design and component overview |
 
 ### Quick Shortcuts
-- 🚀 **Interactive API Docs** (live try-it-out): http://localhost:8000/docs
-- 📊 **Dashboard**: http://localhost:3000
+- 🚀 **Interactive API Docs** (live try-it-out): http://localhost:8001/docs
+- 📊 **Dashboard**: http://localhost:3010
 - 💻 **Source Code**: See [backend/](backend/) and [frontend/](frontend/)
 - 📚 **All Docs**: See [docs/](docs/) directory
 
@@ -209,8 +209,11 @@ POSTGRES_USER=dq_user
 POSTGRES_PASSWORD=secure_password_here
 
 # API
-API_PORT=8000
+API_PORT=8001
 API_HOST=0.0.0.0
+
+# Frontend
+FRONTEND_PORT=3010
 
 # Features
 ENABLE_ANOMALY_DETECTION=true
