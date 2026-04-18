@@ -1,86 +1,128 @@
 export interface Connection {
   id: string;
   name: string;
-  connection_type: string;
-  host?: string;
-  port?: number;
-  database?: string;
-  username?: string;
-  warehouse?: string;
-  account?: string;
-  is_active: boolean;
+  type: string;
   created_at: string;
-  updated_at: string;
+  created_by?: string;
 }
 
 export interface MetadataProfile {
+  snapshot_id: string;
   connection_id: string;
-  table_name: string;
-  row_count: number;
-  column_count: number;
-  columns: ColumnProfile[];
-  created_at: string;
+  schema: {
+    columns: ColumnProfile[];
+    row_count?: number;
+  };
+  profile: Record<string, any>;
+  profiled_at: string;
 }
 
 export interface ColumnProfile {
   name: string;
-  data_type: string;
+  type: string;
+  nullable?: boolean;
+  row_count?: number;
   null_count: number;
-  null_percentage: number;
-  unique_count?: number;
-  min_value?: any;
-  max_value?: any;
-  avg_value?: number;
+  null_percentage?: number;
+  distinct_count?: number;
+  is_pk?: boolean;
+  min?: any;
+  max?: any;
+  mean?: number;
+  stddev?: number;
+  min_length?: number;
+  max_length?: number;
 }
 
 export interface CheckSuggestion {
+  id: string;
+  rule_id: string;
+  check_name: string;
   check_type: string;
-  column: string;
-  severity: 'critical' | 'warning' | 'info';
-  description: string;
   rationale: string;
+  confidence: number;
+  suggested_check_yaml: string;
 }
 
 export interface CheckPlan {
   id: string;
   name: string;
   connection_id: string;
-  table_name: string;
-  checks: Check[];
-  schedule?: string;
-  is_active: boolean;
+  metadata_snapshot_id?: string;
+  dataset_identifier?: string;
+  description?: string;
+  checks_yaml?: string;
+  custom_checks_yaml?: string;
+  enabled: boolean;
   created_at: string;
-  updated_at: string;
-}
-
-export interface Check {
-  check_type: string;
-  column: string;
-  parameters?: Record<string, any>;
-  severity: string;
+  updated_at?: string;
 }
 
 export interface Run {
   id: string;
   check_plan_id: string;
-  status: 'pending' | 'running' | 'success' | 'failed' | 'warning';
-  started_at: string;
+  status: 'pending' | 'running' | 'success' | 'failed' | 'warning' | 'cancelled';
+  started_at?: string;
   completed_at?: string;
-  duration_seconds?: number;
   total_checks: number;
   passed_checks: number;
   failed_checks: number;
-  warning_checks: number;
+}
+
+export interface RunStatus {
+  run_id: string;
+  check_plan_id: string;
+  status: string;
+  percent_complete: number;
+  created_at: string;
+  started_at?: string;
+  finished_at?: string;
+  duration_seconds?: number;
+  error_message?: string;
 }
 
 export interface CheckResult {
-  id: string;
-  run_id: string;
+  check_name: string;
   check_type: string;
-  column: string;
-  status: 'pass' | 'fail' | 'warning';
+  status: string;
   message?: string;
-  actual_value?: any;
-  expected_value?: any;
+  details?: Record<string, any>;
   created_at: string;
+}
+
+export interface RunResults {
+  run_id: string;
+  check_plan_id: string;
+  status: string;
+  summary: {
+    total_checks: number;
+    passed: number;
+    failed: number;
+    warning: number;
+    pass_rate_percent: number;
+  };
+  results: CheckResult[];
+  created_at: string;
+  finished_at?: string;
+}
+
+export interface RunMetrics {
+  run_id: string;
+  status: string;
+  summary: {
+    total_checks: number;
+    passed: number;
+    failed: number;
+    pass_rate: number;
+  };
+  by_column: Record<string, { quality_score: number; passed: number; failed: number }>;
+  by_check_type: Record<string, { passed: number; failed: number }>;
+}
+
+export interface TrendDataPoint {
+  date: string;
+  pass_rate: number;
+  passed: number;
+  failed: number;
+  total: number;
 }

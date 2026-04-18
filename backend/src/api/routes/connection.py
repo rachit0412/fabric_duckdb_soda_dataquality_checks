@@ -33,7 +33,8 @@ UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "/tmp/dq_platform_uploads"))
 UPLOADS_DIR.mkdir(exist_ok=True, parents=True)
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 100 * 1024 * 1024))  # 100MB default
 ALLOWED_EXTENSIONS = {'csv', 'parquet', 'parq'}
-ALLOWED_TYPES = {'csv', 'parquet'}
+ALLOWED_FILE_TYPES = {'csv', 'parquet'}
+ALLOWED_TYPES = {'csv', 'parquet', 'postgres', 'postgresql', 'snowflake', 'bigquery', 'duckdb'}
 
 # File security validator
 file_validator = FileSecurityValidator()
@@ -45,7 +46,7 @@ def validate_file_extension(filename: str) -> bool:
 
 def validate_file_type_param(file_type: str) -> bool:
     """Validate file type parameter."""
-    return file_type in ALLOWED_TYPES
+    return file_type in ALLOWED_FILE_TYPES
 
 def validate_file_size(file_size: int) -> bool:
     """Validate file size is within limits."""
@@ -190,7 +191,7 @@ async def upload_data_source(
         if not validate_file_type_param(type):
             raise HTTPException(
                 status_code=400,
-                detail=f"Unsupported file type '{type}'. Allowed: {ALLOWED_TYPES}"
+                detail=f"Unsupported file type '{type}'. Allowed: {ALLOWED_FILE_TYPES}"
             )
         
         # Check if connection name already exists

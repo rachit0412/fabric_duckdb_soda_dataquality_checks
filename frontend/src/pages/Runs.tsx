@@ -77,16 +77,12 @@ export function Runs() {
                       </h3>
                       <p className="text-xs text-text-secondary flex items-center gap-1.5 mt-0.5 font-mono">
                         <Clock className="w-3 h-3 text-text-muted" />
-                        {new Date(run.started_at).toLocaleString()}
-                        {run.duration_seconds && (
-                          <span className="text-text-dim">· {run.duration_seconds}s</span>
-                        )}
+                        {run.started_at ? new Date(run.started_at).toLocaleString() : 'Pending'}
                       </p>
                       <div className="flex items-center gap-3 mt-2">
                         <span className="text-xs text-text-muted font-mono">Total <span className="text-text-secondary">{run.total_checks}</span></span>
                         <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400">Pass <span>{run.passed_checks}</span></span>
                         <span className="text-xs font-mono text-rose-600 dark:text-rose-400">Fail <span>{run.failed_checks}</span></span>
-                        <span className="text-xs font-mono text-amber-600 dark:text-amber-400">Warn <span>{run.warning_checks}</span></span>
                       </div>
                     </div>
                   </div>
