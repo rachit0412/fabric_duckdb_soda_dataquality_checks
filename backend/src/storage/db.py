@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 # Create engine
 engine = create_engine(
     settings.DATABASE_URL,
-    poolclass=None,  # Use default pool
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
     echo=settings.DEBUG,

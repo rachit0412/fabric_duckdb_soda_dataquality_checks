@@ -35,6 +35,7 @@ COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 # Install runtime dependencies only (minimal)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    libmagic1 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 

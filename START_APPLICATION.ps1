@@ -19,32 +19,32 @@ This script:
 $ErrorActionPreference = "Stop"
 
 Write-Host "╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║     🚀 Starting Enterprise Data Quality Platform 🚀           ║" -ForegroundColor Cyan
+Write-Host "║     (RUN) Starting Enterprise Data Quality Platform (RUN)      ║" -ForegroundColor Cyan
 Write-Host "╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
 # Step 1: Check if Docker is running
-Write-Host "📋 Checking Docker status..." -ForegroundColor Yellow
+Write-Host "(CHECK) Checking Docker status..." -ForegroundColor Yellow
 $dockerRunning = $false
 try {
     $result = docker ps 2>&1
     if ($result -notmatch "error|fail|denied") {
         $dockerRunning = $true
-        Write-Host "✅ Docker is running" -ForegroundColor Green
+        Write-Host "(OK) Docker is running" -ForegroundColor Green
     }
 } catch {
     $dockerRunning = $false
 }
 
 if (-not $dockerRunning) {
-    Write-Host "❌ Docker Desktop is not running!" -ForegroundColor Red
+    Write-Host "(FAIL) Docker Desktop is not running!" -ForegroundColor Red
     Write-Host ""
-    Write-Host "📖 To start Docker Desktop:" -ForegroundColor Yellow
+    Write-Host "(INFO) To start Docker Desktop:" -ForegroundColor Yellow
     Write-Host "   • Windows: Click 'Docker' in Start Menu or use: Start-Process 'C:\Program Files\Docker\Docker\Docker Desktop.exe'" -ForegroundColor White
     Write-Host "   • macOS: Open Applications > Docker.app" -ForegroundColor White
     Write-Host "   • Linux: sudo systemctl start docker" -ForegroundColor White
     Write-Host ""
-    Write-Host "⏳ Waiting 30 seconds for you to start Docker..." -ForegroundColor Yellow
+    Write-Host "(WAIT) Waiting 30 seconds for you to start Docker..." -ForegroundColor Yellow
     Write-Host ""
     
     for ($i = 30; $i -gt 0; $i--) {
@@ -53,7 +53,7 @@ if (-not $dockerRunning) {
         try {
             $result = docker ps 2>&1
             if ($result -notmatch "error|fail|denied") {
-                Write-Host "`n✅ Docker is now running! Proceeding..." -ForegroundColor Green
+                Write-Host "`n(OK) Docker is now running! Proceeding..." -ForegroundColor Green
                 $dockerRunning = $true
                 Start-Sleep -Seconds 3  # Give Docker a moment to fully stabilize
                 break
@@ -65,54 +65,54 @@ if (-not $dockerRunning) {
     }
     
     if (-not $dockerRunning) {
-        Write-Host "❌ Docker still not running. Please start Docker Desktop manually and try again." -ForegroundColor Red
+        Write-Host "(FAIL) Docker still not running. Please start Docker Desktop manually and try again." -ForegroundColor Red
         exit 1
     }
 }
 
 Write-Host ""
-Write-Host "📦 Cleaning up old containers and volumes..." -ForegroundColor Yellow
+Write-Host "(PKG) Cleaning up old containers and volumes..." -ForegroundColor Yellow
 
 try {
     docker compose down -v 2>&1 | Out-Null
-    Write-Host "✅ Cleaned up" -ForegroundColor Green
+    Write-Host "(OK) Cleaned up" -ForegroundColor Green
 } catch {
-    Write-Host "⚠️  No existing containers to clean (first time setup)" -ForegroundColor Yellow
+    Write-Host "(WARN) No existing containers to clean (first time setup)" -ForegroundColor Yellow
 }
 
 Write-Host ""
-Write-Host "🔨 Building Docker images (this may take 2-5 minutes)..." -ForegroundColor Yellow
+Write-Host "*** Building Docker images (this may take 2-5 minutes)..." -ForegroundColor Yellow
 Write-Host "   Building optimized multi-stage Dockerfile..." -ForegroundColor Gray
 
 try {
     docker compose build --no-cache
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ Build failed!" -ForegroundColor Red
+        Write-Host "(FAIL) Build failed!" -ForegroundColor Red
         exit 1
     }
-    Write-Host "✅ Build complete" -ForegroundColor Green
+    Write-Host "(OK) Build complete" -ForegroundColor Green
 } catch {
-    Write-Host "❌ Build failed: $_" -ForegroundColor Red
+    Write-Host "(FAIL) Build failed: $_" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
-Write-Host "🚀 Starting services..." -ForegroundColor Yellow
+Write-Host "(RUN) Starting services..." -ForegroundColor Yellow
 
 try {
     docker compose up -d
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ Failed to start services!" -ForegroundColor Red
+        Write-Host "(FAIL) Failed to start services!" -ForegroundColor Red
         exit 1
     }
-    Write-Host "✅ Services started" -ForegroundColor Green
+    Write-Host "(OK) Services started" -ForegroundColor Green
 } catch {
-    Write-Host "❌ Failed to start services: $_" -ForegroundColor Red
+    Write-Host "(FAIL) Failed to start services: $_" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
-Write-Host "⏳ Waiting for services to become healthy..." -ForegroundColor Yellow
+Write-Host "(WAIT) Waiting for services to become healthy..." -ForegroundColor Yellow
 Write-Host "   PostgreSQL: initializing..." -ForegroundColor Gray
 
 $maxWait = 60
@@ -137,25 +137,25 @@ while ($elapsed -lt $maxWait) {
 }
 
 if ($healthy) {
-    Write-Host "✅ All services are healthy!" -ForegroundColor Green
+    Write-Host "(OK) All services are healthy!" -ForegroundColor Green
 } else {
-    Write-Host "⚠️  Services may still be initializing..." -ForegroundColor Yellow
+    Write-Host "(WARN) Services may still be initializing..." -ForegroundColor Yellow
 }
 
 Write-Host ""
 Write-Host "╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║            ✅ APPLICATION STARTED SUCCESSFULLY ✅             ║" -ForegroundColor Green
+Write-Host "║            (OK) APPLICATION STARTED SUCCESSFULLY (OK)         ║" -ForegroundColor Green
 Write-Host "╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Green
 Write-Host ""
 
-Write-Host "📍 ACCESS POINTS:" -ForegroundColor Cyan
+Write-Host "[ACCESS POINTS]" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "   🔗 FastAPI Interactive Docs: http://localhost:8000/docs" -ForegroundColor White
-Write-Host "   📊 OpenAPI Schema: http://localhost:8000/openapi.json" -ForegroundColor White
-Write-Host "   💻 API Server: http://localhost:8000" -ForegroundColor White
+Write-Host "   => FastAPI Interactive Docs: http://localhost:8000/docs" -ForegroundColor White
+Write-Host "   => OpenAPI Schema: http://localhost:8000/openapi.json" -ForegroundColor White
+Write-Host "   => API Server: http://localhost:8000" -ForegroundColor White
 Write-Host ""
 
-Write-Host "🛠️  USEFUL COMMANDS:" -ForegroundColor Cyan
+Write-Host "[USEFUL COMMANDS]" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "   View logs:          docker compose logs -f data-quality-api" -ForegroundColor White
 Write-Host "   Stop services:      docker compose down" -ForegroundColor White
@@ -163,15 +163,15 @@ Write-Host "   Restart services:   docker compose restart" -ForegroundColor Whit
 Write-Host "   Database shell:     docker exec -it dq-postgres psql -U postgres -d data_quality" -ForegroundColor White
 Write-Host ""
 
-Write-Host "📖 DOCUMENTATION:" -ForegroundColor Cyan
+Write-Host "(DOCUMENTATION)" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "   • API Reference: docs/API.md" -ForegroundColor White
-Write-Host "   • Deployment Guide: DOCKER_DEPLOYMENT_GUIDE.md" -ForegroundColor White
-Write-Host "   • Architecture: ARCHITECTURE.md" -ForegroundColor White
-Write-Host "   • Troubleshooting: TROUBLESHOOTING.md" -ForegroundColor White
+Write-Host "   * API Reference: docs/API.md" -ForegroundColor White
+Write-Host "   * Deployment Guide: DOCKER_DEPLOYMENT_GUIDE.md" -ForegroundColor White
+Write-Host "   * Architecture: ARCHITECTURE.md" -ForegroundColor White
+Write-Host "   * Troubleshooting: TROUBLESHOOTING.md" -ForegroundColor White
 Write-Host ""
 
-Write-Host "🎯 NEXT STEPS:" -ForegroundColor Cyan
+Write-Host "[NEXT STEPS]" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "   1. Open http://localhost:8000/docs in your browser to test the API" -ForegroundColor White
 Write-Host "   2. Try a sample scan: POST /api/v1/runs" -ForegroundColor White

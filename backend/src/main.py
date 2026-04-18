@@ -31,7 +31,7 @@ LOGGING_CONFIG = {
             "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         },
         "json": {
-            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "()": "pythonjsonlogger.json.JsonFormatter",
             "format": "%(asctime)s %(name)s %(levelname)s %(message)s"
         }
     },
@@ -91,15 +91,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint - redirect to API documentation."""
+    return {
+        "message": "Welcome to Data Quality Platform API",
+        "version": settings.APP_VERSION,
+        "docs": "/docs",
+        "health": "/health",
+        "api": "/api/v1",
+        "endpoints": {
+            "connections": "/api/v1/connections",
+            "metadata": "/api/v1/metadata",
+            "suggestions": "/api/v1/suggestions",
+            "check_plans": "/api/v1/check-plans",
+            "runs": "/api/v1/runs",
+            "results": "/api/v1/results",
+            "visualization": "/api/v1/visualization"
+        }
+    }
+
 # Health check
 @app.get("/health")
 async def health():
     """Health check endpoint."""
     try:
         # Try to connect to database
+        from sqlalchemy import text
         from src.storage.db import SessionLocal
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         db_status = "connected"
     except Exception as e:

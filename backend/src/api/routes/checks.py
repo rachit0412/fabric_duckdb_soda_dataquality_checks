@@ -19,7 +19,7 @@ import logging
 import json
 from datetime import datetime
 
-from src.api.models import CheckPlanCreate, CheckPlanResponse, CheckSuggestionResponse
+from src.api.models import CheckPlanCreate, CheckPlanResponse, SuggestionsResponse
 from src.models.db import CheckPlan, Connection, MetadataSnapshot, CheckSuggestion, Run
 from src.storage.db import get_db
 from src.services.suggestions import SuggestionEngine

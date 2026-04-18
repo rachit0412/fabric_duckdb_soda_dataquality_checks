@@ -21,6 +21,7 @@ import asyncio
 
 from src.models.db import Run, CheckResult, CheckPlan, MetadataSnapshot, Connection
 from src.storage.db import get_db
+from src.api.models import RunResponse, RunStatusResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["runs"])
