@@ -227,7 +227,7 @@ export function Metadata() {
               <Link to={`/suggestions?connectionId=${encodeURIComponent(selectedConn)}&snapshotId=${encodeURIComponent(profile.snapshot_id)}&autoGenerate=1`} className="btn-primary">
                 <Sparkles className="w-4 h-4" />Generate Suggestions
               </Link>
-              <Link to="/check-plans" className="btn-secondary">
+              <Link to={`/check-plans?connectionId=${encodeURIComponent(profile.connection_id)}&snapshotId=${encodeURIComponent(profile.snapshot_id)}`} className="btn-secondary">
                 <ArrowRight className="w-4 h-4" />Open Check Plans
               </Link>
             </div>

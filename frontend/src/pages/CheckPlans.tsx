@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { FileCheck, Plus, Trash2, Play, X, Loader2 } from 'lucide-react';
 import { getCheckPlans, createCheckPlan, deleteCheckPlan, getConnections, executeCheckPlan } from '../api/client';
-import { useNavigate } from 'react-router-dom';
-import type { CheckPlan, Connection } from '../types';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import type { CheckPlan, Connection, CreateCheckPlanPayload } from '../types';
 
 const DEFAULT_CHECKS_YAML = `checks for data:
   - row_count > 0
@@ -10,21 +10,38 @@ const DEFAULT_CHECKS_YAML = `checks for data:
   - duplicate_count(id) = 0`;
 
 export function CheckPlans() {
+  const [searchParams] = useSearchParams();
+  const requestedConnectionId = searchParams.get('connectionId') || '';
+  const requestedSnapshotId = searchParams.get('snapshotId') || '';
   const [plans, setPlans] = useState<CheckPlan[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(Boolean(requestedConnectionId || requestedSnapshotId));
   const [executing, setExecuting] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<CreateCheckPlanPayload>({
     name: '',
-    connection_id: '',
+    connection_id: requestedConnectionId || undefined,
+    metadata_snapshot_id: requestedSnapshotId || undefined,
     description: '',
     checks_yaml: DEFAULT_CHECKS_YAML,
   });
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!requestedConnectionId && !requestedSnapshotId) {
+      return;
+    }
+
+    setShowForm(true);
+    setForm((current) => ({
+      ...current,
+      connection_id: requestedConnectionId || current.connection_id,
+      metadata_snapshot_id: requestedSnapshotId || current.metadata_snapshot_id,
+    }));
+  }, [requestedConnectionId, requestedSnapshotId]);
 
   const load = async () => {
     try {
@@ -44,14 +61,23 @@ export function CheckPlans() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createCheckPlan({
+      const payload: CreateCheckPlanPayload = {
         name: form.name,
-        connection_id: form.connection_id,
         description: form.description,
         checks_yaml: form.checks_yaml,
-      });
+      };
+
+      if (form.connection_id) {
+        payload.connection_id = form.connection_id;
+      }
+
+      if (form.metadata_snapshot_id) {
+        payload.metadata_snapshot_id = form.metadata_snapshot_id;
+      }
+
+      await createCheckPlan(payload);
       setShowForm(false);
-      setForm({ name: '', connection_id: '', description: '', checks_yaml: DEFAULT_CHECKS_YAML });
+      setForm({ name: '', description: '', checks_yaml: DEFAULT_CHECKS_YAML });
       load();
     } catch (error: any) {
       alert(error?.response?.data?.detail || 'Failed to create check plan');
@@ -109,7 +135,7 @@ export function CheckPlans() {
         <div className="card animate-fade-up">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-heading font-semibold text-text-primary">Create Check Plan</h3>
-            <button onClick={() => setShowForm(false)} className="p-1 rounded-lg hover:bg-white/5"><X className="w-4 h-4 text-text-muted" /></button>
+            <button title="Close create check plan form" onClick={() => setShowForm(false)} className="p-1 rounded-lg hover:bg-white/5"><X className="w-4 h-4 text-text-muted" /></button>
           </div>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -119,12 +145,15 @@ export function CheckPlans() {
               </div>
               <div>
                 <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Connection</label>
-                <select className="input" value={form.connection_id} onChange={e => setForm({ ...form, connection_id: e.target.value })} required>
+                <select title="Select connection for the check plan" className="input" value={form.connection_id || ''} onChange={e => setForm({ ...form, connection_id: e.target.value || undefined })} required={!form.metadata_snapshot_id} disabled={Boolean(form.metadata_snapshot_id)}>
                   <option value="">Select a connection...</option>
                   {connections.map(c => (
                     <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
                   ))}
                 </select>
+                {form.metadata_snapshot_id && (
+                  <p className="mt-1 text-xs text-text-muted">Using the profiled metadata snapshot from the previous step.</p>
+                )}
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Description</label>

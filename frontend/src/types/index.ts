@@ -58,6 +58,17 @@ export interface CheckPlan {
   updated_at?: string;
 }
 
+export interface CreateCheckPlanPayload {
+  name: string;
+  metadata_snapshot_id?: string;
+  connection_id?: string;
+  dataset_identifier?: string;
+  description?: string;
+  checks_yaml?: string;
+  custom_checks_yaml?: string;
+  enabled?: boolean;
+}
+
 export interface Run {
   id: string;
   check_plan_id: string;

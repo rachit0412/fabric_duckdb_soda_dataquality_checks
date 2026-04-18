@@ -56,7 +56,8 @@ export function Connections() {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file && (file.name.endsWith('.csv') || file.name.endsWith('.parquet'))) {
+    const normalizedName = file?.name.toLowerCase() || '';
+    if (file && (normalizedName.endsWith('.csv') || normalizedName.endsWith('.parquet') || normalizedName.endsWith('.parq'))) {
       setSelectedFile(file);
       if (!uploadName) setUploadName(getAvailableUploadName(file.name.replace(/\.[^.]+$/, '')));
       setFormMode('upload');

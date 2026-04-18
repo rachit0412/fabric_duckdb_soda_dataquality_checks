@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { CreateCheckPlanPayload } from '../types';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '';
 
@@ -39,18 +40,18 @@ export const getMetadataForConnection = (connectionId: string) =>
 
 // Suggestions
 export const generateSuggestions = (data: { connection_id?: string; metadata_snapshot_id?: string }) =>
-  api.post('/api/v1/suggestions', data);
+  api.post('/api/v1/suggestions/', data);
 export const getSnapshotSuggestions = (snapshotId: string) =>
   api.get(`/api/v1/suggestions/${snapshotId}`);
 
 // Check Plans
-export const getCheckPlans = () => api.get('/api/v1/check-plans');
-export const createCheckPlan = (data: any) => api.post('/api/v1/check-plans', data);
+export const getCheckPlans = () => api.get('/api/v1/check-plans/');
+export const createCheckPlan = (data: CreateCheckPlanPayload) => api.post('/api/v1/check-plans/', data);
 export const getCheckPlan = (id: string) => api.get(`/api/v1/check-plans/${id}`);
 export const deleteCheckPlan = (id: string) => api.delete(`/api/v1/check-plans/${id}`);
 
 // Runs
-export const getRuns = () => api.get('/api/v1/runs');
+export const getRuns = () => api.get('/api/v1/runs/');
 export const executeCheckPlan = (checkPlanId: string) => 
   api.post(`/api/v1/runs/${checkPlanId}/execute`);
 export const getRunStatus = (runId: string) => api.get(`/api/v1/runs/${runId}/status`);

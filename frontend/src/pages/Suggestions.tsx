@@ -1,20 +1,26 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import { Lightbulb, Loader2, Sparkles, Copy, Check } from 'lucide-react';
 import { getConnections, generateSuggestions } from '../api/client';
 import type { Connection, CheckSuggestion } from '../types';
 
 export function Suggestions() {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedConn, setSelectedConn] = useState('');
   const [generating, setGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<CheckSuggestion[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
-  const requestedConnectionId = searchParams.get('connectionId') || '';
-  const requestedSnapshotId = searchParams.get('snapshotId') || '';
-  const shouldAutoGenerate = searchParams.get('autoGenerate') === '1';
+  const initialAutoParamsRef = useRef<{ connectionId: string; snapshotId: string; shouldAutoGenerate: boolean } | null>(null);
+  const autoGenerateAttemptedRef = useRef(false);
+
+  if (!initialAutoParamsRef.current) {
+    const params = new URLSearchParams(window.location.search);
+    initialAutoParamsRef.current = {
+      connectionId: params.get('connectionId') || '',
+      snapshotId: params.get('snapshotId') || '',
+      shouldAutoGenerate: params.get('autoGenerate') === '1',
+    };
+  }
 
   useEffect(() => {
     (async () => {
@@ -48,14 +54,26 @@ export function Suggestions() {
   };
 
   useEffect(() => {
-    if (loading || !requestedConnectionId) return;
+    if (loading) return;
 
-    setSelectedConn(requestedConnectionId);
-    if (shouldAutoGenerate) {
-      void handleGenerateForSelection(requestedConnectionId, requestedSnapshotId || undefined);
+    const requestedConnectionId = initialAutoParamsRef.current?.connectionId || '';
+    const requestedSnapshotId = initialAutoParamsRef.current?.snapshotId || '';
+
+    if (requestedConnectionId) {
+      setSelectedConn(requestedConnectionId);
     }
-    setSearchParams({}, { replace: true });
-  }, [loading, requestedConnectionId, requestedSnapshotId, setSearchParams, shouldAutoGenerate]);
+
+    if (!requestedConnectionId || !initialAutoParamsRef.current?.shouldAutoGenerate || autoGenerateAttemptedRef.current) {
+      return;
+    }
+
+    autoGenerateAttemptedRef.current = true;
+
+    void (async () => {
+      await handleGenerateForSelection(requestedConnectionId, requestedSnapshotId || undefined);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    })();
+  }, [loading]);
 
   const copyYaml = (yaml: string, idx: number) => {
     navigator.clipboard.writeText(yaml);

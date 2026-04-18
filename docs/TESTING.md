@@ -77,6 +77,36 @@ pytest tests/integration/ -v
 docker-compose -f docker-compose.postgres.yml down
 ```
 
+### Browser E2E Tests
+
+The active browser workflow tests target the Docker-served app, not the older Vite dev server defaults.
+
+Source-of-truth local runtime:
+
+```text
+Frontend: http://localhost:3010
+API:      http://localhost:8001
+```
+
+Start the local stack first:
+
+```powershell
+docker compose up -d
+```
+
+Run the focused Playwright workflow suite:
+
+```powershell
+node .\node_modules\playwright\cli.js test tests/e2e/workflow.spec.ts --output .playwright-artifacts\workflow --reporter=line
+```
+
+Notes:
+
+- `playwright.config.ts` now defaults to `http://localhost:3010`
+- the workflow spec validates the current upload -> metadata -> suggestions path
+- Suggestions requests should use the slash-terminated endpoint `/api/v1/suggestions/` when called through the frontend proxy
+- use a custom `--output` directory on Windows to avoid file-lock cleanup issues in the default `test-results/` directory
+
 ### Security Tests
 
 ```bash

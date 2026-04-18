@@ -7,6 +7,7 @@ Supports multiple data sources: Postgres, BigQuery, CSV/Parquet, Snowflake.
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +183,8 @@ class CSVConnector(DataSourceConnector):
     def __init__(self, file_path: str):
         self.file_path = file_path
         self.conn = None
+        self._relation_sql: Optional[str] = None
+        self._row_count: Optional[int] = None
     
     def connect(self) -> None:
         import duckdb
@@ -196,53 +199,139 @@ class CSVConnector(DataSourceConnector):
         if self.conn:
             self.conn.close()
             logger.info("Disconnected from DuckDB")
+
+    def _normalized_file_path(self) -> str:
+        path = Path(self.file_path).expanduser()
+        try:
+            path = path.resolve(strict=False)
+        except Exception:
+            pass
+        return path.as_posix()
+
+    def _escaped_file_path(self) -> str:
+        return self._normalized_file_path().replace("'", "''")
+
+    def _get_relation_sql(self) -> str:
+        if self._relation_sql:
+            return self._relation_sql
+
+        suffix = Path(self.file_path).suffix.lower()
+        escaped_path = self._escaped_file_path()
+
+        if suffix in {".parquet", ".parq"}:
+            self._relation_sql = f"read_parquet('{escaped_path}')"
+        else:
+            self._relation_sql = (
+                f"read_csv_auto('{escaped_path}', HEADER = TRUE, SAMPLE_SIZE = -1)"
+            )
+
+        return self._relation_sql
+
+    def _quote_identifier(self, identifier: str) -> str:
+        return '"' + identifier.replace('"', '""') + '"'
+
+    def _get_row_count(self) -> int:
+        if self._row_count is None:
+            relation_sql = self._get_relation_sql()
+            self._row_count = self.conn.execute(
+                f"SELECT COUNT(*) FROM {relation_sql}"
+            ).fetchone()[0]
+        return self._row_count
+
+    def _is_numeric_type(self, column_type: str) -> bool:
+        normalized = column_type.upper()
+        return any(token in normalized for token in [
+            "INT",
+            "DECIMAL",
+            "NUMERIC",
+            "DOUBLE",
+            "FLOAT",
+            "REAL",
+            "HUGEINT",
+        ])
+
+    def _is_temporal_type(self, column_type: str) -> bool:
+        normalized = column_type.upper()
+        return "DATE" in normalized or "TIME" in normalized
     
     def get_schema(self, dataset_identifier: str) -> Dict[str, Any]:
         """Extract schema from CSV/Parquet."""
         if not self.conn:
             self.connect()
-        
-        # dataset_identifier is the file path (e.g., 'path/to/file.csv')
-        result = self.conn.execute(f"SELECT * FROM '{self.file_path}' LIMIT 0").description
+
+        relation_sql = self._get_relation_sql()
+        row_count = self._get_row_count()
+        result = self.conn.execute(f"SELECT * FROM {relation_sql} LIMIT 0").description
         
         columns = []
         for col_info in result:
             columns.append({
                 "name": col_info[0],
                 "type": str(col_info[1]),
-                "nullable": True
+                "nullable": True,
+                "row_count": row_count,
             })
         
-        return {"columns": columns}
+        return {"columns": columns, "row_count": row_count}
     
     def profile_dataset(self, dataset_identifier: str, sample_size: Optional[int] = None) -> Dict[str, Any]:
         """Profile CSV/Parquet file."""
         if not self.conn:
             self.connect()
-        
+
         # Get schema
         schema = self.get_schema(dataset_identifier)
         columns = schema["columns"]
-        
-        # Get row count
-        row_count = self.conn.execute(f"SELECT COUNT(*) FROM '{self.file_path}'").fetchone()[0]
-        
+
+        relation_sql = self._get_relation_sql()
+        row_count = self._get_row_count()
+
         profile = {}
         for col in columns:
             col_name = col["name"]
-            
-            # Basic profile
-            query = f"""
-                SELECT 
-                    COUNT(*) as total,
-                    COUNT(CASE WHEN "{col_name}" IS NULL THEN 1 END) as null_count,
-                    COUNT(DISTINCT "{col_name}") as distinct_count
-                FROM '{self.file_path}'
-            """
+            col_type = str(col["type"])
+            quoted_col = self._quote_identifier(col_name)
+
+            if self._is_numeric_type(col_type):
+                query = f"""
+                    SELECT
+                        COUNT(*) as total,
+                        COUNT(CASE WHEN {quoted_col} IS NULL THEN 1 END) as null_count,
+                        COUNT(DISTINCT {quoted_col}) as distinct_count,
+                        MIN({quoted_col}) as min_val,
+                        MAX({quoted_col}) as max_val,
+                        AVG({quoted_col}) as avg_val,
+                        STDDEV_POP({quoted_col}) as stddev_val
+                    FROM {relation_sql}
+                """
+            elif self._is_temporal_type(col_type):
+                query = f"""
+                    SELECT
+                        COUNT(*) as total,
+                        COUNT(CASE WHEN {quoted_col} IS NULL THEN 1 END) as null_count,
+                        COUNT(DISTINCT {quoted_col}) as distinct_count,
+                        MIN({quoted_col}) as min_val,
+                        MAX({quoted_col}) as max_val,
+                        NULL as avg_val,
+                        NULL as stddev_val
+                    FROM {relation_sql}
+                """
+            else:
+                query = f"""
+                    SELECT
+                        COUNT(*) as total,
+                        COUNT(CASE WHEN {quoted_col} IS NULL THEN 1 END) as null_count,
+                        COUNT(DISTINCT {quoted_col}) as distinct_count,
+                        MIN(LENGTH(CAST({quoted_col} AS VARCHAR))) as min_length,
+                        MAX(LENGTH(CAST({quoted_col} AS VARCHAR))) as max_length,
+                        NULL as avg_val,
+                        NULL as stddev_val
+                    FROM {relation_sql}
+                """
             
             try:
                 result = self.conn.execute(query).fetchone()
-                total, null_count, distinct_count = result
+                total, null_count, distinct_count, val1, val2, val3, val4 = result
                 
                 profile[col_name] = {
                     "row_count": total,
@@ -250,9 +339,32 @@ class CSVConnector(DataSourceConnector):
                     "null_percent": (null_count / total * 100) if total > 0 else 0,
                     "distinct_count": distinct_count or 0,
                 }
+
+                if self._is_numeric_type(col_type):
+                    profile[col_name].update({
+                        "min": val1,
+                        "max": val2,
+                        "mean": val3,
+                        "stddev": val4,
+                    })
+                elif self._is_temporal_type(col_type):
+                    profile[col_name].update({
+                        "min": val1,
+                        "max": val2,
+                    })
+                else:
+                    profile[col_name].update({
+                        "min_length": val1,
+                        "max_length": val2,
+                    })
             except Exception as e:
                 logger.warning(f"Failed to profile column {col_name}: {e}")
-                profile[col_name] = {"error": str(e)}
+                profile[col_name] = {
+                    "row_count": row_count,
+                    "null_count": None,
+                    "distinct_count": None,
+                    "error": str(e),
+                }
         
         return profile
 
