@@ -24,6 +24,23 @@ export function Connections() {
 
   useEffect(() => { loadConnections(); }, []);
 
+  const getAvailableUploadName = useCallback((baseName: string) => {
+    const trimmed = baseName.trim();
+    if (!trimmed) return '';
+
+    const existingNames = new Set(connections.map((connection) => connection.name));
+    if (!existingNames.has(trimmed)) {
+      return trimmed;
+    }
+
+    let suffix = 2;
+    while (existingNames.has(`${trimmed}-${suffix}`)) {
+      suffix += 1;
+    }
+
+    return `${trimmed}-${suffix}`;
+  }, [connections]);
+
   const loadConnections = async () => {
     try {
       const { data } = await getConnections();
@@ -41,16 +58,16 @@ export function Connections() {
     const file = e.dataTransfer.files[0];
     if (file && (file.name.endsWith('.csv') || file.name.endsWith('.parquet'))) {
       setSelectedFile(file);
-      if (!uploadName) setUploadName(file.name.replace(/\.[^.]+$/, ''));
+      if (!uploadName) setUploadName(getAvailableUploadName(file.name.replace(/\.[^.]+$/, '')));
       setFormMode('upload');
     }
-  }, [uploadName]);
+  }, [getAvailableUploadName, uploadName]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      if (!uploadName) setUploadName(file.name.replace(/\.[^.]+$/, ''));
+      if (!uploadName) setUploadName(getAvailableUploadName(file.name.replace(/\.[^.]+$/, '')));
     }
   };
 
@@ -201,6 +218,7 @@ export function Connections() {
             <div>
               <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Connection Name</label>
               <input type="text" className="input" placeholder="e.g. customers-q1" value={uploadName} onChange={(e) => setUploadName(e.target.value)} required minLength={3} />
+              <p className="mt-1 text-xs text-text-muted">Existing names are auto-versioned with `-2`, `-3`, and so on.</p>
             </div>
             <div className="flex gap-3 pt-1">
               <button type="submit" disabled={!selectedFile || !uploadName || uploading} className="btn-primary disabled:opacity-40">

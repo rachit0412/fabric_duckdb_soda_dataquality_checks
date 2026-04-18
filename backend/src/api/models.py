@@ -103,19 +103,24 @@ class CheckPlanCreate(BaseModel):
     name: str
     metadata_snapshot_id: Optional[UUID] = None
     connection_id: Optional[UUID] = None
+    dataset_identifier: Optional[str] = None
     description: Optional[str] = None
-    checks: Optional[List[Dict[str, Any]]] = None
-    is_active: Optional[bool] = True
+    checks_yaml: Optional[str] = None
+    custom_checks_yaml: Optional[str] = None
+    enabled: Optional[bool] = True
 
 class CheckPlanResponse(BaseModel):
     id: UUID
     name: str
+    connection_id: UUID
     description: Optional[str]
     metadata_snapshot_id: UUID
-    check_count: int
-    is_active: bool
+    dataset_identifier: str
+    checks_yaml: str
+    custom_checks_yaml: Optional[str] = None
+    enabled: bool
     created_at: datetime
-    created_by: Optional[UUID] = None
+    updated_at: Optional[datetime] = None
 
 # ============== Run Models ==============
 class RunCreate(BaseModel):
@@ -131,12 +136,16 @@ class RunResponse(BaseModel):
     total_checks: int
     passed_checks: int
     failed_checks: int
+    warning_checks: int = 0
 
 class RunStatusResponse(BaseModel):
     id: UUID
+    check_plan_id: UUID
     status: str
+    created_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
     progress_percent: float = 0
 
 # ============== Result Models ==============

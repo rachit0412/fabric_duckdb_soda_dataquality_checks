@@ -70,6 +70,22 @@ def compute_file_hash(file_path: Path) -> str:
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
 
+def resolve_unique_connection_name(db: Session, requested_name: str) -> str:
+    """Return a versioned connection name when the requested one already exists."""
+    existing_names = {
+        row[0]
+        for row in db.query(Connection.name).filter(Connection.name.like(f"{requested_name}%")).all()
+    }
+    if requested_name not in existing_names:
+        return requested_name
+
+    suffix = 2
+    while True:
+        candidate = f"{requested_name}-{suffix}"
+        if candidate not in existing_names:
+            return candidate
+        suffix += 1
+
 @router.post("/", response_model=ConnectionResponse)
 async def create_connection(
     conn_data: ConnectionCreate,
@@ -194,10 +210,9 @@ async def upload_data_source(
                 detail=f"Unsupported file type '{type}'. Allowed: {ALLOWED_FILE_TYPES}"
             )
         
-        # Check if connection name already exists
-        existing = db.query(Connection).filter(Connection.name == name).first()
-        if existing:
-            raise HTTPException(status_code=409, detail=f"Connection '{name}' already exists")
+        resolved_name = resolve_unique_connection_name(db, name)
+        if resolved_name != name:
+            logger.info(f"Connection name '{name}' already exists, storing upload as '{resolved_name}'")
         
         # 2. Validate file extension
         filename = file.filename or ""
@@ -221,7 +236,7 @@ async def upload_data_source(
         logger.info(f"Uploading file: {filename} ({file_size/1024:.1f}KB)")
         
         # 4. Create temporary file
-        conn_dir = UPLOADS_DIR / name
+        conn_dir = UPLOADS_DIR / resolved_name
         conn_dir.mkdir(exist_ok=True, parents=True)
         temp_file_path = conn_dir / filename
         
@@ -239,7 +254,7 @@ async def upload_data_source(
         
         # 7. Create connection in database
         new_conn = Connection(
-            name=name,
+            name=resolved_name,
             type=type,
             remote_url=str(temp_file_path),
             encrypted_secret=file_hash,  # Store file hash as content verification

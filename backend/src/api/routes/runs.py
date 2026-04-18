@@ -37,6 +37,43 @@ class RunStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+def _extract_checks_list(checks_config: Any) -> List[Any]:
+    """Support both `checks:` lists and SodaCL `checks for <dataset>:` blocks."""
+    if not checks_config:
+        return []
+
+    if isinstance(checks_config, list):
+        return checks_config
+
+    if isinstance(checks_config, dict):
+        direct_checks = checks_config.get("checks")
+        if isinstance(direct_checks, list):
+            return direct_checks
+
+        flattened: List[Any] = []
+        for key, value in checks_config.items():
+            if isinstance(key, str) and key.startswith("checks for ") and isinstance(value, list):
+                flattened.extend(value)
+        return flattened
+
+    return []
+
+
+def _run_response_from_model(run: Run) -> RunResponse:
+    total_checks = (run.pass_count or 0) + (run.fail_count or 0) + (run.warn_count or 0) + (run.error_count or 0)
+    return RunResponse(
+        id=run.id,
+        check_plan_id=run.check_plan_id,
+        status=run.status,
+        started_at=run.started_at,
+        completed_at=run.completed_at,
+        total_checks=total_checks,
+        passed_checks=run.pass_count or 0,
+        failed_checks=run.fail_count or 0,
+        warning_checks=run.warn_count or 0,
+    )
+
+
 @router.post("/{check_plan_id}/execute")
 async def execute_check_plan(
     check_plan_id: UUID,
@@ -80,11 +117,9 @@ async def execute_check_plan(
         new_run = Run(
             id=uuid4(),
             check_plan_id=check_plan_id,
-            metadata_snapshot_id=plan.metadata_snapshot_id,
             connection_id=plan.connection_id,
             status=RunStatus.PENDING.value,
-            percent_complete=0,
-            error_message=None
+            error_message=None,
         )
         db.add(new_run)
         db.commit()
@@ -135,7 +170,6 @@ async def _execute_checks_background(
         # Update to RUNNING
         run.status = RunStatus.RUNNING.value
         run.started_at = datetime.utcnow()
-        run.percent_complete = 10
         db.commit()
         
         logger.info(f"Executing checks for run {run_id}")
@@ -145,13 +179,12 @@ async def _execute_checks_background(
             import yaml
             combined_yaml = (checks_yaml or "") + "\n" + (custom_yaml or "")
             checks_config = yaml.safe_load(combined_yaml or "checks: []")
-            checks_list = checks_config.get("checks", []) if checks_config else []
+            checks_list = _extract_checks_list(checks_config)
         except Exception as e:
             logger.error(f"Failed to parse YAML: {e}")
             run.status = RunStatus.FAILED.value
             run.error_message = f"YAML parse error: {str(e)}"
-            run.percent_complete = 100
-            run.finished_at = datetime.utcnow()
+            run.completed_at = datetime.utcnow()
             db.commit()
             return
         
@@ -166,15 +199,25 @@ async def _execute_checks_background(
             await asyncio.sleep(0.05)
             
             # Create result record
-            result_status = "passed" if idx % 3 != 0 else ("warning" if idx % 3 == 1 else "failed")
+            result_status = "passed" if idx % 3 != 0 else ("warned" if idx % 3 == 1 else "failed")
+            check_name = check.get("name", f"check_{idx}") if isinstance(check, dict) else str(check)
+            check_type = check.get("type", "sodacl") if isinstance(check, dict) else "sodacl"
+            error_message = None
+            warning_message = None
+            if result_status == "failed":
+                error_message = "Check failed"
+            elif result_status == "warned":
+                warning_message = "Check warned"
             
             check_result = CheckResult(
                 run_id=run_id,
-                check_name=check.get("name", f"check_{idx}") if isinstance(check, dict) else f"check_{idx}",
-                check_type=check.get("type", "unknown") if isinstance(check, dict) else "unknown",
+                check_name=check_name,
+                check_type=check_type,
                 status=result_status,
-                message=f"Check {result_status}",
-                details=json.dumps(check) if isinstance(check, dict) else json.dumps({"raw": str(check)})
+                execution_time_ms=50,
+                error_message=error_message,
+                warning_message=warning_message,
+                validation_context=check if isinstance(check, dict) else {"raw": str(check)},
             )
             db.add(check_result)
             
@@ -186,7 +229,6 @@ async def _execute_checks_background(
             else:
                 warning_count += 1
             
-            run.percent_complete = 10 + int((idx / max(total_checks, 1)) * 80)
             db.commit()
         
         # Finalize run
@@ -197,11 +239,10 @@ async def _execute_checks_background(
         else:
             run.status = RunStatus.SUCCESS.value
         
-        run.passed_count = passed_count
-        run.failed_count = failed_count
-        run.warning_count = warning_count
-        run.percent_complete = 100
-        run.finished_at = datetime.utcnow()
+        run.pass_count = passed_count
+        run.fail_count = failed_count
+        run.warn_count = warning_count
+        run.completed_at = datetime.utcnow()
         
         db.commit()
         logger.info(f"Run completed: {run_id} (passed={passed_count}, failed={failed_count}, warning={warning_count})")
@@ -211,63 +252,12 @@ async def _execute_checks_background(
         try:
             run.status = RunStatus.FAILED.value
             run.error_message = str(e)
-            run.percent_complete = 100
-            run.finished_at = datetime.utcnow()
+            run.completed_at = datetime.utcnow()
             db.commit()
         except:
             pass
     finally:
         db.close()
-
-
-@router.get("/{run_id}/status")
-async def get_run_status(
-    run_id: UUID,
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
-    """
-    Poll check execution status.
-    
-    **Response:**
-    ```json
-    {
-        "run_id": "550e8400-e29b-41d4-a716-446655440003",
-        "check_plan_id": "550e8400-e29b-41d4-a716-446655440002",
-        "status": "running",
-        "percent_complete": 45,
-        "created_at": "2026-04-11T10:50:00Z",
-        "started_at": "2026-04-11T10:50:05Z",
-        "finished_at": null,
-        "duration_seconds": 5
-    }
-    ```
-    """
-    try:
-        run = db.query(Run).filter(Run.id == run_id).first()
-        if not run:
-            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-        
-        duration = None
-        if run.started_at:
-            end_time = run.finished_at or datetime.utcnow()
-            duration = (end_time - run.started_at).total_seconds()
-        
-        return {
-            "run_id": str(run.id),
-            "check_plan_id": str(run.check_plan_id),
-            "status": run.status,
-            "percent_complete": run.percent_complete,
-            "created_at": run.created_at.isoformat(),
-            "started_at": run.started_at.isoformat() if run.started_at else None,
-            "finished_at": run.finished_at.isoformat() if run.finished_at else None,
-            "duration_seconds": duration,
-            "error_message": run.error_message
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get run status: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{run_id}/results")
@@ -313,7 +303,7 @@ async def get_run_results(
         total = len(results)
         passed = sum(1 for r in results if r.status == "passed")
         failed = sum(1 for r in results if r.status == "failed")
-        warning = sum(1 for r in results if r.status == "warning")
+        warning = sum(1 for r in results if r.status == "warned")
         pass_rate = (passed / total * 100) if total > 0 else 0
         
         results_list = [
@@ -321,8 +311,8 @@ async def get_run_results(
                 "check_name": r.check_name,
                 "check_type": r.check_type,
                 "status": r.status,
-                "message": r.message,
-                "details": json.loads(r.details) if include_details and r.details else None,
+                "message": r.error_message or r.warning_message or f"Check {r.status}",
+                "details": r.validation_context if include_details else None,
                 "created_at": r.created_at.isoformat()
             }
             for r in results
@@ -341,7 +331,7 @@ async def get_run_results(
             },
             "results": results_list,
             "created_at": run.created_at.isoformat(),
-            "finished_at": run.finished_at.isoformat() if run.finished_at else None
+            "finished_at": run.completed_at.isoformat() if run.completed_at else None
         }
     except HTTPException:
         raise
@@ -381,12 +371,12 @@ async def list_runs_for_plan(
                 "run_id": str(r.id),
                 "check_plan_id": str(r.check_plan_id),
                 "status": r.status,
-                "percent_complete": r.percent_complete,
-                "passed": r.passed_count or 0,
-                "failed": r.failed_count or 0,
-                "warning": r.warning_count or 0,
+                "percent_complete": 100 if r.completed_at else (50 if r.started_at else 0),
+                "passed": r.pass_count or 0,
+                "failed": r.fail_count or 0,
+                "warning": r.warn_count or 0,
                 "created_at": r.created_at.isoformat(),
-                "finished_at": r.finished_at.isoformat() if r.finished_at else None
+                "finished_at": r.completed_at.isoformat() if r.completed_at else None
             }
             for r in runs
         ]
@@ -413,19 +403,7 @@ async def list_runs(
         
         runs = query.order_by(Run.created_at.desc()).all()
         
-        return [
-            RunResponse(
-                id=r.id,
-                check_plan_id=r.check_plan_id,
-                status=r.status,
-                started_at=r.started_at,
-                completed_at=r.completed_at,
-                total_checks=0,  # TODO: fetch from results
-                passed_checks=0,
-                failed_checks=0,
-            )
-            for r in runs
-        ]
+        return [_run_response_from_model(r) for r in runs]
     except Exception as e:
         logger.error(f"Failed to list runs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -440,16 +418,7 @@ async def get_run(run_id: UUID, db: Session = Depends(get_db)):
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
         
-        return RunResponse(
-            id=run.id,
-            check_plan_id=run.check_plan_id,
-            status=run.status,
-            started_at=run.started_at,
-            completed_at=run.completed_at,
-            total_checks=0,
-            passed_checks=0,
-            failed_checks=0,
-        )
+        return _run_response_from_model(run)
     except Exception as e:
         logger.error(f"Failed to get run: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -466,10 +435,13 @@ async def get_run_status(run_id: UUID, db: Session = Depends(get_db)):
         
         return RunStatusResponse(
             id=run.id,
+            check_plan_id=run.check_plan_id,
             status=run.status,
+            created_at=run.created_at,
             started_at=run.started_at,
             completed_at=run.completed_at,
-            progress_percent=0,  # TODO: calculate from results
+            error_message=run.error_message,
+            progress_percent=100 if run.completed_at else (50 if run.started_at else 0),
         )
     except Exception as e:
         logger.error(f"Failed to get run status: {e}")
