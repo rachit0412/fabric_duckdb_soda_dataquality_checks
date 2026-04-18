@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Database, Trash2, Upload, FileSpreadsheet, Link2, X, Loader2 } from 'lucide-react';
 import { getConnections, createConnection, deleteConnection, uploadFile } from '../api/client';
 import type { Connection } from '../types';
@@ -6,6 +7,7 @@ import type { Connection } from '../types';
 type FormMode = 'none' | 'upload' | 'database';
 
 export function Connections() {
+  const navigate = useNavigate();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [formMode, setFormMode] = useState<FormMode>('none');
@@ -59,9 +61,10 @@ export function Connections() {
     try {
       const ext = selectedFile.name.split('.').pop()?.toLowerCase() || 'csv';
       const fileType = ext === 'parquet' || ext === 'parq' ? 'parquet' : 'csv';
-      await uploadFile(uploadName, fileType, selectedFile);
+      const { data } = await uploadFile(uploadName, fileType, selectedFile);
       resetForms();
-      loadConnections();
+      await loadConnections();
+      navigate(`/metadata?connectionId=${encodeURIComponent(data.id)}&autoProfile=1`);
     } catch (error: any) {
       const msg = error?.response?.data?.detail || 'Upload failed';
       alert(msg);
@@ -73,9 +76,10 @@ export function Connections() {
   const handleDbSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createConnection(dbForm);
+      const { data } = await createConnection(dbForm);
       resetForms();
-      loadConnections();
+      await loadConnections();
+      navigate(`/metadata?connectionId=${encodeURIComponent(data.id)}&autoProfile=1`);
     } catch (error: any) {
       const msg = error?.response?.data?.detail || 'Failed to create connection';
       alert(msg);

@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FileSearch, Loader2, RefreshCw, Hash, ToggleLeft, Type } from 'lucide-react';
 import { getConnections, profileMetadata, getMetadataForConnection } from '../api/client';
 import type { Connection, MetadataProfile, ColumnProfile } from '../types';
 
 export function Metadata() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedConn, setSelectedConn] = useState('');
   const [profiling, setProfiling] = useState(false);
   const [profile, setProfile] = useState<MetadataProfile | null>(null);
+  const requestedConnectionId = searchParams.get('connectionId') || '';
+  const shouldAutoProfile = searchParams.get('autoProfile') === '1';
 
   useEffect(() => {
     (async () => {
@@ -20,11 +24,10 @@ export function Metadata() {
     })();
   }, []);
 
-  const handleProfile = async () => {
-    if (!selectedConn) return;
+  const runProfile = async (connectionId: string) => {
     setProfiling(true);
     try {
-      const { data } = await profileMetadata({ connection_id: selectedConn });
+      const { data } = await profileMetadata({ connection_id: connectionId });
       setProfile(data);
     } catch (e: any) {
       alert(e?.response?.data?.detail || 'Profiling failed');
@@ -33,19 +36,40 @@ export function Metadata() {
     }
   };
 
+  const handleProfile = async () => {
+    if (!selectedConn) return;
+    await runProfile(selectedConn);
+  };
+
   const loadExisting = async (connId: string) => {
     setSelectedConn(connId);
     try {
       const { data } = await getMetadataForConnection(connId);
       if (data && (Array.isArray(data) ? data.length > 0 : data.snapshot_id)) {
         setProfile(Array.isArray(data) ? data[0] : data);
+        return true;
       } else {
         setProfile(null);
+        return false;
       }
     } catch {
       setProfile(null);
+      return false;
     }
   };
+
+  useEffect(() => {
+    if (loading || !requestedConnectionId) return;
+
+    (async () => {
+      const hasExistingProfile = await loadExisting(requestedConnectionId);
+      if (!hasExistingProfile && shouldAutoProfile) {
+        await runProfile(requestedConnectionId);
+      }
+
+      setSearchParams({}, { replace: true });
+    })();
+  }, [loading, requestedConnectionId, setSearchParams, shouldAutoProfile]);
 
   const typeIcon = (type: string) => {
     const t = type.toLowerCase();
