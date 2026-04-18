@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Lightbulb, Loader2, Sparkles, Copy, Check } from 'lucide-react';
 import { getConnections, generateSuggestions } from '../api/client';
 import type { Connection, CheckSuggestion } from '../types';
 
 export function Suggestions() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedConn, setSelectedConn] = useState('');
   const [generating, setGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<CheckSuggestion[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const requestedConnectionId = searchParams.get('connectionId') || '';
+  const requestedSnapshotId = searchParams.get('snapshotId') || '';
+  const shouldAutoGenerate = searchParams.get('autoGenerate') === '1';
 
   useEffect(() => {
     (async () => {
@@ -21,12 +26,14 @@ export function Suggestions() {
     })();
   }, []);
 
-  const handleGenerate = async () => {
-    if (!selectedConn) return;
+  const handleGenerateForSelection = async (connectionId: string, snapshotId?: string) => {
     setGenerating(true);
     setSuggestions([]);
     try {
-      const { data } = await generateSuggestions({ connection_id: selectedConn });
+      const requestPayload = snapshotId
+        ? { metadata_snapshot_id: snapshotId }
+        : { connection_id: connectionId };
+      const { data } = await generateSuggestions(requestPayload);
       setSuggestions(data?.suggestions || []);
     } catch (e: any) {
       alert(e?.response?.data?.detail || 'Failed to generate suggestions');
@@ -34,6 +41,21 @@ export function Suggestions() {
       setGenerating(false);
     }
   };
+
+  const handleGenerate = async () => {
+    if (!selectedConn) return;
+    await handleGenerateForSelection(selectedConn);
+  };
+
+  useEffect(() => {
+    if (loading || !requestedConnectionId) return;
+
+    setSelectedConn(requestedConnectionId);
+    if (shouldAutoGenerate) {
+      void handleGenerateForSelection(requestedConnectionId, requestedSnapshotId || undefined);
+    }
+    setSearchParams({}, { replace: true });
+  }, [loading, requestedConnectionId, requestedSnapshotId, setSearchParams, shouldAutoGenerate]);
 
   const copyYaml = (yaml: string, idx: number) => {
     navigator.clipboard.writeText(yaml);
@@ -66,7 +88,7 @@ export function Suggestions() {
           <p className="mt-1 text-sm text-text-secondary">Auto-generated quality check recommendations</p>
         </div>
         <div className="flex items-center gap-3">
-          <select className="input text-xs" value={selectedConn} onChange={e => setSelectedConn(e.target.value)}>
+          <select title="Select connection for suggestions" className="input text-xs" value={selectedConn} onChange={e => setSelectedConn(e.target.value)}>
             <option value="">Select connection...</option>
             {connections.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
           </select>

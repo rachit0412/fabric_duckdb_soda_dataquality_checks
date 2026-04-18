@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { FileSearch, Loader2, RefreshCw, Hash, ToggleLeft, Type } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { FileSearch, Loader2, RefreshCw, Hash, ToggleLeft, Type, Sparkles, Wand2, ArrowRight, Sigma, Database, ShieldAlert } from 'lucide-react';
 import { getConnections, profileMetadata, getMetadataForConnection } from '../api/client';
 import type { Connection, MetadataProfile, ColumnProfile } from '../types';
+
+type EnrichedColumn = ColumnProfile & {
+  completenessPercent: number | null;
+  qualityFlag: 'healthy' | 'attention' | 'critical';
+  wranglerHint: string;
+};
 
 export function Metadata() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -13,6 +19,61 @@ export function Metadata() {
   const [profile, setProfile] = useState<MetadataProfile | null>(null);
   const requestedConnectionId = searchParams.get('connectionId') || '';
   const shouldAutoProfile = searchParams.get('autoProfile') === '1';
+
+  const getEnrichedColumns = (metadata: MetadataProfile | null): EnrichedColumn[] => {
+    if (!metadata?.schema?.columns) return [];
+
+    return metadata.schema.columns.map((column) => {
+      const profileStats = metadata.profile?.[column.name] || {};
+      const rowCount = profileStats.row_count ?? column.row_count ?? null;
+      const nullCount = profileStats.null_count ?? column.null_count ?? null;
+      const nullPercent = profileStats.null_percent ?? column.null_percentage ?? null;
+      const distinctCount = profileStats.distinct_count ?? column.distinct_count ?? null;
+      const completenessPercent = typeof nullPercent === 'number' ? Math.max(0, 100 - nullPercent) : null;
+
+      let qualityFlag: EnrichedColumn['qualityFlag'] = 'healthy';
+      if (typeof nullPercent === 'number' && nullPercent >= 20) {
+        qualityFlag = 'critical';
+      } else if (typeof nullPercent === 'number' && nullPercent > 0) {
+        qualityFlag = 'attention';
+      }
+
+      let wranglerHint = 'Ready for rule generation';
+      if (typeof nullPercent === 'number' && nullPercent > 0) {
+        wranglerHint = `Handle ${nullPercent.toFixed(1)}% null values before enforcing strict completeness checks`;
+      } else if (typeof distinctCount === 'number' && typeof rowCount === 'number' && rowCount > 0 && distinctCount / rowCount < 0.25) {
+        wranglerHint = 'Low cardinality column; consider validity or allowed-values checks';
+      } else if ((column.type || '').toLowerCase().includes('date')) {
+        wranglerHint = 'Date-like column; freshness or chronology checks are a good fit';
+      } else if ((column.type || '').toLowerCase().includes('num')) {
+        wranglerHint = 'Numeric column; range and anomaly checks are a good fit';
+      }
+
+      return {
+        ...column,
+        row_count: rowCount ?? undefined,
+        null_count: nullCount ?? 0,
+        null_percentage: typeof nullPercent === 'number' ? nullPercent : undefined,
+        distinct_count: distinctCount ?? undefined,
+        min: profileStats.min ?? column.min,
+        max: profileStats.max ?? column.max,
+        mean: profileStats.mean ?? column.mean,
+        stddev: profileStats.stddev ?? column.stddev,
+        min_length: profileStats.min_length ?? column.min_length,
+        max_length: profileStats.max_length ?? column.max_length,
+        completenessPercent,
+        qualityFlag,
+        wranglerHint,
+      };
+    });
+  };
+
+  const enrichedColumns = getEnrichedColumns(profile);
+  const totalRows = enrichedColumns.find((column) => typeof column.row_count === 'number')?.row_count ?? null;
+  const columnsNeedingAttention = enrichedColumns.filter((column) => column.qualityFlag !== 'healthy').length;
+  const profilingReadiness = enrichedColumns.length > 0
+    ? Math.round((enrichedColumns.filter((column) => column.qualityFlag === 'healthy').length / enrichedColumns.length) * 100)
+    : 0;
 
   useEffect(() => {
     (async () => {
@@ -78,6 +139,12 @@ export function Metadata() {
     return <Type className="w-3.5 h-3.5 text-cyan-400" />;
   };
 
+  const qualityTone = (flag: EnrichedColumn['qualityFlag']) => {
+    if (flag === 'critical') return 'text-rose-400';
+    if (flag === 'attention') return 'text-amber-400';
+    return 'text-emerald-400';
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -97,7 +164,7 @@ export function Metadata() {
           <p className="mt-1 text-sm text-text-secondary">Profile and explore your data structures</p>
         </div>
         <div className="flex items-center gap-3">
-          <select className="input text-xs" value={selectedConn} onChange={e => loadExisting(e.target.value)}>
+          <select title="Select connection for profiling" className="input text-xs" value={selectedConn} onChange={e => loadExisting(e.target.value)}>
             <option value="">Select connection...</option>
             {connections.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
           </select>
@@ -107,26 +174,93 @@ export function Metadata() {
         </div>
       </div>
 
-      {profile && profile.schema?.columns && (
+      {profile && enrichedColumns.length > 0 && (
         <div className="animate-fade-up">
-          <div className="card mb-4">
-            <div className="flex items-center gap-4">
-              <div className="text-center">
-                <p className="text-xs text-text-muted font-mono uppercase">Columns</p>
-                <p className="text-xl font-heading font-bold text-text-primary">{profile.schema.columns.length}</p>
-              </div>
-              {profile.schema.row_count != null && (
-                <div className="text-center ml-8">
-                  <p className="text-xs text-text-muted font-mono uppercase">Rows</p>
-                  <p className="text-xl font-heading font-bold text-text-primary">{profile.schema.row_count.toLocaleString()}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+            <div className="card">
+              <div className="flex items-center gap-3">
+                <Database className="w-5 h-5 text-cyan-400" />
+                <div>
+                  <p className="text-xs text-text-muted font-mono uppercase">Columns</p>
+                  <p className="text-xl font-heading font-bold text-text-primary">{enrichedColumns.length}</p>
                 </div>
-              )}
-              <div className="ml-auto text-xs text-text-dim font-mono">Profiled {new Date(profile.profiled_at).toLocaleString()}</div>
+              </div>
+            </div>
+            <div className="card">
+              <div className="flex items-center gap-3">
+                <Sigma className="w-5 h-5 text-violet-400" />
+                <div>
+                  <p className="text-xs text-text-muted font-mono uppercase">Rows Profiled</p>
+                  <p className="text-xl font-heading font-bold text-text-primary">{totalRows != null ? totalRows.toLocaleString() : '—'}</p>
+                </div>
+              </div>
+            </div>
+            <div className="card">
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="w-5 h-5 text-amber-400" />
+                <div>
+                  <p className="text-xs text-text-muted font-mono uppercase">Needs Attention</p>
+                  <p className="text-xl font-heading font-bold text-text-primary">{columnsNeedingAttention}</p>
+                </div>
+              </div>
+            </div>
+            <div className="card">
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <p className="text-xs text-text-muted font-mono uppercase">Profiler Readiness</p>
+                  <p className="text-xl font-heading font-bold text-text-primary">{profilingReadiness}%</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card mb-4">
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <h3 className="text-sm font-heading font-semibold text-text-primary">Profiler Summary</h3>
+                <p className="mt-1 text-xs text-text-secondary">The metadata profiler has already inspected schema shape, null ratios, cardinality, and type patterns.</p>
+              </div>
+              <div className="text-xs text-text-dim font-mono">Profiled {new Date(profile.profiled_at).toLocaleString()}</div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link to={`/suggestions?connectionId=${encodeURIComponent(selectedConn)}&snapshotId=${encodeURIComponent(profile.snapshot_id)}&autoGenerate=1`} className="btn-primary">
+                <Sparkles className="w-4 h-4" />Generate Suggestions
+              </Link>
+              <Link to="/check-plans" className="btn-secondary">
+                <ArrowRight className="w-4 h-4" />Open Check Plans
+              </Link>
+            </div>
+          </div>
+
+          <div className="card mb-4">
+            <div className="flex items-center gap-3 mb-4">
+              <Wand2 className="w-4 h-4 text-amber-400" />
+              <div>
+                <h3 className="text-sm font-heading font-semibold text-text-primary">Wrangler Prep</h3>
+                <p className="text-xs text-text-secondary">This section surfaces the cleanup and rule-design hints that were missing from the metadata step.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {enrichedColumns.slice(0, 6).map((column) => (
+                <div key={`wrangler-${column.name}`} className="rounded-xl p-4 border" style={{ borderColor: 'var(--glass-border)', background: 'var(--glass-bg)' }}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-heading font-semibold text-text-primary">{column.name}</p>
+                      <p className="text-[11px] font-mono text-text-dim">{column.type}</p>
+                    </div>
+                    <span className={`text-xs font-mono ${qualityTone(column.qualityFlag)}`}>
+                      {column.qualityFlag === 'healthy' ? 'healthy' : column.qualityFlag === 'attention' ? 'review' : 'critical'}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xs text-text-secondary">{column.wranglerHint}</p>
+                </div>
+              ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            {profile.schema.columns.map((col: ColumnProfile, i: number) => (
+            {enrichedColumns.map((col: EnrichedColumn, i: number) => (
               <div key={col.name} className="card-hover animate-fade-up" style={{ animationDelay: `${i * 30}ms` }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -137,6 +271,10 @@ export function Metadata() {
                     </div>
                   </div>
                   <div className="flex items-center gap-6 text-xs font-mono">
+                    <div className="text-center">
+                      <p className="text-text-dim">Completeness</p>
+                      <p className={qualityTone(col.qualityFlag)}>{col.completenessPercent != null ? `${col.completenessPercent.toFixed(1)}%` : '—'}</p>
+                    </div>
                     <div className="text-center">
                       <p className="text-text-dim">Nulls</p>
                       <p className="text-text-secondary">{col.null_count}{col.null_percentage != null ? ` (${col.null_percentage.toFixed(1)}%)` : ''}</p>
@@ -159,8 +297,15 @@ export function Metadata() {
                         <p className="text-text-secondary">{String(col.max)}</p>
                       </div>
                     )}
+                    {col.mean != null && (
+                      <div className="text-center">
+                        <p className="text-text-dim">Mean</p>
+                        <p className="text-text-secondary">{Number(col.mean).toFixed(2)}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
+                <p className="mt-3 text-xs text-text-muted">{col.wranglerHint}</p>
               </div>
             ))}
           </div>
