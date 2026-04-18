@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = `${(import.meta as any).env?.VITE_API_URL || ''}/api/v1`;
 
 interface CheckResult {
   check_name: string;
