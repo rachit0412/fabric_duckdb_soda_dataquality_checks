@@ -260,7 +260,7 @@ $ docker compose restart
 **Current (Basic)**:
 ```yaml
 environment:
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test123}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
 ```
 
 **Production Recommendation**:

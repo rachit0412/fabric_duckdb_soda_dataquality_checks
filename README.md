@@ -206,7 +206,8 @@ POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_DB=data_quality
 POSTGRES_USER=dq_user
-POSTGRES_PASSWORD=secure_password_here
+POSTGRES_PASSWORD=change-me-with-a-32-char-random-password
+PGADMIN_PASSWORD=change-me-before-enabling-pgadmin
 
 # API
 API_PORT=8001

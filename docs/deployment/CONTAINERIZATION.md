@@ -77,7 +77,7 @@ The `manage.ps1` script makes Docker operations simple:
 
 # Access pgAdmin: http://localhost:5050
 #   Email: admin@company.com
-#   Password: admin123
+#   Password: set via PGADMIN_PASSWORD in .env
 ```
 
 ### Advanced Operations
@@ -216,7 +216,7 @@ GROUP BY table_name;
 
 # Access: http://localhost:5050
 # Email: admin@company.com
-# Password: admin123
+# Password: set via PGADMIN_PASSWORD in .env
 ```
 
 **First time setup:**
@@ -227,7 +227,7 @@ GROUP BY table_name;
    - Port: `5432`
    - Database: `data_quality`
    - Username: `postgres`
-   - Password: `test123`
+  - Password: set via `POSTGRES_PASSWORD` in `.env`
 
 ---
 

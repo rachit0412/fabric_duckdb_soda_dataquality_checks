@@ -288,7 +288,7 @@ print("✅ Migration complete!")
 ```bash
 # 1. Start PostgreSQL
 docker run -d --name postgres-dq \
-  -e POSTGRES_PASSWORD=test123 \
+  -e POSTGRES_PASSWORD=change-me-with-a-32-char-random-password \
   -e POSTGRES_DB=data_quality \
   -p 5432:5432 \
   postgres:16
@@ -300,7 +300,7 @@ POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_DB=data_quality
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=test123
+POSTGRES_PASSWORD=change-me-with-a-32-char-random-password
 EOF
 
 # 3. Install Python dependency

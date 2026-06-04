@@ -39,7 +39,7 @@ services:
     
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or .env.docker}
       POSTGRES_DB: data_quality
       POSTGRES_INITDB_ARGS: "-E UTF8"
       TZ: UTC
@@ -131,10 +131,10 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or .env.docker}
       POSTGRES_DB: data_quality
       # Database URL for SQLAlchemy
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-test123}@postgres:5432/data_quality
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or .env.docker}@postgres:5432/data_quality
       # Storage backend
       STORAGE_BACKEND: postgresql
     
@@ -189,7 +189,7 @@ services:
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@company.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?Set PGADMIN_PASSWORD before enabling the admin profile}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
       - "${PGADMIN_PORT:-5050}:80"

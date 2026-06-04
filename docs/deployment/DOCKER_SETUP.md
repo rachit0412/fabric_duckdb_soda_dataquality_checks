@@ -44,7 +44,7 @@ POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_DB=data_quality
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=test123
+POSTGRES_PASSWORD=change-me-with-a-32-char-random-password
 ```
 
 ### Step 4: Test Connection

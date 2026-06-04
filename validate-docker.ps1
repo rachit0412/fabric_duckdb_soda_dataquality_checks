@@ -143,15 +143,38 @@ Write-Output ""
 Write-Output "8️⃣  Checking Environment Configuration..."
 if (Test-Path ".env") {
     $envContent = Get-Content ".env" -Raw
-    
-    # Check for critical variables
-    $criticalVars = @('STORAGE_BACKEND', 'POSTGRES_PASSWORD')
-    foreach ($var in $criticalVars) {
-        if ($envContent -match "^$var=.+$") {
-            Write-Output "   ✅ $var configured"
+
+    if ($envContent -match '(?m)^STORAGE_BACKEND=.+$') {
+        Write-Output "   ✅ STORAGE_BACKEND configured"
+    } else {
+        Write-Output "   ⚠️  STORAGE_BACKEND not set (will use defaults)"
+        $warnings++
+    }
+
+    $requiredSecrets = @('POSTGRES_PASSWORD', 'PGADMIN_PASSWORD')
+    $insecureSecretValues = @(
+        'test123',
+        'admin123',
+        'secure_password_here',
+        'change-me-in-production',
+        'change-me-with-a-32-char-random-password',
+        'change-me-before-enabling-pgadmin'
+    )
+
+    foreach ($var in $requiredSecrets) {
+        $match = [regex]::Match($envContent, "(?m)^$var=(.*)$")
+        if (-not $match.Success) {
+            Write-Output "   ❌ $var not set"
+            $errors++
+            continue
+        }
+
+        $value = $match.Groups[1].Value.Trim()
+        if ([string]::IsNullOrWhiteSpace($value) -or $insecureSecretValues -contains $value) {
+            Write-Output "   ❌ $var uses an insecure placeholder/default value"
+            $errors++
         } else {
-            Write-Output "   ⚠️  $var not set (will use defaults)"
-            $warnings++
+            Write-Output "   ✅ $var configured"
         }
     }
 } else {
@@ -162,7 +185,25 @@ if (Test-Path ".env") {
 # Check 9: Port availability
 Write-Output ""
 Write-Output "9️⃣  Checking Port Availability..."
-$ports = @{8000 = 'API'; 5432 = 'PostgreSQL'}
+$configuredApiPort = 8001
+$configuredPostgresPort = 5432
+
+if (Test-Path ".env") {
+    $apiPortMatch = [regex]::Match($envContent, '(?m)^API_PORT=(\d+)$')
+    if ($apiPortMatch.Success) {
+        $configuredApiPort = [int]$apiPortMatch.Groups[1].Value
+    }
+
+    $postgresPortMatch = [regex]::Match($envContent, '(?m)^POSTGRES_PORT=(\d+)$')
+    if ($postgresPortMatch.Success) {
+        $configuredPostgresPort = [int]$postgresPortMatch.Groups[1].Value
+    }
+}
+
+$ports = @{
+    $configuredApiPort = 'API'
+    $configuredPostgresPort = 'PostgreSQL'
+}
 foreach ($port in $ports.Keys) {
     $connection = $null
     try {

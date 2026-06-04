@@ -105,7 +105,8 @@ Reduction:           ~46% smaller
 
 ```env
 # Database
-POSTGRES_PASSWORD=change-me-in-production
+POSTGRES_PASSWORD=change-me-with-a-32-char-random-password
+PGADMIN_PASSWORD=change-me-before-enabling-pgadmin
 POSTGRES_PORT=5432
 POSTGRES_DB=data_quality
 

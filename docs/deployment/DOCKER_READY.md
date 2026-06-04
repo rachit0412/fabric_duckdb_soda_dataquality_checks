@@ -25,7 +25,7 @@
 - ✅ `init-scripts/01-init.sql` - PostgreSQL schema initialization
 - ✅ Creates `scan_results` table with indexes
 - ✅ POSTGRES_HOST set to `postgres` (container name)
-- ✅ POSTGRES_PASSWORD set to `test123`
+- ✅ POSTGRES_PASSWORD set to a non-default value in `.env`
 
 #### 4. Soda Core Configuration ✅
 - ✅ `soda_duckdb/checks.yml` - Data quality rules
