@@ -38,11 +38,11 @@ docker compose up -d
 docker compose ps
 
 # Verify health
-curl http://localhost:8000/health
+curl http://localhost:8001/health
 
-# Open dashboard
-# macOS/Linux: open http://localhost:3000
-# Windows: Start http://localhost:3000
+# Open application
+# macOS/Linux: open http://localhost:3010
+# Windows: Start http://localhost:3010
 
 # Stop services
 docker compose down
@@ -50,8 +50,8 @@ docker compose down
 
 **Services Running:**
 - ✅ PostgreSQL 16 on port 5432
-- ✅ FastAPI on port 8000
-- ✅ React Frontend on port 3000
+- ✅ FastAPI on port 8001
+- ✅ React Frontend on port 3010
 - ✅ pgAdmin (optional) on port 5050
 
 ---
@@ -85,8 +85,8 @@ cd backend/src
 python -m main
 
 # 7. API available at:
-# http://localhost:8000
-# Docs: http://localhost:8000/docs
+# http://localhost:8001
+# Docs: http://localhost:8001/docs
 ```
 
 ### Setup React Frontend
@@ -299,7 +299,7 @@ az container create \
   --resource-group MyResourceGroup \
   --name dq-api-container \
   --image dqplatform.azurecr.io/data-quality-api:1.0.0 \
-  --environment-variables API_HOST=0.0.0.0 API_PORT=8000
+  --environment-variables API_HOST=0.0.0.0 API_PORT=8001
 ```
 
 ### SSL/TLS Configuration
@@ -316,7 +316,7 @@ server {
     ssl_ciphers HIGH:!aNULL:!MD5;
 
     location / {
-        proxy_pass http://localhost:8000;
+      proxy_pass http://localhost:8001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -358,12 +358,11 @@ POSTGRES_PORT=5432
 
 # API
 API_HOST=0.0.0.0
-API_PORT=8000
+API_PORT=8001
 LOG_LEVEL=INFO
 
 # Frontend
-REACT_APP_API_URL=http://localhost:8000/api/v1
-REACT_APP_ENV=development
+VITE_API_URL=http://localhost:8001
 ```
 
 ### Soda Core Configuration
@@ -450,8 +449,8 @@ docker compose restart postgres
 ### API Not Responding
 
 ```bash
-# Check if port 8000 is in use
-netstat -an | grep 8000
+# Check if port 8001 is in use
+netstat -an | grep 8001
 
 # Check API logs
 docker compose logs data-quality-api
@@ -460,7 +459,7 @@ docker compose logs data-quality-api
 docker compose restart data-quality-api
 
 # Test health endpoint
-curl http://localhost:8000/health
+curl http://localhost:8001/health
 ```
 
 ### Out of Disk Space
@@ -500,7 +499,7 @@ docker exec dq-postgres psql -U postgres -d data_quality -c "REINDEX DATABASE da
 
 ```bash
 # Service health
-curl http://localhost:8000/health
+curl http://localhost:8001/health
 
 # Expected response:
 # {"status": "ok", "version": "1.0.0", "database": "connected"}
@@ -508,7 +507,7 @@ curl http://localhost:8000/health
 
 ### Prometheus Metrics
 
-Metrics available at: `http://localhost:8000/metrics`
+Metrics available at: `http://localhost:8001/metrics`
 
 Key metrics:
 - `api_requests_total` - Total API requests

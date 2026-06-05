@@ -1,6 +1,6 @@
 # 🎯 Enterprise Data Quality Platform
 
-> **Production-ready data quality monitoring with AI anomaly detection, professional web UI, and enterprise security**
+> **Workflow-driven data quality operations for source onboarding, metadata profiling, plan creation, execution, and analysis**
 
 **Version:** 1.0.1 | **Generated:** 2026-04-01 | [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -14,40 +14,41 @@
 # 2. Deploy (one command)
 .\quick-start.ps1
 
-# 3. Open dashboard
+# 3. Open application
 # Local: http://localhost:3010
 # Codespaces: http://127.0.0.1:3002
 ```
 
 **Ready!** You now have:**
-- ✅ Web dashboard (modern UI, responsive)
+- ✅ Web application for source setup, metadata profiling, plan creation, execution, and analysis
 - ✅ FastAPI REST API on port 8001
-- ✅ PostgreSQL for history + DuckDB for processing
+- ✅ PostgreSQL for history + DuckDB for execution and file processing
 - ✅ Production security (non-root, read-only FS, hardened)
 
 ---
 
 ## 📌 v1.0.1 Features (Production Ready)
 
-### ✨ Data Quality Scanning
-- **Soda Core 3.4.3** integration with DuckDB 1.0.0 backend
-- **5 Quality Checks**: Volume, Completeness, Uniqueness, Validity, Freshness
-- **Selective Execution**: Choose which checks to run per scan
-- **Column-Level Mapping**: See which rules apply to each data column
-- **Anomaly Detection**: Z-score and IQR-based outlier detection
+### ✨ Workflow-Driven Data Quality
+- **Source Registration**: Upload CSV or Parquet files, or create database connections for reuse
+- **Metadata Profiling**: Parse schema, null ratios, value ranges, and candidate columns before plan creation
+- **Baseline Checks**: Start from core quality rules such as volume, completeness, uniqueness, validity, and freshness
+- **AI Suggestions**: Generate additional checks from profiled metadata
+- **Prebuilt Rule Patterns**: Add Soda and Great Expectations rule patterns to the final plan
+- **Plan Execution**: Run assembled plans and persist outcomes for results and trend analysis
 
-### 🎨 Web Dashboard
-- **Modern Design**: Glass-morphism UI, fully responsive
-- **Drag & Drop**: Upload CSV files directly
-- **Rule Selection**: Checkbox-based rule selection (X/5 rules)
-- **Live Results**: Color-coded pass/fail/warning indicators
-- **Scan History**: Full audit trail of all scans with metadata
+### 🎨 Web Application
+- **Guided Workflow**: Move from connections to metadata, AI suggestions, plans, runs, results, and graphs
+- **Responsive UI**: Modern React dashboard with workflow pages and reusable source records
+- **Plan-Centric Execution**: Build plans from baseline, AI-generated, and prebuilt rule patterns
+- **Detailed Results**: Inspect pass or fail counts, rule outcomes, and historical execution records
+- **Trend Views**: Review graphs, per-column quality signals, and plan pass-rate trends
 
 ### 🛠️ REST API
 - **FastAPI** on port 8001 with interactive Swagger docs
-- **Endpoints**: `/api/scan`, `/api/history/{table_name}`, `/api/trends/{table_name}`
-- **HTML Reports**: Generated with interactive Plotly charts
-- **Programmatic Access**: Full Python SDK + REST
+- **Workflow Endpoints**: `/api/v1/connections`, `/api/v1/metadata`, `/api/v1/suggestions`, `/api/v1/check-plans`, `/api/v1/runs`, `/api/v1/results`, `/api/v1/visualization`
+- **Programmatic Access**: REST endpoints for the same source-to-analysis workflow exposed in the UI
+- **Historical Analytics**: Retrieve run results, metrics, and trend data for downstream reporting
 
 ### 🔐 Security
 - Non-root execution (UID 1000), read-only filesystem, dropped Linux capabilities
@@ -60,10 +61,10 @@
 
 | Use Case | Tool | Details |
 |----------|------|---------|
-| I want the web dashboard | Open `http://localhost:3010` | Modern UI, point-and-click |
+| I want the workflow UI | Open `http://localhost:3010` | Source setup, metadata, plans, runs, results, and graphs |
 | I want REST API | Call `http://localhost:8001/docs` | Swagger UI, live try-it-out |
-| I want to run scans programmatically | Use Python SDK | `from src.core.scanner import EnhancedDataQualityScanner` |
-| I want historical data + trends | Query PostgreSQL | Scans auto-saved to DB |
+| I want to automate plan execution | Use API route groups | Connections, metadata, suggestions, plans, runs, results, visualization |
+| I want historical data + trends | Query PostgreSQL | Runs, results, and trend data are persisted for analysis |
 | I want production deployment | Read [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Docker, orchestration, monitoring |
 
 ---
@@ -72,32 +73,35 @@
 
 ```
 ┌────────────────────────────────────────────────┐
-│         FastAPI Server (Port 8001)            │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-│  │ Scanner  │→ │ Profiler │→ │ Anomaly  │    │
-│  │ (Soda)   │  │          │  │ Detector │    │
-│  └─────┬────┘  └────┬─────┘  └────┬─────┘    │
-│        │             │             │          │
-│        └─────────────┼─────────────┘          │
-│                      ↓                        │
-│          ┌──────────────────┐                 │
-│          │    DuckDB        │ (Primary)       │
-│          │  (In-Memory)     │                 │
-│          └────────┬─────────┘                 │
-│                   ↓                           │
-│          ┌──────────────────┐                 │
-│          │   PostgreSQL     │ (History)       │
-│          └──────────────────┘                 │
+│          FastAPI Workflow API (8001)          │
+│  ┌────────────┐  ┌────────────┐               │
+│  │Connections │→ │ Metadata   │               │
+│  └─────┬──────┘  └─────┬──────┘               │
+│        │               │                      │
+│        ↓               ↓                      │
+│  ┌────────────┐  ┌────────────┐               │
+│  │Suggestions │→ │ Check Plans│→ Runs         │
+│  └────────────┘  └─────┬──────┘    │          │
+│                         │           ↓          │
+│                    ┌────────────┐  ┌────────┐ │
+│                    │ DuckDB     │→ │Results │ │
+│                    │ Execution  │  └────┬───┘ │
+│                    └─────┬──────┘       ↓     │
+│                          ↓            Graphs  │
+│                    ┌────────────┐  & Analysis │
+│                    │PostgreSQL  │             │
+│                    │History     │             │
+│                    └────────────┘             │
 └────────────────────────────────────────────────┘
 
-React Dashboard (Port 3010) ↔ FastAPI Server
+React Application (Port 3010) ↔ FastAPI Workflow API
 ```
 
 **Key Points:**
-- **DuckDB** = Primary processing engine (fast, in-memory, CSV-friendly)
-- **PostgreSQL** = Secondary storage (scan history only, NOT user data)
-- **FastAPI** = REST API + WebSocket support
-- **React** = Modern responsive UI
+- **DuckDB** = Primary execution engine for file-based and connected-source checks
+- **PostgreSQL** = Stores connections, metadata snapshots, plans, runs, and historical outcomes
+- **FastAPI** = Exposes the workflow API for connections, metadata, suggestions, plans, execution, results, and visualization
+- **React** = Guides the end-to-end workflow from source setup to graphs and analysis
 
 For detailed architecture, see [ARCHITECTURE.md](ARCHITECTURE.md)
 
@@ -107,21 +111,23 @@ For detailed architecture, see [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ### Web Dashboard (Easiest)
 1. Navigate to `http://localhost:3010`
-2. Upload CSV or select data path
-3. Choose checks to run
-4. Review results with interactive charts
+2. Upload a CSV or Parquet file, or create a database connection
+3. Profile metadata to inspect schema, null patterns, and candidate columns
+4. Generate AI suggestions and combine them with baseline and prebuilt Soda or Great Expectations rule patterns
+5. Build and execute a check plan
+6. Review results, graphs, and analysis outcomes
 
 ### REST API
-```bash
-curl -X POST "http://localhost:8001/api/scan" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "csv_path": "data/customers.csv",
-    "table_name": "customers"
-  }'
-```
+Use the workflow route groups exposed under `/api/v1/`:
 
-See [API_REFERENCE.md](API_REFERENCE.md) for all endpoints.
+- `connections` for file upload and connection management
+- `metadata` for profiling registered sources
+- `suggestions` for AI-generated rule recommendations
+- `check-plans` for storing executable plans
+- `runs` and `results` for execution status and rule outcomes
+- `visualization` for metrics and pass-rate trends
+
+See [docs/API.md](docs/API.md) for all endpoints.
 
 ### Python SDK
 ```python
@@ -136,9 +142,11 @@ print(f"✅ {result.checks_passed} checks passed")
 print(f"❌ {result.checks_failed} checks failed")
 ```
 
+Use the Python API when you need lower-level execution outside the workflow UI.
+
 ---
 
-## � Docker Commands
+## Docker Commands
 
 ```bash
 # Start all services

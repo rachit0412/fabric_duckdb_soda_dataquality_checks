@@ -47,8 +47,8 @@ export function Runs() {
   return (
     <div className="space-y-6">
       <div className="animate-fade-up">
-        <h2 className="text-2xl font-heading font-bold text-text-primary tracking-tight">Check Runs</h2>
-        <p className="mt-1 text-sm text-text-secondary">Execution history and monitoring</p>
+        <h2 className="text-2xl font-heading font-bold text-text-primary tracking-tight">Plan Runs</h2>
+        <p className="mt-1 max-w-2xl text-sm text-text-secondary">Execute assembled plans, monitor status and timing, and track pass or fail counts before reviewing the detailed results.</p>
       </div>
 
       {runs.length === 0 ? (
@@ -56,8 +56,8 @@ export function Runs() {
           <div className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'rgba(139,92,246,0.08)' }}>
             <PlayCircle className="w-6 h-6 text-violet-400/60" />
           </div>
-          <h3 className="text-sm font-heading font-semibold text-text-primary mb-1">No check runs yet</h3>
-          <p className="text-xs text-text-muted">Execute a check plan to see results here.</p>
+          <h3 className="text-sm font-heading font-semibold text-text-primary mb-1">No plan runs yet</h3>
+          <p className="text-xs text-text-muted">Execute a plan to start reading the source, applying the checks, and producing results.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -73,7 +73,7 @@ export function Runs() {
                     </div>
                     <div>
                       <h3 className="text-sm font-heading font-semibold text-text-primary">
-                        Run <span className="font-mono" style={{ color: 'var(--accent-text)' }}>#{run.id.slice(0, 8)}</span>
+                        Plan run <span className="font-mono" style={{ color: 'var(--accent-text)' }}>#{run.id.slice(0, 8)}</span>
                       </h3>
                       <p className="text-xs text-text-secondary flex items-center gap-1.5 mt-0.5 font-mono">
                         <Clock className="w-3 h-3 text-text-muted" />

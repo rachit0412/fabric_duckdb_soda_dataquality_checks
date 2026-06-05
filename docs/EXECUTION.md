@@ -4,29 +4,29 @@
 
 ### Overview
 
-M4 implements the **Execution Engine** for asynchronous check execution:
+M4 implements the **Execution Engine** for asynchronous plan execution after source setup, metadata profiling, and check-plan creation:
 
-- **POST /runs/{check_plan_id}/execute** - Start background check execution
-- **GET /runs/{run_id}/status** - Poll execution progress (non-blocking)
-- **GET /runs/{run_id}/results** - Get aggregated pass/fail/warning results
-- **GET /checks/{check_plan_id}/runs** - Execution history for check plan
+- **POST /api/v1/runs/{check_plan_id}/execute** - Start background plan execution
+- **GET /api/v1/runs/{run_id}/status** - Poll execution progress (non-blocking)
+- **GET /api/v1/runs/{run_id}/results** - Get aggregated pass/fail/warning results
+- **GET /api/v1/runs/** - List historical runs for follow-up analysis
 
 ### Architecture
 
 #### Async Execution Model
 ```python
 # Request: Queue execution (immediate return)
-POST /runs/{check_plan_id}/execute
+POST /api/v1/runs/{check_plan_id}/execute
 → Creates Run record in PENDING state
 → Queues background task
 → Returns run_id for polling
 
 # Poll for status (non-blocking)
-GET /runs/{run_id}/status
+GET /api/v1/runs/{run_id}/status
 → Returns: status, percent_complete, duration_seconds
 
 # Final results after completion
-GET /runs/{run_id}/results
+GET /api/v1/runs/{run_id}/results
 → Returns: aggregated summary + individual check results
 ```
 
@@ -57,7 +57,7 @@ GET /runs/{run_id}/results
 - Uses FastAPI `BackgroundTasks`
 - Async/await pattern for non-blocking execution
 - SessionLocal for background database access
-- Simulated check execution (real Soda integration in production)
+- Executes the stored plan against the selected source and persists outcomes for results and visualization
 
 #### Result Storage
 ```sql

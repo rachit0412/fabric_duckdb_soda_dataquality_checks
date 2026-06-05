@@ -69,8 +69,8 @@ export function Visualization() {
   return (
     <div className="space-y-6">
       <div className="animate-fade-up">
-        <h2 className="text-2xl font-heading font-bold text-text-primary tracking-tight">Visualization</h2>
-        <p className="mt-1 text-sm text-text-secondary">Quality metrics and trend analysis</p>
+        <h2 className="text-2xl font-heading font-bold text-text-primary tracking-tight">Graphs &amp; Analysis</h2>
+        <p className="mt-1 max-w-2xl text-sm text-text-secondary">Review pass trends, column quality signals, and analysis outcomes after a plan has been executed.</p>
       </div>
 
       {noData ? (
@@ -78,15 +78,15 @@ export function Visualization() {
           <div className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'rgba(6,182,212,0.08)' }}>
             <LineChartIcon className="w-6 h-6 text-cyan-400/60" />
           </div>
-          <h3 className="text-sm font-heading font-semibold text-text-primary mb-1">No Data Yet</h3>
-          <p className="text-xs text-text-muted">Execute check plans to see quality trends and metrics.</p>
+          <h3 className="text-sm font-heading font-semibold text-text-primary mb-1">No analysis data yet</h3>
+          <p className="text-xs text-text-muted">Run at least one plan to populate graphs, trends, and outcome analysis.</p>
         </div>
       ) : (
         <>
           {/* Run Metrics - Column quality */}
           {metrics && metrics.by_column && Object.keys(metrics.by_column).length > 0 && (
             <div className="card animate-fade-up">
-              <h3 className="text-sm font-heading font-semibold text-text-primary mb-4">Quality Score by Column</h3>
+              <h3 className="text-sm font-heading font-semibold text-text-primary mb-4">Quality signal by column</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={Object.entries(metrics.by_column).map(([name, v]) => ({ name, score: v.quality_score * 100, passed: v.passed, failed: v.failed }))}>
@@ -112,7 +112,7 @@ export function Visualization() {
           {plans.length > 0 && (
             <div className="card animate-fade-up">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-heading font-semibold text-text-primary">Pass Rate Trend</h3>
+                <h3 className="text-sm font-heading font-semibold text-text-primary">Plan pass rate trend</h3>
                 <select className="input text-xs w-auto" value={selectedPlan} onChange={e => loadTrend(e.target.value)}>
                   {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -133,7 +133,7 @@ export function Visualization() {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <p className="text-xs text-text-muted text-center py-8">No trend data available for this plan yet.</p>
+                <p className="text-xs text-text-muted text-center py-8">No trend data is available for this plan yet.</p>
               )}
             </div>
           )}

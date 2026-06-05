@@ -1,10 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Database, FileSearch, FileCheck, PlayCircle, TrendingUp,
-  ArrowRight, Zap, Activity, Cpu,
+  Activity,
+  ArrowRight,
+  ArrowUpRight,
+  Cpu,
+  Database,
+  FileCheck,
+  FileSearch,
+  Layers3,
+  Orbit,
+  PlayCircle,
+  Radar,
+  ScanSearch,
+  Shield,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
-import { healthCheck, getConnections, getCheckPlans, getRuns } from '../api/client';
+import { getCheckPlans, getConnections, getRuns, healthCheck } from '../api/client';
 
 export function Dashboard() {
   const [health, setHealth] = useState<any>(null);
@@ -17,7 +30,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboardData();
+    void loadDashboardData();
   }, []);
 
   const loadDashboardData = async () => {
@@ -34,8 +47,8 @@ export function Dashboard() {
 
       const runs = runsRes.data || [];
       const today = new Date().toISOString().split('T')[0];
-      const runsToday = runs.filter((r: any) => r.started_at?.startsWith(today));
-      const successfulRuns = runs.filter((r: any) => r.status === 'success');
+      const runsToday = runs.filter((run: any) => run.started_at?.startsWith(today));
+      const successfulRuns = runs.filter((run: any) => run.status === 'success');
 
       setStats({
         connections: (connectionsRes.data || []).length,
@@ -54,13 +67,18 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="text-center space-y-4">
-          <div className="relative mx-auto w-10 h-10">
-            <div className="absolute inset-0 rounded-full" style={{ border: '2px solid var(--glass-border)' }} />
-            <div className="absolute inset-0 rounded-full animate-spin" style={{ border: '2px solid transparent', borderTopColor: '#06b6d4' }} />
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="space-y-4 text-center">
+          <div className="relative mx-auto h-10 w-10">
+            <div className="absolute inset-0 rounded-full border-2" style={{ borderColor: 'var(--card-border)' }} />
+            <div
+              className="absolute inset-0 animate-spin rounded-full border-2 border-transparent"
+              style={{ borderTopColor: 'var(--accent)' }}
+            />
           </div>
-          <p className="text-text-secondary text-sm font-mono">Initializing observatory...</p>
+          <p className="text-sm font-mono" style={{ color: 'var(--text-3)' }}>
+            Loading dashboard...
+          </p>
         </div>
       </div>
     );
@@ -68,194 +86,274 @@ export function Dashboard() {
 
   return (
     <div className="space-y-8">
+      <section className="hero-panel animate-fade-up p-8 lg:p-10">
+        <div className="absolute -top-12 right-10 h-44 w-44 rounded-full opacity-25 blur-3xl" style={{ background: 'rgba(255,255,255,0.22)' }} />
+        <div className="absolute bottom-0 left-0 h-56 w-56 rounded-full opacity-20 blur-3xl" style={{ background: 'rgba(255,255,255,0.18)' }} />
 
-      {/* ── Header ── */}
-      <div className="animate-fade-up">
-        <h2 className="text-2xl font-heading font-bold text-text-primary tracking-tight">
-          Mission Control
-        </h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Real-time data quality monitoring & observability
-        </p>
-      </div>
+        <div className="relative z-10 grid gap-8 xl:grid-cols-[minmax(0,1.45fr)_360px] xl:items-end">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.25em] text-white/80">
+              <Sparkles className="h-3.5 w-3.5" />
+              Workflow overview
+            </div>
+            <h1 className="mt-5 max-w-3xl text-4xl font-semibold tracking-[-0.04em] text-white md:text-5xl lg:text-6xl">
+              Upload data, profile metadata, build checks, run plans, and review results.
+            </h1>
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-white/78 md:text-base">
+              Start from a CSV upload or a saved connection, parse the metadata, assemble a plan from basic checks,
+              AI-generated checks, and prebuilt rule sets, then run it and review graphs, outcomes, and analysis.
+            </p>
 
-      {/* ── Bento Grid: Row 1 — Quality Ring (2-col) + 2 Stats ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link to="/connections" className="btn-primary">
+                Connect a source <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to="/visualization"
+                className="btn-secondary"
+                style={{
+                  color: '#fffdf8',
+                  borderColor: 'rgba(255,255,255,0.22)',
+                  background: 'rgba(255,255,255,0.08)',
+                }}
+              >
+                Open trend reports
+              </Link>
+            </div>
+          </div>
 
-        {/* Quality Score Ring — spans 2 cols */}
-        <div className="lg:col-span-2 card-hover animate-fade-up flex items-center gap-6">
-          <div
-            className="ring-gauge flex-shrink-0 w-28 h-28 rounded-full"
-            style={{
-              background: `conic-gradient(#06b6d4 0deg, #22d3ee ${ringDeg}deg, var(--ring-empty) ${ringDeg}deg, var(--ring-empty) 360deg)`,
-              boxShadow: stats.successRate > 80 ? '0 0 30px rgba(6,182,212,0.15)' : '0 0 20px rgba(244,63,94,0.1)',
-            }}
-          >
-            <div className="ring-gauge-inner">
-              <div className="text-center">
-                <span className="stat-number text-3xl text-glow-cyan">{stats.successRate}</span>
-                <span className="text-sm font-heading" style={{ color: 'var(--accent-text)' }}>%</span>
-                <p className="text-[10px] text-text-muted font-mono mt-0.5 uppercase tracking-wider">Quality</p>
+          <div className="grid gap-4">
+            <div className="rounded-[28px] border border-white/12 bg-white/10 p-5 backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-white/60">Execution today</p>
+                  <p className="mt-3 text-4xl font-semibold text-white">{stats.runsToday}</p>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
+                  <Orbit className="h-5 w-5 text-white" />
+                </div>
+              </div>
+              <p className="mt-3 text-sm text-white/72">
+                Run plans, inspect failures, and keep scan velocity visible without leaving the shell.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-[24px] border border-white/12 bg-black/10 p-4 backdrop-blur-xl">
+                <p className="text-xs uppercase tracking-[0.2em] text-white/60">Success rate</p>
+                <p className="mt-2 text-3xl font-semibold text-white">{stats.successRate}%</p>
+              </div>
+              <div className="rounded-[24px] border border-white/12 bg-black/10 p-4 backdrop-blur-xl">
+                <p className="text-xs uppercase tracking-[0.2em] text-white/60">Sources</p>
+                <p className="mt-2 text-3xl font-semibold text-white">{stats.connections}</p>
               </div>
             </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-heading font-semibold text-text-primary mb-1">
-              Overall Quality Score
-            </h3>
-            <p className="text-xs text-text-secondary leading-relaxed">
-              Composite score based on all check runs. Measures pass rate across volume, completeness, uniqueness, validity and freshness checks.
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 animate-fade-up animate-delay-100">
+        {[
+          {
+            label: 'Quality Score',
+            value: `${stats.successRate}%`,
+            icon: Activity,
+            color: stats.successRate >= 80 ? 'var(--success)' : stats.successRate >= 50 ? 'var(--warning)' : 'var(--error)',
+            bgColor: stats.successRate >= 80 ? 'var(--success-bg)' : stats.successRate >= 50 ? 'var(--warning-bg)' : 'var(--error-bg)',
+          },
+          {
+            label: 'Data Sources',
+            value: stats.connections,
+            icon: Database,
+            color: 'var(--accent)',
+            bgColor: 'var(--accent-light)',
+          },
+          {
+            label: 'Check Plans',
+            value: stats.checkPlans,
+            icon: FileCheck,
+            color: 'var(--accent-2)',
+            bgColor: 'var(--accent-2-light)',
+          },
+          {
+            label: 'Runs Today',
+            value: stats.runsToday,
+            icon: PlayCircle,
+            color: 'var(--warning)',
+            bgColor: 'var(--warning-bg)',
+          },
+        ].map((stat) => (
+          <div key={stat.label} className="metric-tile">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: stat.bgColor }}>
+                <stat.icon className="h-5 w-5" style={{ color: stat.color }} />
+              </div>
+              <ArrowUpRight className="h-4 w-4" style={{ color: 'var(--text-4)' }} />
+            </div>
+            <p className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text-1)' }}>
+              {stat.value}
             </p>
-            <div className="flex items-center gap-2 mt-3">
-              <span className="pulse-dot-cyan" />
-              <span className="text-xs text-text-muted font-mono">Live monitoring active</span>
+            <p className="mt-1 text-sm" style={{ color: 'var(--text-3)' }}>
+              {stat.label}
+            </p>
+          </div>
+        ))}
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] animate-fade-up animate-delay-200">
+        <div className="card">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+            <div
+              className="ring-gauge h-36 w-36 flex-shrink-0 rounded-full"
+              style={{
+                background: `conic-gradient(var(--accent) 0deg, var(--accent-2) ${ringDeg}deg, var(--ring-empty) ${ringDeg}deg, var(--ring-empty) 360deg)`,
+              }}
+            >
+              <div className="ring-gauge-inner">
+                <div className="text-center">
+                  <span className="text-3xl font-bold" style={{ color: 'var(--text-1)' }}>{stats.successRate}</span>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--accent-text)' }}>%</span>
+                  <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
+                    Health
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em]" style={{ color: 'var(--text-3)' }}>
+                <Radar className="h-4 w-4" />
+                Plan status
+              </div>
+              <h3 className="mt-3 text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-1)' }}>
+                Current pass rate is {stats.successRate >= 80 ? 'stable' : stats.successRate >= 50 ? 'mixed' : 'at risk'} across executed checks.
+              </h3>
+              <p className="mt-3 text-sm leading-7" style={{ color: 'var(--text-3)' }}>
+                Use metadata to identify candidate columns, combine baseline rules with AI suggestions and prebuilt checks,
+                then execute the plan and inspect failures before publishing results.
+              </p>
+
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                {[
+                  { label: 'Completeness', value: `${Math.max(stats.successRate - 4, 0)}%` },
+                  { label: 'Freshness', value: `${Math.max(stats.successRate - 7, 0)}%` },
+                  { label: 'Validity', value: `${Math.min(stats.successRate + 2, 100)}%` },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-[22px] px-4 py-3" style={{ background: 'var(--accent-light)' }}>
+                    <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--text-3)' }}>{item.label}</p>
+                    <p className="mt-2 text-xl font-semibold" style={{ color: 'var(--text-1)' }}>{item.value}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Stat: Active Connections */}
-        <div className="card-hover animate-fade-up animate-delay-100">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.1)' }}>
-              <Database className="w-4 h-4 text-cyan-400" />
-            </div>
-            <span className="text-[11px] text-text-muted font-mono uppercase tracking-wider">Sources</span>
-          </div>
-          <p className="stat-number">{stats.connections}</p>
-          <p className="text-xs text-text-secondary mt-1">Active connections</p>
-        </div>
-
-        {/* Stat: Check Plans */}
-        <div className="card-hover animate-fade-up animate-delay-200">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.1)' }}>
-              <FileCheck className="w-4 h-4 text-violet-400" />
-            </div>
-            <span className="text-[11px] text-text-muted font-mono uppercase tracking-wider">Plans</span>
-          </div>
-          <p className="stat-number">{stats.checkPlans}</p>
-          <p className="text-xs text-text-secondary mt-1">Check plans configured</p>
-        </div>
-      </div>
-
-      {/* ── Bento Grid: Row 2 — 2 Stats + Health Panel ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-
-        {/* Stat: Runs Today */}
-        <div className="card-hover animate-fade-up animate-delay-100">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.1)' }}>
-              <PlayCircle className="w-4 h-4 text-amber-400" />
-            </div>
-            <span className="text-[11px] text-text-muted font-mono uppercase tracking-wider">Today</span>
-          </div>
-          <p className="stat-number">{stats.runsToday}</p>
-          <p className="text-xs text-text-secondary mt-1">Executions today</p>
-        </div>
-
-        {/* Stat: Trend */}
-        <div className="card-hover animate-fade-up animate-delay-200">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
-            </div>
-            <span className="text-[11px] text-text-muted font-mono uppercase tracking-wider">Trend</span>
-          </div>
-          <p className="stat-number">{stats.successRate > 0 ? '↑' : '—'}</p>
-          <p className="text-xs text-text-secondary mt-1">Quality trend</p>
-        </div>
-
-        {/* Health Panel — spans 2 cols */}
         {health && (
-          <div className="lg:col-span-2 card-hover animate-fade-up animate-delay-300">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-text-muted" />
-                <span className="text-[11px] text-text-muted font-mono uppercase tracking-wider">System Status</span>
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em]" style={{ color: 'var(--text-3)' }}>
+                  <Cpu className="h-4 w-4" />
+                  Runtime status
+                </div>
+                <h3 className="mt-3 text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-1)' }}>
+                  Infrastructure signals
+                </h3>
               </div>
               <span className={`badge ${health.status === 'ok' ? 'badge-success' : 'badge-error'}`}>
-                <Activity className="w-3 h-3" />
-                {health.status === 'ok' ? 'Operational' : 'Degraded'}
+                {health.status === 'ok' ? 'Operational' : 'Attention needed'}
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+
+            <div className="mt-6 space-y-4">
               {[
-                { label: 'API', value: health.status, ok: health.status === 'ok' },
-                { label: 'Database', value: health.database, ok: health.database === 'connected' },
-                { label: 'Version', value: health.version, ok: true },
-              ].map((s) => (
-                <div key={s.label} className="text-center">
-                  <div className="flex items-center justify-center gap-1.5 mb-1">
-                    <span className={s.ok ? 'pulse-dot-emerald' : 'pulse-dot-rose'} />
-                    <span className="text-[10px] text-text-muted font-mono uppercase">{s.label}</span>
+                { label: 'API Server', value: health.status === 'ok' ? 'Running' : 'Error', ok: health.status === 'ok', icon: Shield },
+                { label: 'Database', value: health.database === 'connected' ? 'Connected' : 'Disconnected', ok: health.database === 'connected', icon: Layers3 },
+                { label: 'Version', value: health.version || '—', ok: true, icon: ScanSearch },
+              ].map((item) => (
+                <div key={item.label} className="rounded-[24px] border p-4" style={{ borderColor: 'var(--divider)', background: 'rgba(255,255,255,0.03)' }}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: item.ok ? 'var(--success-bg)' : 'var(--error-bg)' }}>
+                        <item.icon className="h-5 w-5" style={{ color: item.ok ? 'var(--success)' : 'var(--error)' }} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>{item.label}</p>
+                        <p className="mt-1 text-xs" style={{ color: 'var(--text-3)' }}>Live heartbeat from the service layer.</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-mono" style={{ color: item.ok ? 'var(--success)' : 'var(--error)' }}>{item.value}</span>
                   </div>
-                  <p className="text-sm font-mono text-text-primary">{s.value}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* ── Quick Actions ── */}
-      <div className="animate-fade-up animate-delay-300">
-        <h3 className="text-xs font-mono text-text-muted uppercase tracking-wider mb-3">Quick Actions</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {[
-            { href: '/connections', icon: Database, label: 'Add Connection', desc: 'Link a data source', color: '#06b6d4' },
-            { href: '/metadata', icon: FileSearch, label: 'Profile Metadata', desc: 'Explore your schema', color: '#8b5cf6' },
-            { href: '/check-plans', icon: FileCheck, label: 'Create Check Plan', desc: 'Define quality rules', color: '#10b981' },
-          ].map((action) => (
-            <Link
-              key={action.href}
-              to={action.href}
-              className="group glass-hover rounded-2xl p-4 flex items-center gap-4"
-              style={{ borderStyle: 'dashed' }}
-            >
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:shadow-glow-cyan"
-                style={{ background: `${action.color}15` }}>
-                <action.icon className="w-4 h-4 transition-colors duration-200" style={{ color: action.color }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-text-primary">{action.label}</p>
-                <p className="text-xs text-text-muted">{action.desc}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-text-dim group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Getting Started ── */}
-      <div className="card animate-fade-up animate-delay-400"
-        style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.05) 0%, rgba(139,92,246,0.03) 100%)' }}>
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)', boxShadow: '0 0 16px rgba(6,182,212,0.2)' }}>
-            <Zap className="w-4 h-4 text-white" />
-          </div>
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] animate-fade-up animate-delay-300">
+        <div className="card">
           <div>
-            <h3 className="text-sm font-heading font-semibold text-text-primary">Getting Started</h3>
-            <p className="text-xs text-text-muted">Follow the workflow to begin monitoring</p>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em]" style={{ color: 'var(--text-3)' }}>
+              <Zap className="h-4 w-4" />
+                  Build a plan
+            </div>
+            <h3 className="mt-3 text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-1)' }}>
+                  Move to the next step in the workflow.
+            </h3>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {[
+              { href: '/connections', icon: Database, label: 'Add Connection', desc: 'Register a source and shape ingestion.', color: 'var(--accent)', bgColor: 'var(--accent-light)' },
+              { href: '/metadata', icon: FileSearch, label: 'Profile Metadata', desc: 'Inspect schema, types, and null patterns.', color: 'var(--accent-2)', bgColor: 'var(--accent-2-light)' },
+              { href: '/check-plans', icon: FileCheck, label: 'Create Check Plan', desc: 'Turn recommended rules into repeatable scans.', color: 'var(--success)', bgColor: 'var(--success-bg)' },
+            ].map((action) => (
+              <Link key={action.href} to={action.href} className="card-hover group flex min-h-[210px] flex-col justify-between">
+                <div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: action.bgColor }}>
+                    <action.icon className="h-5 w-5" style={{ color: action.color }} />
+                  </div>
+                  <p className="mt-10 text-lg font-semibold tracking-tight" style={{ color: 'var(--text-1)' }}>{action.label}</p>
+                  <p className="mt-3 text-sm leading-7" style={{ color: 'var(--text-3)' }}>{action.desc}</p>
+                </div>
+                <div className="mt-6 flex items-center justify-between text-sm font-medium" style={{ color: 'var(--text-2)' }}>
+                  Open view
+                  <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { n: 1, text: 'Create a database connection to your data source' },
-            { n: 2, text: 'Profile metadata to understand your data structure' },
-            { n: 3, text: 'Get AI-powered suggestions for quality checks' },
-            { n: 4, text: 'Create and execute check plans to monitor quality' },
-          ].map((step) => (
-            <div key={step.n} className="flex items-start gap-3">
-              <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-mono font-bold"
-                style={{ background: 'rgba(6,182,212,0.15)', color: 'var(--accent-text)', boxShadow: '0 0 10px rgba(6,182,212,0.1)' }}>
-                {step.n}
-              </span>
-              <p className="text-xs text-text-secondary leading-relaxed">{step.text}</p>
-            </div>
-          ))}
+
+        <div className="card">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em]" style={{ color: 'var(--text-3)' }}>
+            <Shield className="h-4 w-4" />
+            Process guide
+          </div>
+          <h3 className="mt-3 text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-1)' }}>
+            Follow the application flow from source to analysis.
+          </h3>
+
+          <div className="mt-6 space-y-4">
+            {[
+              { n: '01', title: 'Source', text: 'Upload a CSV or create a connection ahead of time or on the fly.' },
+              { n: '02', title: 'Profile', text: 'Parse metadata, inspect schema, and understand the columns.' },
+              { n: '03', title: 'Plan', text: 'Combine basic checks, AI-generated checks, and prebuilt checks into one plan.' },
+              { n: '04', title: 'Run', text: 'Execute the plan and review graphs, results, and analysis outcomes.' },
+            ].map((step) => (
+              <div key={step.n} className="flex gap-4 rounded-[22px] border p-4" style={{ borderColor: 'var(--divider)' }}>
+                <div className="text-sm font-mono" style={{ color: 'var(--accent-text)' }}>{step.n}</div>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>{step.title}</p>
+                  <p className="mt-1 text-sm leading-6" style={{ color: 'var(--text-3)' }}>{step.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

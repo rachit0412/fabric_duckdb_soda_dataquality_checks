@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Database, Trash2, Upload, FileSpreadsheet, Link2, X, Loader2 } from 'lucide-react';
+import { Plus, Database, Trash2, Upload, FileSpreadsheet, Link2, X, Loader2, ArrowRight, HardDrive, Sparkles } from 'lucide-react';
 import { getConnections, createConnection, deleteConnection, uploadFile } from '../api/client';
 import type { Connection } from '../types';
 
@@ -127,9 +127,12 @@ export function Connections() {
     return `${(bytes / 1048576).toFixed(1)} MB`;
   };
 
+  const fileConnections = connections.filter((conn) => conn.type === 'csv' || conn.type === 'parquet').length;
+  const databaseConnections = connections.length - fileConnections;
+
   const typeIcon = (t: string) => {
-    if (t === 'csv' || t === 'parquet') return <FileSpreadsheet className="w-5 h-5 text-cyan-400" />;
-    return <Database className="w-5 h-5 text-violet-400" />;
+    if (t === 'csv' || t === 'parquet') return <FileSpreadsheet className="w-5 h-5" style={{ color: 'var(--accent)' }} />;
+    return <Database className="w-5 h-5" style={{ color: 'var(--accent-2)' }} />;
   };
 
   if (loading) {
@@ -145,34 +148,101 @@ export function Connections() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between animate-fade-up">
-        <div>
-          <h2 className="text-2xl font-heading font-bold text-text-primary tracking-tight">Connections</h2>
-          <p className="mt-1 text-sm text-text-secondary">Upload data files or link database sources</p>
+      <section className="hero-panel animate-fade-up p-8 lg:p-10">
+        <div className="absolute -top-10 right-8 h-40 w-40 rounded-full opacity-20 blur-3xl" style={{ background: 'rgba(255,255,255,0.24)' }} />
+        <div className="relative z-10 grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_360px] xl:items-end">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-white/80">
+              <Sparkles className="h-3.5 w-3.5" />
+              Source setup
+            </div>
+            <h2 className="mt-5 max-w-3xl text-4xl font-semibold tracking-[-0.04em] text-white md:text-5xl">
+              Add the data source that the plan will run against.
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/78 md:text-base">
+              Upload a CSV or Parquet file, or create a database connection. Once the source is registered,
+              move straight into metadata profiling.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button onClick={() => { resetForms(); setFormMode('upload'); }} className="btn-primary" type="button">
+                <Upload className="w-4 h-4" />
+                Upload file
+              </button>
+              <button onClick={() => { resetForms(); setFormMode('database'); }} className="btn-secondary" type="button" style={{ color: '#fffdf8', borderColor: 'rgba(255,255,255,0.22)', background: 'rgba(255,255,255,0.08)' }}>
+                <Link2 className="w-4 h-4" />
+                Add database
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            <div className="rounded-[28px] border border-white/12 bg-white/10 p-5 backdrop-blur-xl">
+              <p className="text-xs uppercase tracking-[0.22em] text-white/60">Connected sources</p>
+              <p className="mt-3 text-4xl font-semibold text-white">{connections.length}</p>
+              <p className="mt-2 text-sm text-white/72">Each saved source can be profiled and reused in future plans.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-[24px] border border-white/12 bg-black/10 p-4 backdrop-blur-xl">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/60">Files</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{fileConnections}</p>
+              </div>
+              <div className="rounded-[24px] border border-white/12 bg-black/10 p-4 backdrop-blur-xl">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/60">Databases</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{databaseConnections}</p>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => { resetForms(); setFormMode('upload'); }} className="btn-primary">
-            <Upload className="w-4 h-4" /><span>Upload File</span>
-          </button>
-          <button onClick={() => { resetForms(); setFormMode('database'); }} className="btn-secondary">
-            <Link2 className="w-4 h-4" /><span>Database</span>
-          </button>
-        </div>
-      </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-3 animate-fade-up animate-delay-100">
+        {[
+          {
+            label: 'File uploads',
+            value: fileConnections,
+            icon: FileSpreadsheet,
+            color: 'var(--accent)',
+            bg: 'var(--accent-light)',
+          },
+          {
+            label: 'Database endpoints',
+            value: databaseConnections,
+            icon: HardDrive,
+            color: 'var(--accent-2)',
+            bg: 'var(--accent-2-light)',
+          },
+          {
+            label: 'Ready for profiling',
+            value: connections.length,
+            icon: ArrowRight,
+            color: 'var(--success)',
+            bg: 'var(--success-bg)',
+          },
+        ].map((item) => (
+          <div key={item.label} className="metric-tile">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: item.bg }}>
+                <item.icon className="h-5 w-5" style={{ color: item.color }} />
+              </div>
+            </div>
+            <p className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text-1)' }}>{item.value}</p>
+            <p className="mt-1 text-sm" style={{ color: 'var(--text-3)' }}>{item.label}</p>
+          </div>
+        ))}
+      </section>
 
       {/* Drop Zone (always visible when no form, acts as quick upload) */}
       {formMode === 'none' && connections.length === 0 && (
         <div
-          className={`card text-center py-16 animate-fade-up border-2 border-dashed transition-all cursor-pointer ${dragOver ? 'border-cyan-400 bg-cyan-400/5' : ''}`}
+          className={`card text-center py-16 animate-fade-up border-2 border-dashed transition-all cursor-pointer ${dragOver ? 'bg-cyan-400/5' : ''}`}
           style={{ borderColor: dragOver ? undefined : 'var(--glass-border)' }}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleFileDrop}
           onClick={() => setFormMode('upload')}
         >
-          <div className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'rgba(6,182,212,0.08)' }}>
-            <Upload className="w-6 h-6 text-cyan-400/60" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'var(--accent-light)' }}>
+            <Upload className="w-6 h-6" style={{ color: 'var(--accent)' }} />
           </div>
           <h3 className="text-sm font-heading font-semibold text-text-primary mb-1">Drop a CSV or Parquet file here</h3>
           <p className="text-xs text-text-muted">or click to browse. Up to 100 MB.</p>
@@ -189,7 +259,7 @@ export function Connections() {
           <form onSubmit={handleUpload} className="space-y-4">
             {/* Dropzone */}
             <div
-              className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all ${dragOver ? 'border-cyan-400 bg-cyan-400/5' : ''}`}
+              className={`relative border-2 border-dashed rounded-[24px] p-8 text-center transition-all ${dragOver ? 'bg-cyan-400/5' : ''}`}
               style={{ borderColor: dragOver ? undefined : 'var(--glass-border)' }}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
@@ -197,7 +267,7 @@ export function Connections() {
             >
               {selectedFile ? (
                 <div className="flex items-center justify-center gap-3">
-                  <FileSpreadsheet className="w-8 h-8 text-cyan-400" />
+                  <FileSpreadsheet className="w-8 h-8" style={{ color: 'var(--accent)' }} />
                   <div className="text-left">
                     <p className="text-sm font-medium text-text-primary">{selectedFile.name}</p>
                     <p className="text-xs text-text-muted">{formatSize(selectedFile.size)}</p>
@@ -209,7 +279,7 @@ export function Connections() {
               ) : (
                 <>
                   <Upload className="w-8 h-8 text-text-dim mx-auto mb-2" />
-                  <p className="text-sm text-text-secondary mb-1">Drag & drop or <button type="button" onClick={() => fileInputRef.current?.click()} className="text-cyan-400 hover:underline">browse</button></p>
+                  <p className="text-sm text-text-secondary mb-1">Drag & drop or <button type="button" onClick={() => fileInputRef.current?.click()} className="hover:underline" style={{ color: 'var(--accent)' }}>browse</button></p>
                   <p className="text-xs text-text-dim">CSV or Parquet, up to 100 MB</p>
                 </>
               )}
@@ -272,7 +342,7 @@ export function Connections() {
           <div key={conn.id} className="card-hover animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: conn.type === 'csv' || conn.type === 'parquet' ? 'rgba(6,182,212,0.1)' : 'rgba(139,92,246,0.1)' }}>
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: conn.type === 'csv' || conn.type === 'parquet' ? 'var(--accent-light)' : 'var(--accent-2-light)' }}>
                   {typeIcon(conn.type)}
                 </div>
                 <div>
@@ -299,7 +369,7 @@ export function Connections() {
 
       {connections.length > 0 && formMode === 'none' && (
         <div
-          className={`card text-center py-8 border-2 border-dashed transition-all cursor-pointer hover:border-cyan-400/30 ${dragOver ? 'border-cyan-400 bg-cyan-400/5' : ''}`}
+          className={`card text-center py-8 border-2 border-dashed transition-all cursor-pointer ${dragOver ? 'bg-cyan-400/5' : ''}`}
           style={{ borderColor: dragOver ? undefined : 'var(--glass-border)' }}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}

@@ -124,10 +124,12 @@ export function CheckPlans() {
       <div className="flex items-center justify-between animate-fade-up">
         <div>
           <h2 className="text-2xl font-heading font-bold text-text-primary tracking-tight">Check Plans</h2>
-          <p className="mt-1 text-sm text-text-secondary">Define and execute data quality rules</p>
+          <p className="mt-1 max-w-2xl text-sm text-text-secondary">
+            Assemble the final plan by combining baseline rules, AI suggestions, and prebuilt Soda or Great Expectations rule patterns.
+          </p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-          <Plus className="w-4 h-4" /><span>New Plan</span>
+          <Plus className="w-4 h-4" /><span>Build Plan</span>
         </button>
       </div>
 
@@ -157,11 +159,12 @@ export function CheckPlans() {
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Description</label>
-                <input type="text" className="input" placeholder="Optional description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                <input type="text" className="input" placeholder="Describe the scope, owner, or target dataset" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Checks (SodaCL YAML)</label>
                 <textarea className="input font-mono text-xs" rows={6} value={form.checks_yaml} onChange={e => setForm({ ...form, checks_yaml: e.target.value })} placeholder={"checks for data:\n  - row_count > 0"} required />
+                <p className="mt-1 text-xs text-text-muted">Paste baseline rules, AI-generated checks, or adapted Soda and Great Expectations rule patterns here.</p>
               </div>
             </div>
             <div className="flex gap-3 pt-1">
@@ -197,7 +200,7 @@ export function CheckPlans() {
                 </span>
                 <button onClick={() => handleExecute(plan.id)} disabled={executing === plan.id} className="btn-ghost text-xs gap-1">
                   {executing === plan.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-                  Run
+                  Execute
                 </button>
                 <button onClick={() => handleDelete(plan.id)} className="p-2 rounded-lg transition-all" style={{ color: 'var(--text-3)' }}
                   onMouseEnter={e => { e.currentTarget.style.color = '#f43f5e'; e.currentTarget.style.background = 'var(--delete-hover-bg)'; }}
@@ -216,7 +219,7 @@ export function CheckPlans() {
             <FileCheck className="w-6 h-6 text-emerald-400/60" />
           </div>
           <h3 className="text-sm font-heading font-semibold text-text-primary mb-1">No check plans yet</h3>
-          <p className="text-xs text-text-muted mb-4">Create your first plan to define data quality rules.</p>
+          <p className="text-xs text-text-muted mb-4">Create the first plan to combine baseline, AI-generated, and prebuilt checks for execution.</p>
           <button onClick={() => setShowForm(true)} className="btn-primary mx-auto"><Plus className="w-4 h-4" />Create Plan</button>
         </div>
       )}

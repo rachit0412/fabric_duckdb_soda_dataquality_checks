@@ -27,7 +27,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('observatory-theme', theme);
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', theme === 'dark' ? '#0a0e1a' : '#f8fafc');
+      ?.setAttribute('content', theme === 'dark' ? '#10141d' : '#f6efe8');
   }, [theme]);
 
   const toggle = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));

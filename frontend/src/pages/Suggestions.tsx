@@ -103,7 +103,10 @@ export function Suggestions() {
       <div className="flex items-center justify-between animate-fade-up">
         <div>
           <h2 className="text-2xl font-heading font-bold text-text-primary tracking-tight">AI Suggestions</h2>
-          <p className="mt-1 text-sm text-text-secondary">Auto-generated quality check recommendations</p>
+          <p className="mt-1 max-w-2xl text-sm text-text-secondary">
+            Generate AI-recommended checks from the selected source so you can add them alongside baseline rules and
+            prebuilt Soda or Great Expectations checks in the final plan.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <select title="Select connection for suggestions" className="input text-xs" value={selectedConn} onChange={e => setSelectedConn(e.target.value)}>
@@ -111,7 +114,7 @@ export function Suggestions() {
             {connections.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
           </select>
           <button onClick={handleGenerate} disabled={!selectedConn || generating} className="btn-primary">
-            {generating ? <><Loader2 className="w-4 h-4 animate-spin" />Generating...</> : <><Sparkles className="w-4 h-4" />Generate</>}
+            {generating ? <><Loader2 className="w-4 h-4 animate-spin" />Generating...</> : <><Sparkles className="w-4 h-4" />Generate checks</>}
           </button>
         </div>
       </div>
@@ -157,10 +160,12 @@ export function Suggestions() {
             <Lightbulb className="w-6 h-6 text-amber-400/60" />
           </div>
           <h3 className="text-sm font-heading font-semibold text-text-primary mb-1">
-            {selectedConn ? 'Ready to Generate' : 'Select a Connection'}
+            {selectedConn ? 'Ready to Generate AI Checks' : 'Select a Source'}
           </h3>
           <p className="text-xs text-text-muted">
-            {selectedConn ? 'Click Generate to get AI-powered check suggestions.' : 'Choose a data source to generate quality check recommendations.'}
+            {selectedConn
+              ? 'Generate AI suggestions, then move the useful rules into the plan with your baseline and prebuilt checks.'
+              : 'Choose a connected source or uploaded file to generate AI-backed check recommendations from its metadata.'}
           </p>
         </div>
       )}

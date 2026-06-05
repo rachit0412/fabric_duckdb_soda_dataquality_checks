@@ -4,14 +4,13 @@
 
 ### Overview
 
-M3 implements the **Checks & Suggestions Engine** for intelligent check recommendations:
+M3 implements the **Checks & Suggestions Engine** for building executable plans from baseline rules, AI-generated recommendations, and reusable rule patterns:
 
-- **POST /checks** - Create check plan from suggestions or custom YAML
-- **GET /checks** - List check plans with filtering
-- **GET /checks/{id}** - Get check plan details
-- **PUT /checks/{id}** - Update check plan
-- **DELETE /checks/{id}** - Delete check plan
-- **GET /checks/{id}/suggestions** - Generate intelligent suggestions
+- **POST /api/v1/check-plans/** - Create a check plan from custom or suggested YAML
+- **GET /api/v1/check-plans/** - List stored check plans
+- **GET /api/v1/check-plans/{id}** - Get check plan details
+- **DELETE /api/v1/check-plans/{id}** - Delete a check plan
+- **POST /api/v1/suggestions/** - Generate intelligent suggestions from a connection or metadata snapshot
 
 ### Architecture
 
@@ -184,21 +183,19 @@ M3 implements a comprehensive suggestion engine with 12 data quality rules:
 
 #### 1. Create Check Plan
 
-**Endpoint:** `POST /api/v1/checks`
+**Endpoint:** `POST /api/v1/check-plans/`
 
 **Purpose:** Create a check plan (collection of checks for a dataset)
 
 **Request:**
 ```bash
-curl -X POST http://localhost:8000/api/v1/checks \
+curl -X POST http://localhost:8001/api/v1/check-plans/ \
   -H "Content-Type: application/json" \
   -d '{
     "name": "customer_daily_checks",
     "connection_id": "550e8400-e29b-41d4-a716-446655440000",
-    "dataset_identifier": "public.customers",
     "description": "Daily data quality checks",
     "checks_yaml": "checks:\n  - missing_count(id) == 0",
-    "custom_checks_yaml": "checks:\n  - row_count > 1000",
     "enabled": true
   }'
 ```
@@ -422,7 +419,7 @@ class SuggestionEngine:
 
 **Step 1: Upload CSV**
 ```bash
-curl -X POST http://localhost:8000/api/v1/connections/upload \
+curl -X POST http://localhost:8001/api/v1/connections/upload \
   -F "name=customer-data" \
   -F "type=csv" \
   -F "file=@customers.csv"
@@ -430,7 +427,7 @@ curl -X POST http://localhost:8000/api/v1/connections/upload \
 
 **Step 2: Profile Dataset**
 ```bash
-curl -X POST http://localhost:8000/api/v1/metadata/profile \
+curl -X POST http://localhost:8001/api/v1/metadata/profile \
   -H "Content-Type: application/json" \
   -d '{
     "connection_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -438,25 +435,31 @@ curl -X POST http://localhost:8000/api/v1/metadata/profile \
   }'
 ```
 
-**Step 3: Create Check Plan**
+**Step 3: Generate AI Suggestions**
 ```bash
-curl -X POST http://localhost:8000/api/v1/checks \
+curl -X POST http://localhost:8001/api/v1/suggestions/ \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "customer-checks",
-    "connection_id": "550e8400-e29b-41d4-a716-446655440000"
+    "metadata_snapshot_id": "550e8400-e29b-41d4-a716-446655440001"
   }'
 ```
 
-**Step 4: Generate Suggestions**
+**Step 4: Create Check Plan**
 ```bash
-curl -X GET http://localhost:8000/api/v1/checks/550e8400-e29b-41d4-a716-446655440002/suggestions
+curl -X POST http://localhost:8001/api/v1/check-plans/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "customer-checks",
+    "connection_id": "550e8400-e29b-41d4-a716-446655440000",
+    "metadata_snapshot_id": "550e8400-e29b-41d4-a716-446655440001",
+    "checks_yaml": "checks for data:\n  - row_count > 0\n  - missing_count(customer_id) = 0"
+  }'
 ```
 
-**Step 5: Accept and Customize**
-- Review suggestions (sorted by confidence)
-- Modify YAML as needed
-- Update check plan with customizations
+**Step 5: Combine and Customize**
+- Review AI suggestions and baseline rules together
+- Add prebuilt Soda or Great Expectations rule patterns where needed
+- Finalize the YAML that will be executed by the plan
 
 ### Acceptance Criteria (M3)
 

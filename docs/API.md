@@ -1,7 +1,7 @@
 # 📡 REST API Reference
 
 **Version:** 1.0.0  
-**Base URL:** `http://localhost:8000/api/v1`  
+**Base URL:** `http://localhost:8001/api/v1`  
 **Format:** JSON  
 **Authentication:** None (v1.0); JWT in v1.1+
 
@@ -13,13 +13,12 @@
 2. [Status & Health](#status--health)
 3. [Connections](#connections)
 4. [Metadata & Profiling](#metadata--profiling)
-5. [Checks Catalog](#checks-catalog)
-6. [Check Suggestions](#check-suggestions)
-7. [Check Plans](#check-plans)
-8. [Execution & Runs](#execution--runs)
-9. [Results](#results)
-10. [Visualization](#visualization)
-11. [Error Codes](#error-codes)
+5. [Rule Libraries & Suggestions](#rule-libraries--suggestions)
+6. [Check Plans](#check-plans)
+7. [Execution & Runs](#execution--runs)
+8. [Results](#results)
+9. [Visualization](#visualization)
+10. [Error Codes](#error-codes)
 
 ---
 
@@ -317,58 +316,17 @@ Query Parameters:
 
 ---
 
-## Checks Catalog
+## Rule Libraries & Suggestions
 
-### 3.1 List Available Checks
+### 3.1 Rule Libraries
 
-Browse all supported quality checks
+Plans can combine baseline rules, AI-generated suggestions, and reusable rule patterns from Soda or Great Expectations. The rule-library experience is primarily surfaced in the UI and plan authoring flow rather than through a standalone catalog endpoint in this version.
 
-```
-GET /checks/catalog?engine=soda&type=completeness
+Common rule sources include:
 
-Response: 200 OK
-{
-  "checks": [
-    {
-      "id": "missing_count",
-      "name": "Missing Values Check",
-      "type": "completeness",
-      "engine": "soda",
-      "description": "Count NULL/missing values in a column",
-      "parameters": [
-        {
-          "name": "column",
-          "type": "string",
-          "required": true,
-          "description": "Column name to check"
-        },
-        {
-          "name": "missing_threshold",
-          "type": "integer",
-          "required": false,
-          "description": "Max allowed missing values"
-        }
-      ],
-      "example_yaml": "- type: missing_count\n  column: email\n  warn_when: \"> 1000\""
-    },
-    {
-      "id": "duplicate_count",
-      "name": "Duplicate Rows Check",
-      "type": "uniqueness",
-      "engine": "soda",
-      "description": "Count duplicate rows across columns"
-    }
-    # ... 20+ total checks
-  ],
-  "total": 25,
-  "engines": ["soda"]
-}
-
-Query Parameters:
-- type: string (optional) - Filter by check type (completeness, uniqueness, etc.)
-- engine: string (optional) - Filter by engine (soda, custom)
-- limit: integer (default 50)
-```
+- Baseline checks such as row count, missing values, duplicates, validity, and freshness
+- AI-generated suggestions produced from profiled metadata
+- Soda and Great Expectations rule patterns adapted into `checks_yaml`
 
 **Check Types:**
 - `completeness` - Missingness, NULL values
@@ -380,16 +338,12 @@ Query Parameters:
 - `consistency` - Foreign key relationships, referential integrity
 - `custom` - User-defined checks
 
----
-
-## Check Suggestions
-
-### 4.1 Generate Suggestions from Metadata
+### 3.2 Generate Suggestions from Metadata
 
 Analyze metadata snapshot and suggest applicable checks
 
 ```
-POST /check-suggestions/
+POST /suggestions/
 
 Request:
 {
@@ -431,10 +385,10 @@ Errors:
 - 404 Not Found: Metadata snapshot not found
 ```
 
-### 4.2 Get Suggestions
+### 3.3 Get Suggestions
 
 ```
-GET /check-suggestions/{snapshot_id}
+GET /suggestions/{snapshot_id}
 
 Response: 200 OK
 { ...same as POST response... }
@@ -447,7 +401,7 @@ Errors:
 
 ## Check Plans
 
-### 5.1 Create Check Plan
+### 4.1 Create Check Plan
 
 ```
 POST /check-plans/
@@ -457,18 +411,7 @@ Request:
   "name": "daily-customer-checks",
   "metadata_snapshot_id": "770e8400-e29b-41d4-a716-446655440002",
   "description": "Daily quality checks for customer table",
-  "checks": [
-    {
-      "type": "missing_count",
-      "column": "email",
-      "warn_when": "> 1000"
-    },
-    {
-      "type": "duplicate_count",
-      "column": "id"
-    }
-  ],
-  "is_active": true
+  "checks_yaml": "checks for data:\n  - missing_count(email) < 1000\n  - duplicate_count(id) = 0"
 }
 
 Response: 201 Created
@@ -476,8 +419,7 @@ Response: 201 Created
   "id": "990e8400-e29b-41d4-a716-446655440005",
   "name": "daily-customer-checks",
   "metadata_snapshot_id": "770e8400-e29b-41d4-a716-446655440002",
-  "check_count": 2,
-  "is_active": true,
+  "enabled": true,
   "created_at": "2026-04-11T10:30:00Z"
 }
 
@@ -485,27 +427,23 @@ Errors:
 - 400 Bad Request: Invalid check definitions | Metadata snapshot not found
 ```
 
-### 5.2 List Check Plans
+### 4.2 List Check Plans
 
 ```
 GET /check-plans/?is_active=true&limit=20&offset=0
 
 Response: 200 OK
-{
-  "plans": [
-    {
-      "id": "990e8400-e29b-41d4-a716-446655440005",
-      "name": "daily-customer-checks",
-      "check_count": 2,
-      "is_active": true,
-      "created_at": "2026-04-11T10:30:00Z"
-    }
-  ],
-  "total": 5
-}
+[
+  {
+    "id": "990e8400-e29b-41d4-a716-446655440005",
+    "name": "daily-customer-checks",
+    "enabled": true,
+    "created_at": "2026-04-11T10:30:00Z"
+  }
+]
 ```
 
-### 5.3 Get Check Plan
+### 4.3 Get Check Plan
 
 ```
 GET /check-plans/{plan_id}
@@ -515,24 +453,13 @@ Response: 200 OK
   "id": "990e8400-e29b-41d4-a716-446655440005",
   "name": "daily-customer-checks",
   "metadata_snapshot_id": "770e8400-e29b-41d4-a716-446655440002",
-  "checks": [...],
-  "check_count": 2,
-  "is_active": true,
+  "checks_yaml": "checks for data: ...",
+  "enabled": true,
   "created_at": "2026-04-11T10:30:00Z"
 }
 ```
 
-### 5.4 Update Check Plan
-
-```
-PUT /check-plans/{plan_id}
-
-Request: { ...same fields as POST... }
-
-Response: 200 OK { ...updated plan... }
-```
-
-### 5.5 Delete Check Plan
+### 4.4 Delete Check Plan
 
 ```
 DELETE /check-plans/{plan_id}
@@ -549,17 +476,12 @@ Errors:
 
 ### 6.1 Execute Check Plan
 
-Start a new run with the given check plan
+Start a new run for the given check plan.
 
 ```
-POST /runs/
+POST /api/v1/runs/{check_plan_id}/execute
 
-Request:
-{
-  "check_plan_id": "990e8400-e29b-41d4-a716-446655440005"
-}
-
-Response: 201 Created
+Response: 202 Accepted
 {
   "id": "aa0e8400-e29b-41d4-a716-446655440006",
   "check_plan_id": "990e8400-e29b-41d4-a716-446655440005",
@@ -578,13 +500,13 @@ Errors:
 ### 6.2 Get Run Status
 
 ```
-GET /runs/{run_id}
+GET /api/v1/runs/{run_id}/status
 
 Response: 200 OK
 {
   "id": "aa0e8400-e29b-41d4-a716-446655440006",
   "check_plan_id": "990e8400-e29b-41d4-a716-446655440005",
-  "status": "completed",  # pending | running | completed | failed
+  "status": "running",  # pending | running | success | failed | warning
   "started_at": "2026-04-11T10:35:01Z",
   "completed_at": "2026-04-11T10:35:45Z",
   "duration_seconds": 44,
@@ -602,31 +524,26 @@ Errors:
 ### 6.3 List Runs
 
 ```
-GET /runs/?check_plan_id=990e8400&status=completed&limit=20
+GET /api/v1/runs/
 
 Response: 200 OK
-{
-  "runs": [
-    {
-      "id": "aa0e8400-e29b-41d4-a716-446655440006",
-      "check_plan_id": "990e8400-e29b-41d4-a716-446655440005",
-      "status": "completed",
-      "created_at": "2026-04-11T10:35:00Z"
-    }
-  ],
-  "total": 15
-}
+[
+  {
+    "id": "aa0e8400-e29b-41d4-a716-446655440006",
+    "check_plan_id": "990e8400-e29b-41d4-a716-446655440005",
+    "status": "success",
+    "created_at": "2026-04-11T10:35:00Z"
+  }
+]
 ```
 
-### 6.4 Poll Run (Long-Poll)
+### 6.4 Get Run Summary
 
 ```
-GET /runs/{run_id}/poll?timeout_seconds=60
+GET /api/v1/runs/{run_id}
 
 Response: 200 OK
-{ ...same as GET /runs/{run_id}... }
-
-# Will wait up to 60 seconds for completion, then return current status
+{ ...run object with status, timestamps, and counters... }
 ```
 
 ---
@@ -636,7 +553,7 @@ Response: 200 OK
 ### 7.1 Get Run Results
 
 ```
-GET /runs/{run_id}/results?limit=20&offset=0
+GET /api/v1/runs/{run_id}/results
 
 Response: 200 OK
 {
@@ -678,10 +595,10 @@ Response: 200 OK
 ### 7.2 Get Single Result
 
 ```
-GET /results/{result_id}
+GET /api/v1/results/runs/{run_id}/results
 
 Response: 200 OK
-{ ...detailed result object... }
+{ ...flat result list for the run... }
 ```
 
 ---
@@ -691,7 +608,7 @@ Response: 200 OK
 ### 8.1 Get Run Metrics
 
 ```
-GET /runs/{run_id}/metrics
+GET /api/v1/visualization/runs/{run_id}/metrics
 
 Response: 200 OK
 {
@@ -735,12 +652,11 @@ Response: 200 OK
 ### 8.2 Get Quality Scorecard
 
 ```
-GET /quality/{connection_id}?days=30
+GET /api/v1/visualization/summary/quality-by-column?days=30
 
 Response: 200 OK
 {
-  "connection_id": "550e8400-e29b-41d4-a716-446655440000",
-  "scorecard": [
+  "columns": [
     {
       "column": "id",
       "pass_rate": 1.0,
@@ -762,11 +678,11 @@ Response: 200 OK
 ### 8.3 Get Trends
 
 ```
-GET /quality/{connection_id}/trends?days=90&interval=daily
+GET /api/v1/visualization/plans/{plan_id}/trend?days=90
 
 Response: 200 OK
 {
-  "connection_id": "550e8400-e29b-41d4-a716-446655440000",
+  "plan_id": "990e8400-e29b-41d4-a716-446655440005",
   "trends": [
     {
       "date": "2026-02-11",
@@ -781,9 +697,7 @@ Response: 200 OK
       "total_checks": 25
     }
     # ... daily data for 90 days
-  ],
-  "period_days": 90,
-  "interval": "daily"
+  ]
 }
 ```
 
@@ -824,11 +738,11 @@ Response: 200 OK
 
 ## Examples
 
-### Complete Workflow: Upload → Profile → Suggest → Execute
+### Complete Workflow: Connect → Profile → Suggest → Plan → Execute → Analyze
 
 **Step 1: Upload CSV**
 ```bash
-curl -X POST http://localhost:8000/api/v1/connections/upload \
+curl -X POST http://localhost:8001/api/v1/connections/upload \
   -F "name=customers" \
   -F "type=csv" \
   -F "file=@customers.csv"
@@ -837,7 +751,7 @@ curl -X POST http://localhost:8000/api/v1/connections/upload \
 
 **Step 2: Profile Data**
 ```bash
-curl -X POST http://localhost:8000/api/v1/metadata/profile \
+curl -X POST http://localhost:8001/api/v1/metadata/profile \
   -d '{"connection_id":"conn-123","dataset_identifier":"customers"}' \
   -H "Content-Type: application/json"
 # Response: {"snapshot_id": "snap-456", "schema": [...], ...}
@@ -845,7 +759,7 @@ curl -X POST http://localhost:8000/api/v1/metadata/profile \
 
 **Step 3: Get Suggestions**
 ```bash
-curl -X POST http://localhost:8000/api/v1/check-suggestions \
+curl -X POST http://localhost:8001/api/v1/suggestions/ \
   -d '{"metadata_snapshot_id":"snap-456"}' \
   -H "Content-Type: application/json"
 # Response: {"suggestions": [{...}, {...}], ...}
@@ -853,35 +767,39 @@ curl -X POST http://localhost:8000/api/v1/check-suggestions \
 
 **Step 4: Create Check Plan**
 ```bash
-curl -X POST http://localhost:8000/api/v1/check-plans \
-  -d '{"name":"my-checks","metadata_snapshot_id":"snap-456","checks":[...]}' \
+curl -X POST http://localhost:8001/api/v1/check-plans/ \
+  -d '{"name":"my-checks","metadata_snapshot_id":"snap-456","checks_yaml":"checks for data:\n  - row_count > 0"}' \
   -H "Content-Type: application/json"
 # Response: {"id": "plan-789", ...}
 ```
 
-**Step 5: Execute**
+**Step 5: Execute Plan**
 ```bash
-curl -X POST http://localhost:8000/api/v1/runs \
-  -d '{"check_plan_id":"plan-789"}' \
-  -H "Content-Type: application/json"
+curl -X POST http://localhost:8001/api/v1/runs/plan-789/execute
 # Response: {"id": "run-abc", "status": "pending", ...}
 ```
 
-**Step 6: Poll Results**
+**Step 6: Poll Status**
 ```bash
-curl http://localhost:8000/api/v1/runs/run-abc/poll?timeout_seconds=60
-# Returns when completed or timeout
+curl http://localhost:8001/api/v1/runs/run-abc/status
+# Returns the current execution status
 ```
 
 **Step 7: Get Results**
 ```bash
-curl http://localhost:8000/api/v1/runs/run-abc/results
+curl http://localhost:8001/api/v1/runs/run-abc/results
 # Response: {"results": [{...}, {...}], ...}
+```
+
+**Step 8: Get Analysis Metrics**
+```bash
+curl http://localhost:8001/api/v1/visualization/runs/run-abc/metrics
+# Response: {"summary": {...}, "by_column": {...}}
 ```
 
 ---
 
-**Interactive API Docs:** Swagger UI available at `http://localhost:8000/docs`
+**Interactive API Docs:** Swagger UI available at `http://localhost:8001/docs`
 
 **Last Updated:** 2026-04-11  
 **Maintained By:** API Team
