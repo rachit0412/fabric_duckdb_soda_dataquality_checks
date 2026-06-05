@@ -1,15 +1,108 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FileCheck, Plus, Trash2, Play, X, Loader2 } from 'lucide-react';
-import { getCheckPlans, createCheckPlan, deleteCheckPlan, getConnections, executeCheckPlan } from '../api/client';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { CheckPlan, Connection, CreateCheckPlanPayload } from '../types';
+import { getCheckPlans, createCheckPlan, deleteCheckPlan, getConnections, executeCheckPlan, getMetadataSnapshot } from '../api/client';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import type { CheckPlan, CheckSuggestion, Connection, CreateCheckPlanPayload, MetadataProfile, ColumnProfile } from '../types';
+import type { SuggestionPlanDraft } from './Suggestions';
 
 const DEFAULT_CHECKS_YAML = `checks for data:
-  - row_count > 0
-  - missing_count(id) = 0
-  - duplicate_count(id) = 0`;
+  - row_count > 0`;
+
+const SUGGESTION_PLAN_DRAFT_KEY = 'dq-suggestion-plan-draft';
+
+type CheckPlansLocationState = {
+  suggestionDraft?: SuggestionPlanDraft;
+};
+
+const readDraftFromSession = (): SuggestionPlanDraft | null => {
+  const rawDraft = sessionStorage.getItem(SUGGESTION_PLAN_DRAFT_KEY);
+  if (!rawDraft) {
+    return null;
+  }
+
+  try {
+    const draft = JSON.parse(rawDraft) as SuggestionPlanDraft;
+    return draft.selectedSuggestions?.length ? draft : null;
+  } catch (error) {
+    console.error('Failed to parse suggestion draft from session storage:', error);
+    return null;
+  }
+};
+
+const findKeyLikeColumn = (columns: ColumnProfile[]) => (
+  columns.find((column) => column.is_pk)
+  || columns.find((column) => /^id$/i.test(column.name))
+  || columns.find((column) => /(^|_)id$/i.test(column.name))
+  || columns.find((column) => /id$/i.test(column.name))
+);
+
+const buildBaselineChecksYaml = (snapshot?: MetadataProfile) => {
+  const lines = ['checks for data:', '  - row_count > 0'];
+  const keyLikeColumn = snapshot ? findKeyLikeColumn(snapshot.schema?.columns || []) : undefined;
+
+  if (keyLikeColumn?.name) {
+    lines.push(`  - missing_count(${keyLikeColumn.name}) = 0`);
+    lines.push(`  - duplicate_count(${keyLikeColumn.name}) = 0`);
+  }
+
+  return lines.join('\n');
+};
+
+const dedentYamlBlock = (yamlBlock: string) => {
+  const lines = yamlBlock.split(/\r?\n/);
+  const nonEmptyLines = lines.filter((line) => line.trim().length > 0);
+
+  if (nonEmptyLines.length === 0) {
+    return '';
+  }
+
+  const minIndent = Math.min(...nonEmptyLines.map((line) => line.match(/^\s*/)?.[0].length ?? 0));
+  return lines.map((line) => line.slice(minIndent)).join('\n').trimEnd();
+};
+
+const normalizeSuggestionYaml = (yamlBlock: string) => {
+  const trimmed = yamlBlock.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const lines = trimmed.split(/\r?\n/);
+  const firstLine = lines[0]?.trim().toLowerCase();
+  const contentLines = firstLine === 'checks:' || firstLine?.startsWith('checks for ')
+    ? lines.slice(1)
+    : lines;
+
+  return dedentYamlBlock(contentLines.join('\n'));
+};
+
+const indentYamlBlock = (yamlBlock: string) => (
+  yamlBlock
+    .split(/\r?\n/)
+    .map((line) => `  ${line}`)
+    .join('\n')
+);
+
+const buildSuggestionYaml = (suggestions: CheckSuggestion[]) => (
+  suggestions
+    .map((suggestion) => suggestion.suggested_check_yaml ? normalizeSuggestionYaml(suggestion.suggested_check_yaml) : '')
+    .filter((yamlBlock): yamlBlock is string => Boolean(yamlBlock))
+    .map((yamlBlock) => indentYamlBlock(yamlBlock))
+    .join('\n')
+);
+
+const mergeChecksYaml = (baseYaml: string, importedYaml: string) => {
+  const normalizedBase = (baseYaml || DEFAULT_CHECKS_YAML).trim();
+  const normalizedImported = importedYaml.trim();
+
+  if (!normalizedImported) {
+    return normalizedBase;
+  }
+
+  return `${normalizedBase}\n${normalizedImported}`;
+};
 
 export function CheckPlans() {
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const requestedConnectionId = searchParams.get('connectionId') || '';
   const requestedSnapshotId = searchParams.get('snapshotId') || '';
@@ -18,7 +111,14 @@ export function CheckPlans() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(Boolean(requestedConnectionId || requestedSnapshotId));
   const [executing, setExecuting] = useState<string | null>(null);
+  const [importedSuggestions, setImportedSuggestions] = useState<CheckSuggestion[]>([]);
+  const [baselineChecksYaml, setBaselineChecksYaml] = useState(DEFAULT_CHECKS_YAML);
+  const [baselineReady, setBaselineReady] = useState(!requestedSnapshotId);
   const navigate = useNavigate();
+  const importedDraftRef = useRef(false);
+  const pendingDraftRef = useRef<SuggestionPlanDraft | null>(
+    (location.state as CheckPlansLocationState | null)?.suggestionDraft || readDraftFromSession()
+  );
 
   const [form, setForm] = useState<CreateCheckPlanPayload>({
     name: '',
@@ -42,6 +142,96 @@ export function CheckPlans() {
       metadata_snapshot_id: requestedSnapshotId || current.metadata_snapshot_id,
     }));
   }, [requestedConnectionId, requestedSnapshotId]);
+
+  useEffect(() => {
+    const snapshotId = requestedSnapshotId || form.metadata_snapshot_id;
+    if (!snapshotId) {
+      setBaselineChecksYaml(DEFAULT_CHECKS_YAML);
+      setBaselineReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    setBaselineReady(false);
+
+    void (async () => {
+      try {
+        const { data } = await getMetadataSnapshot(snapshotId);
+        if (cancelled) {
+          return;
+        }
+
+        const nextBaseline = buildBaselineChecksYaml(data as MetadataProfile);
+        setBaselineChecksYaml(nextBaseline);
+        setForm((current) => {
+          const currentChecksYaml = current.checks_yaml?.trim() || '';
+          const previousBaseline = baselineChecksYaml.trim();
+          const shouldReplaceBaseline = !currentChecksYaml || currentChecksYaml === DEFAULT_CHECKS_YAML.trim() || currentChecksYaml === previousBaseline;
+
+          if (!shouldReplaceBaseline) {
+            return current;
+          }
+
+          return {
+            ...current,
+            checks_yaml: nextBaseline,
+          };
+        });
+      } catch (error) {
+        console.error('Failed to load metadata snapshot for baseline checks:', error);
+      } finally {
+        if (!cancelled) {
+          setBaselineReady(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedSnapshotId, form.metadata_snapshot_id, baselineChecksYaml]);
+
+  useEffect(() => {
+    if (!baselineReady) {
+      return;
+    }
+
+    if (importedDraftRef.current) {
+      return;
+    }
+
+    const draft = pendingDraftRef.current;
+    if (!draft) {
+      return;
+    }
+
+    try {
+      if (!draft.selectedSuggestions?.length) {
+        pendingDraftRef.current = null;
+        sessionStorage.removeItem(SUGGESTION_PLAN_DRAFT_KEY);
+        return;
+      }
+
+      const importedYaml = buildSuggestionYaml(draft.selectedSuggestions);
+      setImportedSuggestions(draft.selectedSuggestions);
+      setShowForm(true);
+      setForm((current) => ({
+        ...current,
+        connection_id: requestedConnectionId || draft.connectionId || current.connection_id,
+        metadata_snapshot_id: requestedSnapshotId || draft.metadataSnapshotId || current.metadata_snapshot_id,
+        checks_yaml: importedYaml ? mergeChecksYaml(baselineChecksYaml, importedYaml) : baselineChecksYaml,
+      }));
+    } catch (error) {
+      console.error('Failed to import suggestion draft:', error);
+    } finally {
+      importedDraftRef.current = true;
+      pendingDraftRef.current = null;
+      sessionStorage.removeItem(SUGGESTION_PLAN_DRAFT_KEY);
+      if ((location.state as CheckPlansLocationState | null)?.suggestionDraft) {
+        navigate(`${location.pathname}${location.search}`, { replace: true });
+      }
+    }
+  }, [baselineReady, baselineChecksYaml, location.pathname, location.search, location.state, navigate, requestedConnectionId, requestedSnapshotId]);
 
   const load = async () => {
     try {
@@ -75,10 +265,14 @@ export function CheckPlans() {
         payload.metadata_snapshot_id = form.metadata_snapshot_id;
       }
 
-      await createCheckPlan(payload);
+      const { data: createdPlan } = await createCheckPlan(payload);
+      await load();
       setShowForm(false);
-      setForm({ name: '', description: '', checks_yaml: DEFAULT_CHECKS_YAML });
-      load();
+      setForm({ name: '', description: '', checks_yaml: baselineChecksYaml });
+      setImportedSuggestions([]);
+      if (createdPlan?.id) {
+        navigate(`/runs?planId=${encodeURIComponent(createdPlan.id)}&autoStart=1`);
+      }
     } catch (error: any) {
       alert(error?.response?.data?.detail || 'Failed to create check plan');
     }
@@ -97,8 +291,8 @@ export function CheckPlans() {
   const handleExecute = async (planId: string) => {
     setExecuting(planId);
     try {
-      await executeCheckPlan(planId);
-      navigate('/runs');
+      const { data } = await executeCheckPlan(planId);
+      navigate(data?.run_id ? `/runs?runId=${encodeURIComponent(data.run_id)}` : '/runs');
     } catch (error: any) {
       alert(error?.response?.data?.detail || 'Failed to execute');
     } finally {
@@ -125,7 +319,7 @@ export function CheckPlans() {
         <div>
           <h2 className="text-2xl font-heading font-bold text-text-primary tracking-tight">Check Plans</h2>
           <p className="mt-1 max-w-2xl text-sm text-text-secondary">
-            Assemble the final plan by combining baseline rules, AI suggestions, and prebuilt Soda or Great Expectations rule patterns.
+            Assemble the final plan by combining baseline rules, selected suggestions, and any extra Soda-compatible YAML you want to run.
           </p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary">
@@ -139,6 +333,13 @@ export function CheckPlans() {
             <h3 className="text-sm font-heading font-semibold text-text-primary">Create Check Plan</h3>
             <button title="Close create check plan form" onClick={() => setShowForm(false)} className="p-1 rounded-lg hover:bg-white/5"><X className="w-4 h-4 text-text-muted" /></button>
           </div>
+          {importedSuggestions.length > 0 && (
+            <div className="mb-4 rounded-[20px] border p-4" style={{ borderColor: 'var(--divider)', background: 'var(--glass-bg)' }}>
+              <p className="text-xs font-mono uppercase tracking-wider text-text-muted">Imported suggestions</p>
+              <p className="mt-1 text-sm text-text-primary">{importedSuggestions.length} selected suggestion blocks were added to this plan draft.</p>
+              <p className="mt-1 text-xs text-text-secondary">Review the YAML below, remove anything you do not want, and then create the plan.</p>
+            </div>
+          )}
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -164,7 +365,7 @@ export function CheckPlans() {
               <div className="col-span-2">
                 <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Checks (SodaCL YAML)</label>
                 <textarea className="input font-mono text-xs" rows={6} value={form.checks_yaml} onChange={e => setForm({ ...form, checks_yaml: e.target.value })} placeholder={"checks for data:\n  - row_count > 0"} required />
-                <p className="mt-1 text-xs text-text-muted">Paste baseline rules, AI-generated checks, or adapted Soda and Great Expectations rule patterns here.</p>
+                <p className="mt-1 text-xs text-text-muted">Paste baseline rules and selected suggestion blocks here. This plan executes as Soda-compatible YAML.</p>
               </div>
             </div>
             <div className="flex gap-3 pt-1">
@@ -202,7 +403,7 @@ export function CheckPlans() {
                   {executing === plan.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
                   Execute
                 </button>
-                <button onClick={() => handleDelete(plan.id)} className="p-2 rounded-lg transition-all" style={{ color: 'var(--text-3)' }}
+                <button title={`Delete plan ${plan.name}`} onClick={() => handleDelete(plan.id)} className="p-2 rounded-lg transition-all" style={{ color: 'var(--text-3)' }}
                   onMouseEnter={e => { e.currentTarget.style.color = '#f43f5e'; e.currentTarget.style.background = 'var(--delete-hover-bg)'; }}
                   onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.background = 'transparent'; }}>
                   <Trash2 className="w-4 h-4" />
@@ -219,7 +420,7 @@ export function CheckPlans() {
             <FileCheck className="w-6 h-6 text-emerald-400/60" />
           </div>
           <h3 className="text-sm font-heading font-semibold text-text-primary mb-1">No check plans yet</h3>
-          <p className="text-xs text-text-muted mb-4">Create the first plan to combine baseline, AI-generated, and prebuilt checks for execution.</p>
+          <p className="text-xs text-text-muted mb-4">Create the first plan to combine baseline rules and selected suggestions for execution.</p>
           <button onClick={() => setShowForm(true)} className="btn-primary mx-auto"><Plus className="w-4 h-4" />Create Plan</button>
         </div>
       )}

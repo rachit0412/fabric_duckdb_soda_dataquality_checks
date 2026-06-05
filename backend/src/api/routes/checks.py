@@ -27,6 +27,31 @@ from src.services.suggestions import SuggestionEngine
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["checks"])
 
+
+def _normalize_checks_yaml(checks_yaml: Optional[str]) -> str:
+    raw_yaml = (checks_yaml or "").strip()
+    if not raw_yaml:
+        return ""
+
+    lines = raw_yaml.splitlines()
+    seen_checks_for_header = False
+    normalized_lines = []
+
+    for line in lines:
+        stripped = line.lstrip()
+        if stripped.startswith("checks for "):
+            seen_checks_for_header = True
+            normalized_lines.append(stripped)
+            continue
+
+        if seen_checks_for_header and line.startswith("- "):
+            normalized_lines.append(f"  {line}")
+            continue
+
+        normalized_lines.append(line)
+
+    return "\n".join(normalized_lines)
+
 @router.post("/", response_model=CheckPlanResponse)
 async def create_check_plan(
     request: CheckPlanCreate,
@@ -117,7 +142,7 @@ async def create_check_plan(
             metadata_snapshot_id=metadata_snapshot_id,
             dataset_identifier=request.dataset_identifier or snapshot.dataset_identifier,
             description=request.description,
-            checks_yaml=request.checks_yaml or "",
+            checks_yaml=_normalize_checks_yaml(request.checks_yaml),
             custom_checks_yaml=request.custom_checks_yaml,
             enabled=request.enabled if request.enabled is not None else True,
         )

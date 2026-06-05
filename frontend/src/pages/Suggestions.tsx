@@ -1,15 +1,27 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Lightbulb, Loader2, Sparkles, Copy, Check } from 'lucide-react';
 import { getConnections, generateSuggestions } from '../api/client';
 import type { Connection, CheckSuggestion } from '../types';
 
+const SUGGESTION_PLAN_DRAFT_KEY = 'dq-suggestion-plan-draft';
+
+export type SuggestionPlanDraft = {
+  connectionId?: string;
+  metadataSnapshotId?: string;
+  selectedSuggestions: CheckSuggestion[];
+};
+
 export function Suggestions() {
+  const navigate = useNavigate();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedConn, setSelectedConn] = useState('');
   const [generating, setGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<CheckSuggestion[]>([]);
+  const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<string[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [currentSnapshotId, setCurrentSnapshotId] = useState('');
   const initialAutoParamsRef = useRef<{ connectionId: string; snapshotId: string; shouldAutoGenerate: boolean } | null>(null);
   const autoGenerateAttemptedRef = useRef(false);
 
@@ -35,12 +47,16 @@ export function Suggestions() {
   const handleGenerateForSelection = async (connectionId: string, snapshotId?: string) => {
     setGenerating(true);
     setSuggestions([]);
+    setSelectedSuggestionIds([]);
     try {
       const requestPayload = snapshotId
         ? { metadata_snapshot_id: snapshotId }
         : { connection_id: connectionId };
       const { data } = await generateSuggestions(requestPayload);
-      setSuggestions(data?.suggestions || []);
+      const nextSuggestions = data?.suggestions || [];
+      setCurrentSnapshotId(data?.metadata_snapshot_id || snapshotId || '');
+      setSuggestions(nextSuggestions);
+      setSelectedSuggestionIds(nextSuggestions.map((suggestion: CheckSuggestion) => suggestion.id));
     } catch (e: any) {
       alert(e?.response?.data?.detail || 'Failed to generate suggestions');
     } finally {
@@ -87,6 +103,49 @@ export function Suggestions() {
     return 'text-rose-400';
   };
 
+  const toggleSuggestion = (suggestionId: string) => {
+    setSelectedSuggestionIds((current) => (
+      current.includes(suggestionId)
+        ? current.filter((id) => id !== suggestionId)
+        : [...current, suggestionId]
+    ));
+  };
+
+  const selectAllSuggestions = () => {
+    setSelectedSuggestionIds(suggestions.map((suggestion) => suggestion.id));
+  };
+
+  const clearSuggestionSelection = () => {
+    setSelectedSuggestionIds([]);
+  };
+
+  const openCheckPlans = (withSelectedSuggestions: boolean) => {
+    const snapshotId = currentSnapshotId || initialAutoParamsRef.current?.snapshotId || '';
+    const draft: SuggestionPlanDraft = {
+      connectionId: selectedConn,
+      metadataSnapshotId: snapshotId,
+      selectedSuggestions: suggestions.filter((suggestion) => selectedSuggestionIds.includes(suggestion.id)),
+    };
+
+    if (withSelectedSuggestions) {
+      sessionStorage.setItem(SUGGESTION_PLAN_DRAFT_KEY, JSON.stringify(draft));
+    } else {
+      sessionStorage.removeItem(SUGGESTION_PLAN_DRAFT_KEY);
+    }
+
+    const params = new URLSearchParams();
+    if (selectedConn) {
+      params.set('connectionId', selectedConn);
+    }
+    if (snapshotId) {
+      params.set('snapshotId', snapshotId);
+    }
+
+    navigate(`/check-plans${params.toString() ? `?${params.toString()}` : ''}`, {
+      state: withSelectedSuggestions ? { suggestionDraft: draft } : null,
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -104,8 +163,7 @@ export function Suggestions() {
         <div>
           <h2 className="text-2xl font-heading font-bold text-text-primary tracking-tight">AI Suggestions</h2>
           <p className="mt-1 max-w-2xl text-sm text-text-secondary">
-            Generate AI-recommended checks from the selected source so you can add them alongside baseline rules and
-            prebuilt Soda or Great Expectations checks in the final plan.
+            Generate rule suggestions from the selected source, choose the useful ones together, and carry them straight into plan creation.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -114,17 +172,47 @@ export function Suggestions() {
             {connections.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
           </select>
           <button onClick={handleGenerate} disabled={!selectedConn || generating} className="btn-primary">
-            {generating ? <><Loader2 className="w-4 h-4 animate-spin" />Generating...</> : <><Sparkles className="w-4 h-4" />Generate checks</>}
+            {generating ? <><Loader2 className="w-4 h-4 animate-spin" />Preparing suggestions...</> : <><Sparkles className="w-4 h-4" />Generate suggestions</>}
           </button>
         </div>
       </div>
 
       {suggestions.length > 0 && (
         <div className="space-y-3">
+          <div className="card animate-fade-up">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-mono uppercase tracking-wider text-text-muted">Selection</p>
+                <h3 className="mt-1 text-sm font-heading font-semibold text-text-primary">
+                  {selectedSuggestionIds.length} of {suggestions.length} suggestions selected
+                </h3>
+                <p className="mt-1 text-xs text-text-secondary">
+                  Select multiple suggestions, skip this step for now, or send the selected YAML blocks directly into the plan form.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={selectAllSuggestions} className="btn-secondary">Select all</button>
+                <button type="button" onClick={clearSuggestionSelection} className="btn-secondary">Clear</button>
+                <button type="button" onClick={() => openCheckPlans(false)} className="btn-secondary">Skip for now</button>
+                <button type="button" onClick={() => openCheckPlans(true)} disabled={selectedSuggestionIds.length === 0} className="btn-primary disabled:opacity-40">
+                  <Sparkles className="w-4 h-4" />Add selected to plan
+                </button>
+              </div>
+            </div>
+          </div>
+
           {suggestions.map((s, i) => (
             <div key={s.id || i} className="card-hover animate-fade-up" style={{ animationDelay: `${i * 50}ms` }}>
               <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
+                <div className="flex flex-1 items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-text-muted"
+                    checked={selectedSuggestionIds.includes(s.id)}
+                    onChange={() => toggleSuggestion(s.id)}
+                    aria-label={`Select suggestion ${s.check_name}`}
+                  />
+                  <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <Lightbulb className="w-4 h-4 text-amber-400" />
                     <h4 className="text-sm font-heading font-semibold text-text-primary">{s.check_name}</h4>
@@ -141,6 +229,7 @@ export function Suggestions() {
                       </button>
                     </div>
                   )}
+                  </div>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-[10px] text-text-dim uppercase font-mono">Confidence</p>
@@ -164,7 +253,7 @@ export function Suggestions() {
           </h3>
           <p className="text-xs text-text-muted">
             {selectedConn
-              ? 'Generate AI suggestions, then move the useful rules into the plan with your baseline and prebuilt checks.'
+              ? 'Generate suggestions, choose the useful ones in bulk, and send them into the plan without retyping YAML.'
               : 'Choose a connected source or uploaded file to generate AI-backed check recommendations from its metadata.'}
           </p>
         </div>

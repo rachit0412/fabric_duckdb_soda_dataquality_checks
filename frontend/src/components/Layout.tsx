@@ -32,7 +32,7 @@ export function Layout() {
   const currentPage = NAV_ITEMS.find((item) => item.href === location.pathname)?.name || 'Dashboard';
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="app-shell min-h-screen" style={{ background: 'var(--bg)' }}>
       <div className="ambient-shell" />
 
       <header className="sticky top-0 z-40 px-4 pt-4 sm:px-6 lg:px-8">

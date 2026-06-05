@@ -116,6 +116,7 @@ services:
       - ./logs:/app/logs:rw
       - ./reports:/app/reports:rw
       - ./data:/app/data:ro  # Read-only data access
+      - ./data/uploads:/app/uploads:rw
     
     environment:
       # Application settings
@@ -137,6 +138,7 @@ services:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or .env.docker}@postgres:5432/data_quality
       # Storage backend
       STORAGE_BACKEND: postgresql
+      UPLOADS_DIR: /app/uploads
     
     depends_on:
       postgres:

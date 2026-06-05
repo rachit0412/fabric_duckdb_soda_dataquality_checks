@@ -18,10 +18,12 @@ import logging
 import json
 from datetime import datetime
 import asyncio
+import yaml
 
 from src.models.db import Run, CheckResult, CheckPlan, MetadataSnapshot, Connection
 from src.storage.db import get_db
 from src.api.models import RunResponse, RunStatusResponse
+from src.services.soda_runner import SodaCoreRunner
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["runs"])
@@ -72,6 +74,24 @@ def _run_response_from_model(run: Run) -> RunResponse:
         failed_checks=run.fail_count or 0,
         warning_checks=run.warn_count or 0,
     )
+
+
+def _get_total_checks_from_plan(plan: Optional[CheckPlan]) -> int:
+    if not plan:
+        return 0
+
+    combined_yaml = "\n\n".join(
+        part.strip() for part in [plan.checks_yaml or "", plan.custom_checks_yaml or ""] if part and part.strip()
+    )
+    if not combined_yaml:
+        return 0
+
+    try:
+        parsed = yaml.safe_load(combined_yaml) or {}
+    except Exception:
+        return 0
+
+    return len(_extract_checks_list(parsed))
 
 
 @router.post("/{check_plan_id}/execute")
@@ -166,6 +186,18 @@ async def _execute_checks_background(
         if not run:
             logger.error(f"Run {run_id} not found during background execution")
             return
+
+        plan = db.query(CheckPlan).filter(CheckPlan.id == check_plan_id).first()
+        if not plan:
+            raise ValueError(f"Check plan {check_plan_id} not found")
+
+        snapshot = db.query(MetadataSnapshot).filter(MetadataSnapshot.id == plan.metadata_snapshot_id).first()
+        if not snapshot:
+            raise ValueError("Metadata snapshot not found. Re-profile dataset.")
+
+        connection = db.query(Connection).filter(Connection.id == plan.connection_id).first()
+        if not connection:
+            raise ValueError(f"Connection {plan.connection_id} not found")
         
         # Update to RUNNING
         run.status = RunStatus.RUNNING.value
@@ -174,65 +206,75 @@ async def _execute_checks_background(
         
         logger.info(f"Executing checks for run {run_id}")
         
-        # Parse YAML checks
+        combined_yaml = "\n\n".join(part.strip() for part in [checks_yaml or "", custom_yaml or ""] if part and part.strip())
+        if not combined_yaml:
+            raise ValueError("No checks were provided for this plan")
+
         try:
-            import yaml
-            combined_yaml = (checks_yaml or "") + "\n" + (custom_yaml or "")
-            checks_config = yaml.safe_load(combined_yaml or "checks: []")
-            checks_list = _extract_checks_list(checks_config)
+            parsed_checks = yaml.safe_load(combined_yaml) or {}
+            checks_list = _extract_checks_list(parsed_checks)
         except Exception as e:
-            logger.error(f"Failed to parse YAML: {e}")
-            run.status = RunStatus.FAILED.value
-            run.error_message = f"YAML parse error: {str(e)}"
-            run.completed_at = datetime.utcnow()
-            db.commit()
-            return
-        
-        # Execute checks (simulated for M4, real Soda integration in production)
-        total_checks = len(checks_list)
+            raise ValueError(f"YAML parse error: {str(e)}") from e
+
+        runner = SodaCoreRunner()
+        soda_results = runner.execute_checks(
+            connection_id=str(connection.id),
+            connection_type=connection.type,
+            remote_url=connection.remote_url or snapshot.dataset_identifier,
+            dataset_identifier=plan.dataset_identifier or snapshot.dataset_identifier,
+            checks_config=combined_yaml,
+        )
+
         passed_count = 0
         failed_count = 0
         warning_count = 0
-        
-        for idx, check in enumerate(checks_list):
-            # Simulate check execution
-            await asyncio.sleep(0.05)
-            
-            # Create result record
-            result_status = "passed" if idx % 3 != 0 else ("warned" if idx % 3 == 1 else "failed")
-            check_name = check.get("name", f"check_{idx}") if isinstance(check, dict) else str(check)
-            check_type = check.get("type", "sodacl") if isinstance(check, dict) else "sodacl"
-            error_message = None
-            warning_message = None
-            if result_status == "failed":
-                error_message = "Check failed"
-            elif result_status == "warned":
-                warning_message = "Check warned"
-            
+        error_count = 0
+
+        for idx, result in enumerate(soda_results.get("results", [])):
+            raw_outcome = str(result.get("status") or result.get("outcome") or "").lower()
+            if raw_outcome in {"pass", "passed", "success"}:
+              result_status = "passed"
+            elif raw_outcome in {"warn", "warned", "warning"}:
+              result_status = "warned"
+            else:
+              result_status = "failed"
+
+            message = result.get("message") or ""
+            details = result.get("details") or {}
+            metric_value = None
+            if isinstance(details, dict):
+                metric_value = (details.get("result") or {}).get("value") if isinstance(details.get("result"), dict) else None
+
             check_result = CheckResult(
                 run_id=run_id,
-                check_name=check_name,
-                check_type=check_type,
+                check_name=result.get("check_name") or f"check_{idx + 1}",
+                check_type=result.get("check_type") or "soda",
                 status=result_status,
-                execution_time_ms=50,
-                error_message=error_message,
-                warning_message=warning_message,
-                validation_context=check if isinstance(check, dict) else {"raw": str(check)},
+                metric_value=metric_value,
+                execution_time_ms=result.get("execution_time_ms") or 0,
+                error_message=message if result_status == "failed" else None,
+                warning_message=message if result_status == "warned" else None,
+                validation_context={
+                    "details": details,
+                    "execution_mode": soda_results.get("execution_mode", "soda"),
+                    "declared_checks": len(checks_list),
+                },
             )
             db.add(check_result)
-            
-            # Track counts
+
             if result_status == "passed":
                 passed_count += 1
-            elif result_status == "failed":
-                failed_count += 1
-            else:
+            elif result_status == "warned":
                 warning_count += 1
-            
-            db.commit()
+            else:
+                failed_count += 1
+
+        if not soda_results.get("success", True):
+            error_count += 1
+            run.error_message = soda_results.get("error") or "Execution failed"
         
         # Finalize run
-        if failed_count > 0:
+        if failed_count > 0 or error_count > 0:
             run.status = RunStatus.FAILED.value
         elif warning_count > 0:
             run.status = RunStatus.WARNING.value
@@ -242,19 +284,25 @@ async def _execute_checks_background(
         run.pass_count = passed_count
         run.fail_count = failed_count
         run.warn_count = warning_count
+        run.error_count = error_count
         run.completed_at = datetime.utcnow()
         
         db.commit()
-        logger.info(f"Run completed: {run_id} (passed={passed_count}, failed={failed_count}, warning={warning_count})")
+        logger.info(
+            f"Run completed: {run_id} (passed={passed_count}, failed={failed_count}, warning={warning_count}, mode={soda_results.get('execution_mode', 'soda')})"
+        )
         
     except Exception as e:
         logger.error(f"Check execution error: {e}", exc_info=True)
         try:
-            run.status = RunStatus.FAILED.value
-            run.error_message = str(e)
-            run.completed_at = datetime.utcnow()
-            db.commit()
-        except:
+            run = db.query(Run).filter(Run.id == run_id).first()
+            if run:
+                run.status = RunStatus.FAILED.value
+                run.error_message = str(e)
+                run.completed_at = datetime.utcnow()
+                run.error_count = 1
+                db.commit()
+        except Exception:
             pass
     finally:
         db.close()
@@ -432,6 +480,16 @@ async def get_run_status(run_id: UUID, db: Session = Depends(get_db)):
         
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
+
+        plan = db.query(CheckPlan).filter(CheckPlan.id == run.check_plan_id).first()
+        expected_checks = max(_get_total_checks_from_plan(plan), 1)
+        completed_checks = db.query(CheckResult).filter(CheckResult.run_id == run_id).count()
+        if run.completed_at:
+            progress_percent = 100
+        elif run.started_at:
+            progress_percent = min(95, int((completed_checks / expected_checks) * 100))
+        else:
+            progress_percent = 0
         
         return RunStatusResponse(
             id=run.id,
@@ -441,7 +499,7 @@ async def get_run_status(run_id: UUID, db: Session = Depends(get_db)):
             started_at=run.started_at,
             completed_at=run.completed_at,
             error_message=run.error_message,
-            progress_percent=100 if run.completed_at else (50 if run.started_at else 0),
+            progress_percent=progress_percent,
         )
     except Exception as e:
         logger.error(f"Failed to get run status: {e}")

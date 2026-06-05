@@ -14,8 +14,8 @@ export const api = axios.create({
 export const healthCheck = () => api.get('/health');
 
 // Connections
-export const getConnections = () => api.get('/api/v1/connections');
-export const createConnection = (data: any) => api.post('/api/v1/connections', data);
+export const getConnections = () => api.get('/api/v1/connections/');
+export const createConnection = (data: any) => api.post('/api/v1/connections/', data);
 export const testConnection = (id: string) => api.post(`/api/v1/connections/${id}/test`);
 export const deleteConnection = (id: string) => api.delete(`/api/v1/connections/${id}`);
 

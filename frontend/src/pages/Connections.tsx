@@ -81,7 +81,6 @@ export function Connections() {
       const fileType = ext === 'parquet' || ext === 'parq' ? 'parquet' : 'csv';
       const { data } = await uploadFile(uploadName, fileType, selectedFile);
       resetForms();
-      await loadConnections();
       navigate(`/metadata?connectionId=${encodeURIComponent(data.id)}&autoProfile=1`);
     } catch (error: any) {
       const msg = error?.response?.data?.detail || 'Upload failed';
@@ -96,7 +95,6 @@ export function Connections() {
     try {
       const { data } = await createConnection(dbForm);
       resetForms();
-      await loadConnections();
       navigate(`/metadata?connectionId=${encodeURIComponent(data.id)}&autoProfile=1`);
     } catch (error: any) {
       const msg = error?.response?.data?.detail || 'Failed to create connection';
@@ -293,7 +291,7 @@ export function Connections() {
             </div>
             <div className="flex gap-3 pt-1">
               <button type="submit" disabled={!selectedFile || !uploadName || uploading} className="btn-primary disabled:opacity-40">
-                {uploading ? <><Loader2 className="w-4 h-4 animate-spin" />Uploading...</> : <><Upload className="w-4 h-4" />Upload & Connect</>}
+                {uploading ? <><Loader2 className="w-4 h-4 animate-spin" />Opening metadata...</> : <><Upload className="w-4 h-4" />Upload & Connect</>}
               </button>
               <button type="button" onClick={resetForms} className="btn-secondary">Cancel</button>
             </div>

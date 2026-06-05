@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { BarChart3, CheckCircle2, XCircle, AlertTriangle, Loader2, Activity, ArrowRight, ListFilter } from 'lucide-react';
 import { getRuns, getRunResults } from '../api/client';
 import type { Run, RunResults } from '../types';
 
 export function Results() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedRunId = searchParams.get('runId') || '';
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -17,7 +20,11 @@ export function Results() {
         const arr = Array.isArray(data) ? data : [];
         setRuns(arr);
         const completed = arr.filter((r: Run) => r.status === 'success' || r.status === 'failed' || r.status === 'warning');
-        if (completed.length > 0) {
+        const requestedRun = requestedRunId ? completed.find((run) => run.id === requestedRunId) : null;
+        if (requestedRun) {
+          loadResults(requestedRun.id);
+          setSearchParams({}, { replace: true });
+        } else if (completed.length > 0) {
           loadResults(completed[0].id);
         }
       } catch (e) {
@@ -26,7 +33,7 @@ export function Results() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [requestedRunId, setSearchParams]);
 
   const loadResults = async (runId: string) => {
     setSelectedRunId(runId);
@@ -43,14 +50,14 @@ export function Results() {
   };
 
   const statusIcon = (status: string) => {
-    if (status === 'pass') return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
-    if (status === 'fail') return <XCircle className="w-4 h-4 text-rose-400" />;
+    if (status === 'pass' || status === 'passed' || status === 'success') return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
+    if (status === 'fail' || status === 'failed' || status === 'error') return <XCircle className="w-4 h-4 text-rose-400" />;
     return <AlertTriangle className="w-4 h-4 text-amber-400" />;
   };
 
   const statusBadge = (status: string) => {
-    if (status === 'pass') return 'badge-success';
-    if (status === 'fail') return 'badge-error';
+    if (status === 'pass' || status === 'passed' || status === 'success') return 'badge-success';
+    if (status === 'fail' || status === 'failed' || status === 'error') return 'badge-error';
     return 'badge-warning';
   };
 

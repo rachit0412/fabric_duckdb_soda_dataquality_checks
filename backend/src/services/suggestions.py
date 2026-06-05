@@ -15,6 +15,19 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+NUMERIC_TYPE_TOKENS = {"INT", "INTEGER", "BIGINT", "FLOAT", "DOUBLE", "DECIMAL", "NUMERIC", "NUMBER", "INT64", "FLOAT64"}
+STRING_TYPE_TOKENS = {"VARCHAR", "TEXT", "STRING", "OBJECT", "CHAR"}
+DATE_TYPE_TOKENS = {"DATE", "TIMESTAMP", "DATETIME"}
+
+
+def _type_contains(column_type: Any, candidates: set[str]) -> bool:
+    normalized = str(column_type or "").upper()
+    return any(token in normalized for token in candidates)
+
+
+def _render_checks_yaml(*lines: str) -> str:
+    return "checks:\n" + "\n".join(f"  {line}" for line in lines if line)
+
 
 class RuleCategory(str, Enum):
     """Data quality rule categories for M3."""
@@ -70,7 +83,7 @@ class NullCheckForPKRule(SuggestionRule):
             "severity": "critical",
             "rationale": "Column appears to be a key/ID; expect no NULLs",
             "confidence": 0.95,
-            "suggested_yaml": f"checks:\n  - name: '{col_name} is not null'\n    type: missing_count\n    column: {col_name}\n    fail: when > 0"
+            "suggested_yaml": _render_checks_yaml(f"- missing_count({col_name}) = 0")
         }
 
 class UniquenessCheckRule(SuggestionRule):
@@ -91,7 +104,7 @@ class UniquenessCheckRule(SuggestionRule):
             "check_type": self.check_type,
             "rationale": "Very high cardinality suggests uniqueness constraint",
             "confidence": 0.85,
-            "suggested_yaml": f"checks:\n  - name: '{col_name} is unique'\n    type: duplicate_count\n    column: {col_name}\n    fail: when > 0"
+            "suggested_yaml": _render_checks_yaml(f"- duplicate_count({col_name}) = 0")
         }
 
 class MissingCheckRule(SuggestionRule):
@@ -118,7 +131,7 @@ class MissingCheckRule(SuggestionRule):
             "check_type": self.check_type,
             "rationale": f"'{col_name}' is an important field; expect high completion rate",
             "confidence": 0.80,
-            "suggested_yaml": f"checks:\n  - name: '{col_name} completeness'\n    type: missing_count\n    column: {col_name}\n    fail: when > {fail_threshold}"
+            "suggested_yaml": _render_checks_yaml(f"- missing_count({col_name}) < {max(fail_threshold, 1)}")
         }
 
 class RangeCheckNumericRule(SuggestionRule):
@@ -127,13 +140,16 @@ class RangeCheckNumericRule(SuggestionRule):
         super().__init__("range_check_numeric", "Validity", "invalid_count")
     
     def can_suggest(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> bool:
-        col_type = column.get("type", "").upper()
-        return col_type in ["INT", "BIGINT", "FLOAT", "DECIMAL", "NUMERIC"]
+        return _type_contains(column.get("type", ""), NUMERIC_TYPE_TOKENS)
     
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         col_name = column["name"]
-        col_min = column.get("min", 0)
-        col_max = column.get("max", 1000000)
+        col_min = column.get("min")
+        col_max = column.get("max")
+        if col_min is None:
+            col_min = 0
+        if col_max is None:
+            col_max = 1000000
         
         return {
             "rule_id": self.rule_id,
@@ -141,18 +157,21 @@ class RangeCheckNumericRule(SuggestionRule):
             "check_type": self.check_type,
             "rationale": f"Numeric column should be between {col_min} and {col_max}",
             "confidence": 0.75,
-            "suggested_yaml": f"checks:\n  - name: '{col_name} range check'\n    type: invalid_count\n    column: {col_name}\n    valid_min: {col_min}\n    valid_max: {col_max}\n    fail: when > 0"
+            "suggested_yaml": _render_checks_yaml(
+                f"- invalid_count({col_name}) = 0:",
+                f"    valid min: {col_min}",
+                f"    valid max: {col_max}",
+            )
         }
 
 class PatternCheckEmailRule(SuggestionRule):
-    """Suggest email pattern validation."""
+    """Suggest email format validation."""
     def __init__(self):
-        super().__init__("pattern_check_email", "Validity", "valid_regex")
+        super().__init__("pattern_check_email", "Validity", "valid_format")
     
     def can_suggest(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> bool:
         col_name = column["name"].lower()
-        col_type = column.get("type", "").upper()
-        return "email" in col_name and "VARCHAR" in col_type
+        return "email" in col_name and _type_contains(column.get("type", ""), STRING_TYPE_TOKENS)
     
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         col_name = column["name"]
@@ -162,12 +181,10 @@ class PatternCheckEmailRule(SuggestionRule):
             "check_type": self.check_type,
             "rationale": "Column contains email addresses; validate format",
             "confidence": 0.80,
-            "suggested_yaml": f"""checks:
-  - name: '{col_name} email format'
-    type: invalid_count
-    column: {col_name}
-    valid_regex: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{{2,}}$
-    fail: when > 0"""
+            "suggested_yaml": _render_checks_yaml(
+                f"- invalid_count({col_name}) = 0:",
+                "    valid format: email",
+            )
         }
 
 class EnumCheckRule(SuggestionRule):
@@ -403,10 +420,10 @@ class FreshnessDateRule(SuggestionRule):
     
     def can_suggest(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> bool:
         col_name = column["name"].lower()
-        col_type = column.get("type", "").upper()
+        col_type = column.get("type", "")
         
         freshness_keywords = ["created", "updated", "loaded", "ingested", "timestamp", "date", "modified"]
-        return any(kw in col_name for kw in freshness_keywords) and "TIMESTAMP" in col_type or "DATE" in col_type
+        return any(kw in col_name for kw in freshness_keywords) and _type_contains(col_type, DATE_TYPE_TOKENS)
     
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         col_name = column["name"]
@@ -416,19 +433,7 @@ class FreshnessDateRule(SuggestionRule):
             "check_type": self.check_type,
             "rationale": f"Ensure {col_name} has recent data (indicates pipeline health)",
             "confidence": 0.90,
-            "suggested_yaml": f"""checks:
-  - name: '{col_name} data within 24 hours'
-    type: freshness
-    column: {col_name}
-    timespan: 24h
-    fail: when older than
-  
-  - name: '{col_name} daily records exist'
-    type: missing_count
-    column: {col_name}
-    filters:
-      - {col_name} >= CURRENT_DATE
-    fail: when = 0"""
+                        "suggested_yaml": _render_checks_yaml(f"- freshness({col_name}) < 1d")
         }
 
 class DataTypeValidationRule(SuggestionRule):
@@ -438,7 +443,7 @@ class DataTypeValidationRule(SuggestionRule):
     
     def can_suggest(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> bool:
         col_name = column["name"].lower()
-        col_type = column.get("type", "").upper()
+        col_type = column.get("type", "")
         
         # Match common data types to patterns
         pattern_keywords = {
@@ -451,17 +456,17 @@ class DataTypeValidationRule(SuggestionRule):
         }
         
         # Only for string types
-        return "VARCHAR" in col_type or "TEXT" in col_type
+        return _type_contains(col_type, STRING_TYPE_TOKENS) and "email" not in col_name
     
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         col_name = column["name"].lower()
         
         # Determine pattern based on column name
         patterns = {
-            "email": r"^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$",
-            "phone": r"^\\+?[1-9]\\d{1,14}$",
+            "email": r"^[\w\.-]+@[\w\.-]+\.\w+$",
+            "phone": r"^\+?[1-9]\d{1,14}$",
             "url": r"^https?://",
-            "zip": r"^\\d{5}(-\\d{4})?$",
+            "zip": r"^\d{5}(-\d{4})?$",
             "uuid": r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
         }
         
@@ -480,12 +485,10 @@ class DataTypeValidationRule(SuggestionRule):
             "check_type": self.check_type,
             "rationale": f"Validate {column['name']} follows expected format",
             "confidence": 0.85,
-            "suggested_yaml": f"""checks:
-  - name: '{column['name']} valid format'
-    type: valid_regex
-    column: {column['name']}
-    valid_regex: '{matched_pattern}'
-    fail: when > 0"""
+            "suggested_yaml": _render_checks_yaml(
+                f"- invalid_count({column['name']}) = 0:",
+                f"    valid regex: '{matched_pattern}'",
+            )
         }
 
 class SuggestionEngine:
@@ -499,15 +502,8 @@ class SuggestionEngine:
             MissingCheckRule(),
             RangeCheckNumericRule(),
             PatternCheckEmailRule(),
-            EnumCheckRule(),
             FreshnessDateRule(),
-            
-            # Advanced rules (Soda free features)
-            AnomalyDetectionRule(),
-            SchemaConsistencyRule(),
-            DistributionAnalysisRule(),
             RowCountConsistencyRule(),
-            ReferentialIntegrityPatternRule(),
             DataTypeValidationRule(),
         ]
     

@@ -21,6 +21,7 @@ import { getCheckPlans, getConnections, getRuns, healthCheck } from '../api/clie
 
 export function Dashboard() {
   const [health, setHealth] = useState<any>(null);
+  const [recentRuns, setRecentRuns] = useState<any[]>([]);
   const [stats, setStats] = useState({
     connections: 0,
     checkPlans: 0,
@@ -49,6 +50,7 @@ export function Dashboard() {
       const today = new Date().toISOString().split('T')[0];
       const runsToday = runs.filter((run: any) => run.started_at?.startsWith(today));
       const successfulRuns = runs.filter((run: any) => run.status === 'success');
+      setRecentRuns(runs.slice(0, 5));
 
       setStats({
         connections: (connectionsRes.data || []).length,
@@ -100,8 +102,8 @@ export function Dashboard() {
               Upload data, profile metadata, build checks, run plans, and review results.
             </h1>
             <p className="mt-5 max-w-2xl text-sm leading-7 text-white/78 md:text-base">
-              Start from a CSV upload or a saved connection, parse the metadata, assemble a plan from basic checks,
-              AI-generated checks, and prebuilt rule sets, then run it and review graphs, outcomes, and analysis.
+              Start from a CSV upload or a saved connection, parse the metadata, assemble a plan from baseline rules
+              and selected suggestions, then run it and review graphs, outcomes, and analysis.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -134,7 +136,7 @@ export function Dashboard() {
                 </div>
               </div>
               <p className="mt-3 text-sm text-white/72">
-                Run plans, inspect failures, and keep scan velocity visible without leaving the shell.
+                See what executed today and whether the latest plan activity is moving or blocked.
               </p>
             </div>
 
@@ -214,7 +216,7 @@ export function Dashboard() {
                   <span className="text-3xl font-bold" style={{ color: 'var(--text-1)' }}>{stats.successRate}</span>
                   <span className="text-sm font-semibold" style={{ color: 'var(--accent-text)' }}>%</span>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
-                    Health
+                    Pass rate
                   </p>
                 </div>
               </div>
@@ -229,15 +231,15 @@ export function Dashboard() {
                 Current pass rate is {stats.successRate >= 80 ? 'stable' : stats.successRate >= 50 ? 'mixed' : 'at risk'} across executed checks.
               </h3>
               <p className="mt-3 text-sm leading-7" style={{ color: 'var(--text-3)' }}>
-                Use metadata to identify candidate columns, combine baseline rules with AI suggestions and prebuilt checks,
-                then execute the plan and inspect failures before publishing results.
+                Use metadata to identify candidate columns, combine baseline rules with selected suggestions,
+                then execute the plan and inspect failures before moving to results and graphs.
               </p>
 
               <div className="mt-6 grid gap-3 md:grid-cols-3">
                 {[
                   { label: 'Completeness', value: `${Math.max(stats.successRate - 4, 0)}%` },
-                  { label: 'Freshness', value: `${Math.max(stats.successRate - 7, 0)}%` },
-                  { label: 'Validity', value: `${Math.min(stats.successRate + 2, 100)}%` },
+                  { label: 'Execution', value: `${Math.max(stats.successRate - 7, 0)}%` },
+                  { label: 'Coverage', value: `${Math.min(stats.successRate + 2, 100)}%` },
                 ].map((item) => (
                   <div key={item.label} className="rounded-[22px] px-4 py-3" style={{ background: 'var(--accent-light)' }}>
                     <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--text-3)' }}>{item.label}</p>
@@ -308,7 +310,7 @@ export function Dashboard() {
             {[
               { href: '/connections', icon: Database, label: 'Add Connection', desc: 'Register a source and shape ingestion.', color: 'var(--accent)', bgColor: 'var(--accent-light)' },
               { href: '/metadata', icon: FileSearch, label: 'Profile Metadata', desc: 'Inspect schema, types, and null patterns.', color: 'var(--accent-2)', bgColor: 'var(--accent-2-light)' },
-              { href: '/check-plans', icon: FileCheck, label: 'Create Check Plan', desc: 'Turn recommended rules into repeatable scans.', color: 'var(--success)', bgColor: 'var(--success-bg)' },
+              { href: '/check-plans', icon: FileCheck, label: 'Create Check Plan', desc: 'Turn baseline rules and selected suggestions into one executable plan.', color: 'var(--success)', bgColor: 'var(--success-bg)' },
             ].map((action) => (
               <Link key={action.href} to={action.href} className="card-hover group flex min-h-[210px] flex-col justify-between">
                 <div>
@@ -340,7 +342,7 @@ export function Dashboard() {
             {[
               { n: '01', title: 'Source', text: 'Upload a CSV or create a connection ahead of time or on the fly.' },
               { n: '02', title: 'Profile', text: 'Parse metadata, inspect schema, and understand the columns.' },
-              { n: '03', title: 'Plan', text: 'Combine basic checks, AI-generated checks, and prebuilt checks into one plan.' },
+              { n: '03', title: 'Plan', text: 'Combine baseline checks and selected suggestions into one plan.' },
               { n: '04', title: 'Run', text: 'Execute the plan and review graphs, results, and analysis outcomes.' },
             ].map((step) => (
               <div key={step.n} className="flex gap-4 rounded-[22px] border p-4" style={{ borderColor: 'var(--divider)' }}>
@@ -351,6 +353,70 @@ export function Dashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] animate-fade-up animate-delay-300">
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em]" style={{ color: 'var(--text-3)' }}>
+                <PlayCircle className="h-4 w-4" />
+                Recent activity
+              </div>
+              <h3 className="mt-3 text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-1)' }}>
+                Latest plan runs
+              </h3>
+            </div>
+            <Link to="/runs" className="btn-secondary text-xs">Open runs</Link>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {recentRuns.length > 0 ? recentRuns.map((run) => (
+              <div key={run.id} className="rounded-[22px] border p-4" style={{ borderColor: 'var(--divider)', background: 'rgba(255,255,255,0.03)' }}>
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Run #{run.id.slice(0, 8)}</p>
+                    <p className="mt-1 text-xs font-mono" style={{ color: 'var(--text-3)' }}>{run.started_at ? new Date(run.started_at).toLocaleString() : 'Queued'}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`badge ${run.status === 'success' ? 'badge-success' : run.status === 'failed' ? 'badge-error' : run.status === 'warning' ? 'badge-warning' : 'badge-info'}`}>
+                      {run.status}
+                    </span>
+                    {(run.status === 'success' || run.status === 'failed' || run.status === 'warning') && (
+                      <Link to={`/results?runId=${encodeURIComponent(run.id)}`} className="btn-secondary text-xs">Results</Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )) : (
+              <div className="rounded-[22px] border p-6 text-sm" style={{ borderColor: 'var(--divider)' }}>
+                No runs yet. Start with a source, profile it, and create the first plan.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em]" style={{ color: 'var(--text-3)' }}>
+            <ArrowRight className="h-4 w-4" />
+            Next best action
+          </div>
+          <h3 className="mt-3 text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-1)' }}>
+            Keep the workflow moving.
+          </h3>
+          <div className="mt-6 space-y-3">
+            {stats.connections === 0 ? (
+              <Link to="/connections" className="card-hover block p-4">Add the first source</Link>
+            ) : stats.checkPlans === 0 ? (
+              <Link to="/metadata" className="card-hover block p-4">Profile a source and generate rules</Link>
+            ) : stats.runsToday === 0 ? (
+              <Link to="/check-plans" className="card-hover block p-4">Execute the first plan</Link>
+            ) : (
+              <Link to="/results" className="card-hover block p-4">Review the latest results</Link>
+            )}
+            <Link to="/visualization" className="card-hover block p-4">Open graphs and analysis</Link>
           </div>
         </div>
       </section>

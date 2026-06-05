@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["connections"])
 
 # Configuration
-UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "/tmp/dq_platform_uploads"))
+UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "/app/uploads"))
 UPLOADS_DIR.mkdir(exist_ok=True, parents=True)
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 100 * 1024 * 1024))  # 100MB default
 ALLOWED_EXTENSIONS = {'csv', 'parquet', 'parq'}

@@ -6,7 +6,7 @@ import type { Connection, MetadataProfile, ColumnProfile } from '../types';
 
 type EnrichedColumn = ColumnProfile & {
   completenessPercent: number | null;
-  qualityFlag: 'healthy' | 'attention' | 'critical';
+  qualityFlag: 'ready' | 'attention' | 'critical';
   wranglerHint: string;
 };
 
@@ -31,7 +31,7 @@ export function Metadata() {
       const distinctCount = profileStats.distinct_count ?? column.distinct_count ?? null;
       const completenessPercent = typeof nullPercent === 'number' ? Math.max(0, 100 - nullPercent) : null;
 
-      let qualityFlag: EnrichedColumn['qualityFlag'] = 'healthy';
+      let qualityFlag: EnrichedColumn['qualityFlag'] = 'ready';
       if (typeof nullPercent === 'number' && nullPercent >= 20) {
         qualityFlag = 'critical';
       } else if (typeof nullPercent === 'number' && nullPercent > 0) {
@@ -70,9 +70,9 @@ export function Metadata() {
 
   const enrichedColumns = getEnrichedColumns(profile);
   const totalRows = enrichedColumns.find((column) => typeof column.row_count === 'number')?.row_count ?? null;
-  const columnsNeedingAttention = enrichedColumns.filter((column) => column.qualityFlag !== 'healthy').length;
+  const columnsNeedingAttention = enrichedColumns.filter((column) => column.qualityFlag !== 'ready').length;
   const profilingReadiness = enrichedColumns.length > 0
-    ? Math.round((enrichedColumns.filter((column) => column.qualityFlag === 'healthy').length / enrichedColumns.length) * 100)
+    ? Math.round((enrichedColumns.filter((column) => column.qualityFlag === 'ready').length / enrichedColumns.length) * 100)
     : 0;
 
   useEffect(() => {
@@ -223,7 +223,7 @@ export function Metadata() {
               <div className="flex items-center gap-3">
                 <Sparkles className="w-5 h-5" style={{ color: 'var(--success)' }} />
                 <div>
-                  <p className="text-xs text-text-muted font-mono uppercase">Profiler Readiness</p>
+                  <p className="text-xs text-text-muted font-mono uppercase">Columns Ready</p>
                   <p className="text-xl font-heading font-bold text-text-primary">{profilingReadiness}%</p>
                 </div>
               </div>
@@ -253,7 +253,7 @@ export function Metadata() {
               <Wand2 className="w-4 h-4" style={{ color: 'var(--warning)' }} />
               <div>
                 <h3 className="text-sm font-heading font-semibold text-text-primary">Wrangler Prep</h3>
-                <p className="text-xs text-text-secondary">Use these hints to decide which baseline, AI-generated, or prebuilt checks belong in the final plan.</p>
+                <p className="text-xs text-text-secondary">Use these hints to decide which baseline checks and selected suggestions belong in the final plan.</p>
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -265,7 +265,7 @@ export function Metadata() {
                       <p className="text-[11px] font-mono text-text-dim">{column.type}</p>
                     </div>
                     <span className={`text-xs font-mono ${qualityTone(column.qualityFlag)}`}>
-                      {column.qualityFlag === 'healthy' ? 'healthy' : column.qualityFlag === 'attention' ? 'review' : 'critical'}
+                      {column.qualityFlag === 'ready' ? 'ready' : column.qualityFlag === 'attention' ? 'review' : 'critical'}
                     </span>
                   </div>
                   <p className="mt-3 text-xs text-text-secondary">{column.wranglerHint}</p>

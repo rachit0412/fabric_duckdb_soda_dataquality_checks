@@ -150,6 +150,12 @@
 
 /* ─── Base Layer ─── */
 @layer base {
+  html {
+    min-height: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+  }
+
   *, *::before, *::after {
     border-color: var(--border-base);
   }
@@ -163,10 +169,14 @@
       radial-gradient(circle at bottom center, var(--bg-accent-c), transparent 26%),
       var(--bg);
     min-height: 100vh;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+    position: relative;
   }
 
   #root {
     min-height: 100vh;
+    isolation: isolate;
   }
 
   ::selection {
@@ -454,15 +464,27 @@
     gap: 24px;
   }
 
+  .app-shell {
+    position: relative;
+    isolation: isolate;
+    overflow-x: hidden;
+  }
+
   .ambient-shell {
-    position: fixed;
+    position: absolute;
     inset: 0;
+    z-index: 0;
     pointer-events: none;
     background:
       radial-gradient(circle at 12% 12%, var(--bg-accent-a), transparent 26%),
       radial-gradient(circle at 82% 18%, var(--bg-accent-b), transparent 22%),
       radial-gradient(circle at 56% 100%, var(--bg-accent-c), transparent 24%);
     opacity: 1;
+  }
+
+  .run-card-highlighted {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent-light), var(--card-hover-shadow);
   }
 
   .shell-bar {

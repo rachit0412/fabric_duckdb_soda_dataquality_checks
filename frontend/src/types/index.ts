@@ -81,14 +81,13 @@ export interface Run {
 }
 
 export interface RunStatus {
-  run_id: string;
+  id: string;
   check_plan_id: string;
   status: string;
-  percent_complete: number;
+  progress_percent: number;
   created_at: string;
   started_at?: string;
-  finished_at?: string;
-  duration_seconds?: number;
+  completed_at?: string;
   error_message?: string;
 }
 
