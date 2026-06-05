@@ -209,10 +209,12 @@ class SodaCoreRunner:
             for check in checks:
                 raw_outcome = str(check.get('outcome', '')).lower()
                 outcome = 'pass' if raw_outcome in {'pass', 'passed'} else 'fail'
+                diagnostic_value = check.get('diagnostics', {}).get('value')
+                raw_message = diagnostic_value if diagnostic_value not in {None, ''} else check.get('message', '')
                 results.append({
                     'check_name': check.get('name', 'unknown'),
                     'outcome': outcome,
-                    'message': check.get('diagnostics', {}).get('value') or check.get('message', ''),
+                    'message': str(raw_message) if raw_message not in {None, ''} else '',
                     'details': {
                         'result': check.get('metrics'),
                         'diagnostics': check.get('diagnostics', {}),

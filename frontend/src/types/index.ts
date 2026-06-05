@@ -44,6 +44,32 @@ export interface CheckSuggestion {
   suggested_check_yaml: string;
 }
 
+export interface CheckTemplateParameter {
+  key: string;
+  label: string;
+  input_type: string;
+  required?: boolean;
+  placeholder?: string;
+  default?: string;
+  options?: string[];
+}
+
+export interface CheckTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  engine: string;
+  scope?: string;
+  template: string;
+  preview?: string;
+  parameters?: CheckTemplateParameter[];
+}
+
+export interface CheckLibraryResponse {
+  categories: Record<string, CheckTemplate[]>;
+}
+
 export interface CheckPlan {
   id: string;
   name: string;

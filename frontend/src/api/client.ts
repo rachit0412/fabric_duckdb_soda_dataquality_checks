@@ -1,7 +1,19 @@
 import axios from 'axios';
 import type { CreateCheckPlanPayload } from '../types';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '';
+const resolveDefaultApiBaseUrl = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return `${window.location.protocol}//${window.location.hostname}:8001`;
+  }
+
+  return '';
+};
+
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || resolveDefaultApiBaseUrl();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -45,6 +57,8 @@ export const getSnapshotSuggestions = (snapshotId: string) =>
   api.get(`/api/v1/suggestions/${snapshotId}`);
 
 // Check Plans
+export const getCheckLibrary = (engine: string) =>
+  api.get('/api/v1/check-plans/library', { params: { engine } });
 export const getCheckPlans = () => api.get('/api/v1/check-plans/');
 export const createCheckPlan = (data: CreateCheckPlanPayload) => api.post('/api/v1/check-plans/', data);
 export const getCheckPlan = (id: string) => api.get(`/api/v1/check-plans/${id}`);

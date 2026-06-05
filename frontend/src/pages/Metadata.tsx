@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FileSearch, Loader2, RefreshCw, Hash, ToggleLeft, Type, Sparkles, Wand2, ArrowRight, Sigma, Database, ShieldAlert, Radar, Layers3 } from 'lucide-react';
 import { getConnections, profileMetadata, getMetadataForConnection } from '../api/client';
 import type { Connection, MetadataProfile, ColumnProfile } from '../types';
+import { readWorkflowContext, setWorkflowContext } from '../utils/workflowContext';
 
 type EnrichedColumn = ColumnProfile & {
   completenessPercent: number | null;
@@ -12,6 +13,7 @@ type EnrichedColumn = ColumnProfile & {
 
 export function Metadata() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const workflowContextRef = useRef(readWorkflowContext());
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedConn, setSelectedConn] = useState('');
@@ -90,6 +92,7 @@ export function Metadata() {
     try {
       const { data } = await profileMetadata({ connection_id: connectionId });
       setProfile(data);
+      setWorkflowContext({ connectionId, snapshotId: data?.snapshot_id });
     } catch (e: any) {
       alert(e?.response?.data?.detail || 'Profiling failed');
     } finally {
@@ -104,33 +107,45 @@ export function Metadata() {
 
   const loadExisting = async (connId: string) => {
     setSelectedConn(connId);
+    setWorkflowContext({ connectionId: connId });
     try {
       const { data } = await getMetadataForConnection(connId);
       if (data && (Array.isArray(data) ? data.length > 0 : data.snapshot_id)) {
-        setProfile(Array.isArray(data) ? data[0] : data);
+        const nextProfile = Array.isArray(data) ? data[0] : data;
+        setProfile(nextProfile);
+        setWorkflowContext({ connectionId: connId, snapshotId: nextProfile.snapshot_id });
         return true;
       } else {
         setProfile(null);
+        setWorkflowContext({ connectionId: connId });
         return false;
       }
     } catch {
       setProfile(null);
+      setWorkflowContext({ connectionId: connId });
       return false;
     }
   };
 
   useEffect(() => {
-    if (loading || !requestedConnectionId) return;
+    if (loading || selectedConn) return;
 
-    (async () => {
-      const hasExistingProfile = await loadExisting(requestedConnectionId);
-      if (!hasExistingProfile && shouldAutoProfile) {
-        await runProfile(requestedConnectionId);
+    const initialConnectionId = requestedConnectionId || workflowContextRef.current?.connectionId || '';
+    if (!initialConnectionId) {
+      return;
+    }
+
+    void (async () => {
+      const hasExistingProfile = await loadExisting(initialConnectionId);
+      if (!hasExistingProfile && requestedConnectionId && shouldAutoProfile) {
+        await runProfile(initialConnectionId);
       }
 
-      setSearchParams({}, { replace: true });
+      if (requestedConnectionId) {
+        setSearchParams({}, { replace: true });
+      }
     })();
-  }, [loading, requestedConnectionId, setSearchParams, shouldAutoProfile]);
+  }, [loading, requestedConnectionId, selectedConn, setSearchParams, shouldAutoProfile]);
 
   const typeIcon = (type: string) => {
     const t = type.toLowerCase();

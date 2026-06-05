@@ -207,6 +207,7 @@ services:
 
     volumes:
       - ./data:/app/data:ro
+      - ./data/uploads:/app/uploads:ro
 
     environment:
       SODA_PG_HOST: postgres
@@ -215,8 +216,8 @@ services:
       SODA_PG_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or .env.docker}
       SODA_PG_DB: data_quality
 
-    ports:
-      - "${SODA_RUNNER_PORT:-8010}:8000"
+    expose:
+      - "8000"
 
     depends_on:
       postgres:
@@ -258,9 +259,10 @@ services:
 
     volumes:
       - ./data:/app/data:ro
+      - ./data/uploads:/app/uploads:ro
 
-    ports:
-      - "${GE_RUNNER_PORT:-8020}:8000"
+    expose:
+      - "8000"
 
     depends_on:
       postgres:

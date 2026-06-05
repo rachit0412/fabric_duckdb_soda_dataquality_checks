@@ -1,0 +1,34 @@
+# Optional extension catalog for Check Plans Quick Add library.
+# Add your full Soda/GE template list here; it will be merged automatically.
+#
+# Structure:
+# templates:
+#   - id: custom_soda_not_null
+#     name: Custom Soda Not Null
+#     description: Ensure key has no nulls.
+#     category: Completeness
+#     engine: soda
+#     scope: column
+#     template: "- missing_count({{column}}) = 0"
+#     preview: "checks for data:\n  - missing_count(customer_id) = 0"
+#     parameters:
+#       - key: column
+#         label: Column
+#         input_type: column
+#         required: true
+#
+#   - id: custom_ge_not_null
+#     name: Custom GE Not Null
+#     description: Ensure key has no nulls.
+#     category: Completeness
+#     engine: great_expectations
+#     scope: column
+#     template: "- type: expect_column_values_to_not_be_null\n  column: {{column}}"
+#     preview: "expectations for data:\n  - type: expect_column_values_to_not_be_null\n    column: customer_id"
+#     parameters:
+#       - key: column
+#         label: Column
+#         input_type: column
+#         required: true
+
+templates: []

@@ -137,10 +137,12 @@ def _run_scan(req: ExecuteRequest) -> List[CheckResult]:
             outcome = "pass" if outcome_str in {"pass", "passed"} else (
                 "warn" if outcome_str in {"warn", "warned", "warning"} else "fail"
             )
+            diagnostic_value = chk.get("diagnostics", {}).get("value")
+            raw_message = diagnostic_value if diagnostic_value not in {None, ""} else chk.get("message")
             results.append(CheckResult(
                 check_name=chk.get("name", "unknown"),
                 outcome=outcome,
-                message=chk.get("diagnostics", {}).get("value") or chk.get("message") or None,
+                message=str(raw_message) if raw_message not in {None, ""} else None,
                 details={
                     "metrics":      chk.get("metrics"),
                     "diagnostics":  chk.get("diagnostics", {}),

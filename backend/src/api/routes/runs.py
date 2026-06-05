@@ -271,7 +271,8 @@ async def _execute_checks_background(
             else:
               result_status = "failed"
 
-            message = result.get("message") or ""
+            message_value = result.get("message")
+            message = "" if message_value is None else str(message_value)
             details = result.get("details") or {}
             metric_value = None
             if isinstance(details, dict):
@@ -280,7 +281,7 @@ async def _execute_checks_background(
             check_result = CheckResult(
                 run_id=run_id,
                 check_name=result.get("check_name") or f"check_{idx + 1}",
-                check_type=result.get("check_type") or "soda",
+                check_type=result.get("check_type") or engine,
                 status=result_status,
                 metric_value=metric_value,
                 execution_time_ms=result.get("execution_time_ms") or 0,

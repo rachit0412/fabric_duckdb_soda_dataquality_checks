@@ -28,6 +28,8 @@ Expectations YAML format:
 
 import logging
 import re
+import json
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -178,6 +180,36 @@ def _dispatch(df: pd.DataFrame, exp_type: str, params: Dict[str, Any]) -> CheckR
             message=None if ok else f"Columns {actual} ≠ expected {expected}",
         )
 
+    if exp_type == "expect_table_column_count_to_be_between":
+        n = len(df.columns)
+        lo = params.get("min_value")
+        hi = params.get("max_value")
+        ok = (lo is None or n >= lo) and (hi is None or n <= hi)
+        return CheckResult(
+            check_name=name,
+            outcome="pass" if ok else "fail",
+            message=None if ok else f"Column count {n} outside [{lo}, {hi}]",
+        )
+
+    if exp_type == "expect_table_columns_to_match_set":
+        expected_set = set(params.get("column_set", []))
+        actual_set = set(df.columns)
+        ok = expected_set == actual_set
+        return CheckResult(
+            check_name=name,
+            outcome="pass" if ok else "fail",
+            message=None if ok else f"Columns {sorted(actual_set)} ≠ expected set {sorted(expected_set)}",
+        )
+
+    if exp_type == "expect_column_to_exist":
+        target_col = params.get("column")
+        ok = bool(target_col and target_col in df.columns)
+        return CheckResult(
+            check_name=f"{exp_type}({target_col})",
+            outcome="pass" if ok else "fail",
+            message=None if ok else f"Column '{target_col}' not found in dataset",
+        )
+
     # ── column-level: null / completeness ────────────────────────────────────
     if exp_type == "expect_column_values_to_not_be_null":
         _assert_col(df, col)
@@ -244,6 +276,29 @@ def _dispatch(df: pd.DataFrame, exp_type: str, params: Dict[str, Any]) -> CheckR
             message=f"{bad} values not in allowed set in '{col}'" if not ok else None,
         )
 
+    if exp_type == "expect_column_values_to_not_be_in_set":
+        _assert_col(df, col)
+        blocked = set(params.get("value_set", []))
+        bad = int(df[col].isin(blocked).sum())
+        ok = bad == 0
+        return CheckResult(
+            check_name=name,
+            outcome="pass" if ok else "fail",
+            message=f"{bad} values found in blocked set in '{col}'" if not ok else None,
+        )
+
+    if exp_type == "expect_column_distinct_values_to_be_in_set":
+        _assert_col(df, col)
+        allowed = set(params.get("value_set", []))
+        distinct = set(df[col].dropna().tolist())
+        disallowed = distinct - allowed
+        ok = len(disallowed) == 0
+        return CheckResult(
+            check_name=name,
+            outcome="pass" if ok else "fail",
+            message=None if ok else f"Disallowed distinct values in '{col}': {sorted(disallowed)}",
+        )
+
     # ── regex / format ───────────────────────────────────────────────────────
     if exp_type == "expect_column_values_to_match_regex":
         _assert_col(df, col)
@@ -256,6 +311,50 @@ def _dispatch(df: pd.DataFrame, exp_type: str, params: Dict[str, Any]) -> CheckR
             check_name=name,
             outcome="pass" if ok else "fail",
             message=f"{bad} values don't match regex '{pattern}' in '{col}'" if not ok else None,
+        )
+
+    if exp_type == "expect_column_values_to_not_match_regex":
+        _assert_col(df, col)
+        pattern = params.get("regex", "")
+        bad = int(df[col].dropna().astype(str).apply(lambda v: bool(re.match(pattern, v))).sum())
+        ok = bad == 0
+        return CheckResult(
+            check_name=name,
+            outcome="pass" if ok else "fail",
+            message=f"{bad} values matched forbidden regex '{pattern}' in '{col}'" if not ok else None,
+        )
+
+    if exp_type == "expect_column_values_to_be_json_parseable":
+        _assert_col(df, col)
+        def _is_json_parseable(value: Any) -> bool:
+            try:
+                json.loads(str(value))
+                return True
+            except Exception:
+                return False
+        bad = int(df[col].dropna().astype(str).apply(lambda v: not _is_json_parseable(v)).sum())
+        ok = bad == 0
+        return CheckResult(
+            check_name=name,
+            outcome="pass" if ok else "fail",
+            message=f"{bad} values are not valid JSON in '{col}'" if not ok else None,
+        )
+
+    if exp_type == "expect_column_values_to_match_strftime_format":
+        _assert_col(df, col)
+        fmt = params.get("strftime_format", "%Y-%m-%d")
+        def _matches(value: Any) -> bool:
+            try:
+                datetime.strptime(str(value), fmt)
+                return True
+            except Exception:
+                return False
+        bad = int(df[col].dropna().apply(lambda v: not _matches(v)).sum())
+        ok = bad == 0
+        return CheckResult(
+            check_name=name,
+            outcome="pass" if ok else "fail",
+            message=f"{bad} values do not match format '{fmt}' in '{col}'" if not ok else None,
         )
 
     # ── length ───────────────────────────────────────────────────────────────
@@ -282,6 +381,67 @@ def _dispatch(df: pd.DataFrame, exp_type: str, params: Dict[str, Any]) -> CheckR
             check_name=name,
             outcome="pass" if ok else "fail",
             message=f"Column '{col}' is {actual}, expected {expected_type}" if not ok else None,
+        )
+
+    if exp_type == "expect_column_values_to_be_increasing":
+        _assert_col(df, col)
+        series = pd.to_numeric(df[col], errors='coerce').dropna()
+        bad = int((series.diff() < 0).sum())
+        ok = bad == 0
+        return CheckResult(
+            check_name=name,
+            outcome="pass" if ok else "fail",
+            message=f"{bad} decreases found in '{col}'" if not ok else None,
+        )
+
+    if exp_type == "expect_column_values_to_be_decreasing":
+        _assert_col(df, col)
+        series = pd.to_numeric(df[col], errors='coerce').dropna()
+        bad = int((series.diff() > 0).sum())
+        ok = bad == 0
+        return CheckResult(
+            check_name=name,
+            outcome="pass" if ok else "fail",
+            message=f"{bad} increases found in '{col}'" if not ok else None,
+        )
+
+    if exp_type == "expect_column_mean_to_be_between":
+        _assert_col(df, col)
+        series = pd.to_numeric(df[col], errors='coerce').dropna()
+        value = float(series.mean()) if len(series) > 0 else float('nan')
+        lo = params.get("min_value")
+        hi = params.get("max_value")
+        ok = (lo is None or value >= lo) and (hi is None or value <= hi)
+        return CheckResult(
+            check_name=name,
+            outcome="pass" if ok else "fail",
+            message=None if ok else f"Mean {value} outside [{lo}, {hi}] for '{col}'",
+        )
+
+    if exp_type == "expect_column_median_to_be_between":
+        _assert_col(df, col)
+        series = pd.to_numeric(df[col], errors='coerce').dropna()
+        value = float(series.median()) if len(series) > 0 else float('nan')
+        lo = params.get("min_value")
+        hi = params.get("max_value")
+        ok = (lo is None or value >= lo) and (hi is None or value <= hi)
+        return CheckResult(
+            check_name=name,
+            outcome="pass" if ok else "fail",
+            message=None if ok else f"Median {value} outside [{lo}, {hi}] for '{col}'",
+        )
+
+    if exp_type == "expect_column_pair_values_to_be_equal":
+        col_a = params.get("column_A")
+        col_b = params.get("column_B")
+        _assert_col(df, col_a)
+        _assert_col(df, col_b)
+        bad = int((df[col_a] != df[col_b]).fillna(False).sum())
+        ok = bad == 0
+        return CheckResult(
+            check_name=f"{exp_type}({col_a},{col_b})",
+            outcome="pass" if ok else "fail",
+            message=f"{bad} mismatched pairs between '{col_a}' and '{col_b}'" if not ok else None,
         )
 
     # ── unknown ───────────────────────────────────────────────────────────────

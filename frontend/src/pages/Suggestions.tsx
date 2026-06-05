@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Lightbulb, Loader2, Sparkles, Copy, Check } from 'lucide-react';
 import { getConnections, generateSuggestions } from '../api/client';
 import type { Connection, CheckSuggestion } from '../types';
+import { readWorkflowContext, setWorkflowContext } from '../utils/workflowContext';
 
 const SUGGESTION_PLAN_DRAFT_KEY = 'dq-suggestion-plan-draft';
 const SUGGESTIONS_CACHE_KEY = 'dq-suggestions-results-cache';
@@ -21,6 +22,7 @@ export type SuggestionPlanDraft = {
 
 export function Suggestions() {
   const navigate = useNavigate();
+  const workflowContextRef = useRef(readWorkflowContext());
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedConn, setSelectedConn] = useState('');
@@ -59,9 +61,18 @@ export function Suggestions() {
             setSelectedSuggestionIds(cache.suggestions.map((s: CheckSuggestion) => s.id));
             setCurrentSnapshotId(cache.snapshotId || '');
             if (cache.connectionId) setSelectedConn(cache.connectionId);
+            setWorkflowContext({ connectionId: cache.connectionId, snapshotId: cache.snapshotId || '' });
+            return;
           }
         }
       } catch { /* ignore stale cache */ }
+
+      if (workflowContextRef.current?.connectionId) {
+        setSelectedConn(workflowContextRef.current.connectionId);
+      }
+      if (workflowContextRef.current?.snapshotId) {
+        setCurrentSnapshotId(workflowContextRef.current.snapshotId);
+      }
     })();
   }, []);
 
@@ -79,6 +90,7 @@ export function Suggestions() {
       setCurrentSnapshotId(nextSnapshotId);
       setSuggestions(nextSuggestions);
       setSelectedSuggestionIds(nextSuggestions.map((suggestion: CheckSuggestion) => suggestion.id));
+      setWorkflowContext({ connectionId, snapshotId: nextSnapshotId });
       // Persist so navigating back doesn't wipe results
       const cache: SuggestionsCache = { connectionId, snapshotId: nextSnapshotId, suggestions: nextSuggestions };
       sessionStorage.setItem(SUGGESTIONS_CACHE_KEY, JSON.stringify(cache));
@@ -195,7 +207,12 @@ export function Suggestions() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <select title="Select connection for suggestions" className="input text-xs" value={selectedConn} onChange={e => setSelectedConn(e.target.value)}>
+          <select title="Select connection for suggestions" className="input text-xs" value={selectedConn} onChange={e => {
+            const nextConnectionId = e.target.value;
+            setSelectedConn(nextConnectionId);
+            setCurrentSnapshotId('');
+            setWorkflowContext({ connectionId: nextConnectionId });
+          }}>
             <option value="">Select connection...</option>
             {connections.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
           </select>

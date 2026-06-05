@@ -82,12 +82,25 @@ class SuggestionsResponse(BaseModel):
     generated_at: Optional[datetime] = None
 
 # ============== Check Library Models ==============
+class CheckTemplateParameter(BaseModel):
+    key: str
+    label: str
+    input_type: str  # column, number, text, list, select
+    required: Optional[bool] = True
+    placeholder: Optional[str] = None
+    default: Optional[str] = None
+    options: Optional[List[str]] = None
+
 class CheckTemplate(BaseModel):
     id: str
     name: str
     description: str
     category: str  # Completeness, Uniqueness, etc.
-    template: str  # SodaCL template
+    engine: str = 'soda'
+    scope: str = 'column'  # table, column, pair
+    template: str  # YAML body snippet (without top-level header)
+    preview: Optional[str] = None
+    parameters: List[CheckTemplateParameter] = []
 
 class CheckLibraryResponse(BaseModel):
     categories: Dict[str, List[CheckTemplate]]

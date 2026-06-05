@@ -10,7 +10,6 @@ import {
   LineChart,
   Moon,
   PlayCircle,
-  Sparkles,
   Sun,
 } from 'lucide-react';
 import { useTheme } from './ThemeContext';
@@ -47,10 +46,6 @@ export function Layout() {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em]" style={{ color: 'var(--text-3)' }}>
                     Data quality workflow
                   </p>
-                  <span className="shell-chip hidden sm:inline-flex">
-                    <Sparkles className="h-3 w-3" />
-                    Upload to results
-                  </span>
                 </div>
                 <h1 className="truncate text-lg font-semibold sm:text-xl" style={{ color: 'var(--text-1)' }}>
                   {currentPage}

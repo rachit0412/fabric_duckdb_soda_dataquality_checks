@@ -6,7 +6,19 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
 // Get API base URL from environment or default
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '';
+const resolveDefaultApiBaseUrl = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return `${window.location.protocol}//${window.location.hostname}:8001`;
+  }
+
+  return '';
+};
+
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || resolveDefaultApiBaseUrl();
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({

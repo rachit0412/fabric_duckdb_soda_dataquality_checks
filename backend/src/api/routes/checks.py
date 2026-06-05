@@ -21,9 +21,10 @@ import re
 import yaml
 from datetime import datetime
 
-from src.api.models import CheckPlanCreate, CheckPlanResponse, SuggestionsResponse
+from src.api.models import CheckPlanCreate, CheckPlanResponse, SuggestionsResponse, CheckLibraryResponse
 from src.models.db import CheckPlan, Connection, MetadataSnapshot, CheckSuggestion, Run
 from src.storage.db import get_db
+from src.services.check_library import get_check_library
 from src.services.suggestions import SuggestionEngine
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,12 @@ def _validate_soda_yaml(checks_yaml: str) -> Dict[str, Any]:
 async def validate_check_plan_yaml(request: Dict[str, Any]):
     """Validate SodaCL YAML without persisting. Returns {valid, issues}."""
     return _validate_soda_yaml(request.get("checks_yaml", ""))
+
+
+@router.get("/library", response_model=CheckLibraryResponse)
+async def list_check_library(engine: Optional[str] = None):
+    """Return predefined check templates for Soda Core and Great Expectations."""
+    return get_check_library(engine)
 
 def _normalize_checks_yaml(checks_yaml: Optional[str]) -> str:
     raw_yaml = (checks_yaml or "").strip()
@@ -223,8 +230,8 @@ async def create_check_plan(
         
         logger.info(f"Creating check plan: {request.name}")
 
-        # Validate SodaCL YAML before saving
-        if request.checks_yaml:
+        # Validate SodaCL YAML only for Soda-backed plans.
+        if request.checks_yaml and (request.check_engine or 'soda') != 'great_expectations':
             validation = _validate_soda_yaml(request.checks_yaml)
             if not validation["valid"]:
                 errors = [i["message"] for i in validation["issues"] if i["severity"] == "error"]
@@ -315,6 +322,7 @@ async def list_check_plans(
                 description=p.description,
                 checks_yaml=p.checks_yaml,
                 custom_checks_yaml=p.custom_checks_yaml,
+                check_engine=p.check_engine or 'soda',
                 enabled=p.enabled,
                 created_at=p.created_at,
                 updated_at=p.updated_at
@@ -350,6 +358,7 @@ async def get_check_plan(
             description=plan.description,
             checks_yaml=plan.checks_yaml,
             custom_checks_yaml=plan.custom_checks_yaml,
+            check_engine=plan.check_engine or 'soda',
             enabled=plan.enabled,
             created_at=plan.created_at,
             updated_at=plan.updated_at
@@ -382,16 +391,19 @@ async def update_check_plan(
             plan.name = request.name
         if request.description is not None:
             plan.description = request.description
+        if request.check_engine is not None:
+            plan.check_engine = request.check_engine
         if request.checks_yaml is not None:
-            # Validate before updating
-            validation = _validate_soda_yaml(request.checks_yaml)
-            if not validation["valid"]:
-                errors = [i["message"] for i in validation["issues"] if i["severity"] == "error"]
-                raise HTTPException(
-                    status_code=422,
-                    detail={"message": "Checks YAML contains errors. Fix them before saving.",
-                            "errors": errors},
-                )
+            # Validate only SodaCL plans before updating.
+            if (request.check_engine or plan.check_engine or 'soda') != 'great_expectations':
+                validation = _validate_soda_yaml(request.checks_yaml)
+                if not validation["valid"]:
+                    errors = [i["message"] for i in validation["issues"] if i["severity"] == "error"]
+                    raise HTTPException(
+                        status_code=422,
+                        detail={"message": "Checks YAML contains errors. Fix them before saving.",
+                                "errors": errors},
+                    )
             plan.checks_yaml = request.checks_yaml
         if request.custom_checks_yaml is not None:
             plan.custom_checks_yaml = request.custom_checks_yaml
@@ -413,6 +425,7 @@ async def update_check_plan(
             description=plan.description,
             checks_yaml=plan.checks_yaml,
             custom_checks_yaml=plan.custom_checks_yaml,
+            check_engine=plan.check_engine or 'soda',
             enabled=plan.enabled,
             created_at=plan.created_at,
             updated_at=plan.updated_at
