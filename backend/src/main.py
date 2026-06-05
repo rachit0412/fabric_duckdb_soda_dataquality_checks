@@ -51,6 +51,27 @@ LOGGING_CONFIG = {
 logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
 
+
+def _run_migrations(db_engine) -> None:
+    """Idempotent schema migrations for existing databases.
+    SQLAlchemy create_all only creates missing tables, not missing columns.
+    Add every new column here so redeployments on existing DBs don't break.
+    """
+    from sqlalchemy import text
+    migrations = [
+        # Added in v1.1 — check engine selector
+        "ALTER TABLE check_plans ADD COLUMN IF NOT EXISTS check_engine VARCHAR(50) DEFAULT 'soda';",
+    ]
+    with db_engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(text(sql))
+            except Exception as exc:
+                logger.warning(f"Migration skipped ({sql!r}): {exc}")
+        conn.commit()
+    logger.info("Database migrations applied")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context for startup/shutdown events."""
@@ -60,6 +81,9 @@ async def lifespan(app: FastAPI):
     # Initialize database
     Base.metadata.create_all(bind=engine)
     logger.info("Database schema initialized")
+
+    # Idempotent column migrations for existing databases
+    _run_migrations(engine)
     
     # Start worker if enabled
     if settings.WORKER_ENABLED:

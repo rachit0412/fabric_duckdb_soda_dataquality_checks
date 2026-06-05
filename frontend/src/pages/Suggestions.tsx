@@ -154,11 +154,12 @@ export function Suggestions() {
 
     if (withSelectedSuggestions) {
       sessionStorage.setItem(SUGGESTION_PLAN_DRAFT_KEY, JSON.stringify(draft));
+      // Clear suggestions cache only after committing to a plan, so "Skip for now"
+      // still lets the user return and see their suggestions
+      sessionStorage.removeItem(SUGGESTIONS_CACHE_KEY);
     } else {
       sessionStorage.removeItem(SUGGESTION_PLAN_DRAFT_KEY);
     }
-    // Clear suggestions cache so they don't reappear after the plan is created
-    sessionStorage.removeItem(SUGGESTIONS_CACHE_KEY);
 
     const params = new URLSearchParams();
     if (selectedConn) {
