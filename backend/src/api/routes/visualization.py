@@ -57,8 +57,8 @@ async def get_run_metrics(
             }
         
         # Aggregate status
-        passed = sum(1 for r in results if r.outcome == "pass")
-        failed = sum(1 for r in results if r.outcome == "fail")
+        passed = sum(1 for r in results if r.status == "passed")
+        failed = sum(1 for r in results if r.status in ("failed", "warned"))
         total = len(results)
         pass_rate = (passed / total * 100) if total > 0 else 0
         
@@ -69,15 +69,15 @@ async def get_run_metrics(
             if col not in by_column:
                 by_column[col] = {"passed": 0, "failed": 0, "checks": []}
             
-            if result.outcome == "pass":
+            if result.status == "passed":
                 by_column[col]["passed"] += 1
             else:
                 by_column[col]["failed"] += 1
             
             by_column[col]["checks"].append({
                 "name": result.check_name,
-                "outcome": result.outcome,
-                "message": result.message,
+                "outcome": result.status,
+                "message": result.error_message or result.warning_message or "",
             })
         
         # Calculate column scores
@@ -87,27 +87,29 @@ async def get_run_metrics(
             score = (data["passed"] / total_col * 100) if total_col > 0 else 0
             column_scores[col] = score
         
-        # Group by check type (parse from check_name pattern)
+        # Group by check type (infer from check_name pattern)
         by_check_type = {}
         for result in results:
-            # Try to infer check type from message or name
-            check_type = "unknown"
-            if result.message:
-                if "missing" in result.message.lower() or "null" in result.message.lower():
-                    check_type = "missing_count"
-                elif "duplicate" in result.message.lower():
-                    check_type = "duplicate_count"
-                elif "invalid" in result.message.lower():
-                    check_type = "invalid_count"
-                elif "anomaly" in result.message.lower():
-                    check_type = "anomaly_detection"
-                elif "freshness" in result.message.lower():
-                    check_type = "freshness"
-            
+            check_name_lower = (result.check_name or "").lower()
+            if "missing" in check_name_lower or "null" in check_name_lower:
+                check_type = "missing_count"
+            elif "duplicate" in check_name_lower:
+                check_type = "duplicate_count"
+            elif "invalid" in check_name_lower:
+                check_type = "invalid_count"
+            elif "schema" in check_name_lower:
+                check_type = "schema"
+            elif "freshness" in check_name_lower:
+                check_type = "freshness"
+            elif "row_count" in check_name_lower:
+                check_type = "row_count"
+            else:
+                check_type = "other"
+
             if check_type not in by_check_type:
                 by_check_type[check_type] = {"passed": 0, "failed": 0}
             
-            if result.outcome == "pass":
+            if result.status == "passed":
                 by_check_type[check_type]["passed"] += 1
             else:
                 by_check_type[check_type]["failed"] += 1
@@ -122,8 +124,8 @@ async def get_run_metrics(
                 "pass_rate": round(pass_rate, 2),
             },
             "by_status": {
-                "pass": [r.check_name for r in results if r.outcome == "pass"],
-                "fail": [r.check_name for r in results if r.outcome == "fail"],
+                "pass": [r.check_name for r in results if r.status == "passed"],
+                "fail": [r.check_name for r in results if r.status in ("failed", "warned")],
             },
             "by_column": {
                 col: {
@@ -160,7 +162,7 @@ async def get_plan_trend(
         runs = db.query(Run).filter(
             Run.check_plan_id == plan_id,
             Run.completed_at >= cutoff_date,
-            Run.status == "completed"
+            Run.status.in_(["success", "failed", "warning"])
         ).order_by(Run.completed_at.asc()).all()
         
         if not runs:
@@ -176,7 +178,7 @@ async def get_plan_trend(
             results = db.query(CheckResult).filter(CheckResult.run_id == run.id).all()
             
             if results:
-                passed = sum(1 for r in results if r.outcome == "pass")
+                passed = sum(1 for r in results if r.status == "passed")
                 total = len(results)
                 pass_rate = (passed / total * 100) if total > 0 else 0
                 
@@ -213,7 +215,7 @@ async def get_quality_by_column(
         # Get recent results
         results = db.query(CheckResult).join(Run).filter(
             Run.completed_at >= cutoff_date,
-            Run.status == "completed"
+            Run.status.in_(["success", "failed", "warning"])
         ).all()
         
         if not results:
@@ -230,7 +232,7 @@ async def get_quality_by_column(
                 column_quality[col_name] = {"passed": 0, "total": 0}
             
             column_quality[col_name]["total"] += 1
-            if result.outcome == "pass":
+            if result.status == "passed":
                 column_quality[col_name]["passed"] += 1
         
         # Calculate scores

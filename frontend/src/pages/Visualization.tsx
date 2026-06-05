@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { LineChart as LineChartIcon } from 'lucide-react';
 import { getCheckPlans, getRuns, getRunMetrics, getPlanTrend } from '../api/client';
 import type { CheckPlan, Run, RunMetrics, TrendDataPoint } from '../types';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export function Visualization() {
+  const [searchParams] = useSearchParams();
+  const requestedRunId = searchParams.get('runId') || '';
   const [plans, setPlans] = useState<CheckPlan[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<RunMetrics | null>(null);
   const [trend, setTrend] = useState<TrendDataPoint[]>([]);
   const [selectedPlan, setSelectedPlan] = useState('');
+  const [selectedRunId, setSelectedRunId] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -24,10 +28,14 @@ export function Visualization() {
         setPlans(p);
         setRuns(r);
 
-        // Auto-load latest completed run metrics
         const completed = r.filter((x: Run) => x.status === 'success' || x.status === 'failed' || x.status === 'warning');
-        if (completed.length > 0) {
-          loadRunMetrics(completed[0].id);
+        // Prefer the run from query param, otherwise latest
+        const target = requestedRunId
+          ? (completed.find((x: Run) => x.id === requestedRunId) || completed[0])
+          : completed[0];
+        if (target) {
+          setSelectedRunId(target.id);
+          loadRunMetrics(target.id);
         }
         if (p.length > 0) {
           setSelectedPlan(p[0].id);
@@ -36,9 +44,10 @@ export function Visualization() {
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     })();
-  }, []);
+  }, [requestedRunId]);
 
   const loadRunMetrics = async (runId: string) => {
+    setSelectedRunId(runId);
     try {
       const { data } = await getRunMetrics(runId);
       setMetrics(data);
@@ -49,7 +58,7 @@ export function Visualization() {
     setSelectedPlan(planId);
     try {
       const { data } = await getPlanTrend(planId, 30);
-      setTrend(Array.isArray(data) ? data : data?.trend || []);
+      setTrend(Array.isArray(data) ? data : data?.data_points || data?.trend || []);
     } catch { setTrend([]); }
   };
 
@@ -83,6 +92,36 @@ export function Visualization() {
         </div>
       ) : (
         <>
+          {/* Run + plan pickers */}
+          {(runs.filter(r => r.status === 'success' || r.status === 'failed' || r.status === 'warning').length > 0 || plans.length > 0) && (
+            <div className="flex flex-wrap gap-3 animate-fade-up">
+              {runs.filter(r => r.status === 'success' || r.status === 'failed' || r.status === 'warning').length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-text-muted font-mono uppercase tracking-wider whitespace-nowrap">Run metrics</label>
+                  <select className="input text-xs font-mono pr-8" value={selectedRunId}
+                    title="Select run to view metrics"
+                    onChange={e => loadRunMetrics(e.target.value)}>
+                    {runs.filter(r => r.status === 'success' || r.status === 'failed' || r.status === 'warning').map(r => (
+                      <option key={r.id} value={r.id}>#{r.id.slice(0, 8)} — {r.status}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {plans.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-text-muted font-mono uppercase tracking-wider whitespace-nowrap">Trend plan</label>
+                  <select className="input text-xs font-mono pr-8" value={selectedPlan}
+                    title="Select plan to view trend"
+                    onChange={e => loadTrend(e.target.value)}>
+                    {plans.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Run Metrics - Column quality */}
           {metrics && metrics.by_column && Object.keys(metrics.by_column).length > 0 && (
             <div className="card animate-fade-up">

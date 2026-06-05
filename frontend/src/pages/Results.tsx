@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BarChart3, CheckCircle2, XCircle, AlertTriangle, Loader2, Activity, ArrowRight, ListFilter } from 'lucide-react';
+import { BarChart3, CheckCircle2, XCircle, AlertTriangle, Loader2, Activity, ListFilter, ChevronDown, ChevronUp } from 'lucide-react';
 import { getRuns, getRunResults } from '../api/client';
 import type { Run, RunResults } from '../types';
 
@@ -12,6 +12,7 @@ export function Results() {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [results, setResults] = useState<RunResults | null>(null);
   const [loadingResults, setLoadingResults] = useState(false);
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -165,11 +166,32 @@ export function Results() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`badge ${statusBadge(r.status)}`}>{r.status.toUpperCase()}</span>
-                      <span className="text-xs font-mono" style={{ color: 'var(--text-3)' }}>
-                        Inspect <ArrowRight className="inline-block h-3.5 w-3.5 ml-1" />
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}
+                        className="btn-secondary text-xs flex items-center gap-1"
+                      >
+                        Inspect
+                        {expandedIdx === i
+                          ? <ChevronUp className="w-3 h-3" />
+                          : <ChevronDown className="w-3 h-3" />}
+                      </button>
                     </div>
                   </div>
+                  {expandedIdx === i && (
+                    <div className="mt-3 rounded-[14px] border p-3 text-xs font-mono space-y-1" style={{ borderColor: 'var(--divider)', background: 'var(--input-bg)' }}>
+                      <div><span className="text-text-muted">check_type: </span><span className="text-text-secondary">{r.check_type}</span></div>
+                      <div><span className="text-text-muted">status: </span><span className={r.status === 'passed' ? 'text-emerald-400' : 'text-rose-400'}>{r.status}</span></div>
+                      {r.message && <div><span className="text-text-muted">message: </span><span className="text-text-secondary">{r.message}</span></div>}
+                      {r.created_at && <div><span className="text-text-muted">executed_at: </span><span className="text-text-secondary">{new Date(r.created_at).toLocaleString()}</span></div>}
+                      {r.details && (
+                        <div>
+                          <span className="text-text-muted">details:</span>
+                          <pre className="mt-1 whitespace-pre-wrap break-words text-text-secondary">{JSON.stringify(r.details, null, 2)}</pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
