@@ -121,6 +121,24 @@ export function Runs() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [runs, trackedRunId, startingRun]);
 
+  /* ── fetch status immediately for tracked run on load ── */
+  useEffect(() => {
+    if (!trackedRunId || !trackedRun) return;
+    void (async () => {
+      try {
+        const { data } = await getRunStatus(trackedRunId);
+        setLiveStatus(prev => ({
+          ...prev,
+          [trackedRunId]: {
+            status:          data.status,
+            progressPercent: data.progress_percent ?? 0,
+            errorMessage:    data.error_message || undefined,
+          },
+        }));
+      } catch { /* ignore */ }
+    })();
+  }, [trackedRunId, trackedRun?.id]);
+
   /* ── tab-focus refresh ── */
   useEffect(() => {
     const onVisible = () => {
@@ -296,6 +314,15 @@ export function Runs() {
                     </div>
                   ))}
                 </div>
+
+                {/* ── error message ── */}
+                {trackedDone && trackedLive?.errorMessage && (
+                  <div className="mt-4 rounded-[16px] border border-rose-400/30 bg-rose-500/15 px-4 py-3">
+                    <p className="text-[11px] font-mono uppercase tracking-wider text-rose-300 mb-1">Execution error</p>
+                    <pre className="text-xs text-rose-200 whitespace-pre-wrap break-words font-mono leading-relaxed">{trackedLive.errorMessage}</pre>
+                    <p className="mt-2 text-[11px] text-white/50">Fix the checks YAML in <Link to="/check-plans" className="underline hover:text-white/80">Check Plans → Edit</Link> then re-execute.</p>
+                  </div>
+                )}
 
                 {/* ── action buttons ── */}
                 {trackedDone ? (

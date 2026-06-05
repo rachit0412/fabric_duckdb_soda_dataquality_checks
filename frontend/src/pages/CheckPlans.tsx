@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileCheck, Plus, Trash2, Play, X } from 'lucide-react';
-import { getCheckPlans, createCheckPlan, deleteCheckPlan, getConnections, getMetadataSnapshot } from '../api/client';
+import { FileCheck, Plus, Trash2, Play, X, ChevronDown, ChevronUp, Pencil, Check, Loader2 } from 'lucide-react';
+import { getCheckPlans, createCheckPlan, deleteCheckPlan, getConnections, getMetadataSnapshot, updateCheckPlan } from '../api/client';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import type { CheckPlan, CheckSuggestion, Connection, CreateCheckPlanPayload, MetadataProfile, ColumnProfile } from '../types';
 import type { SuggestionPlanDraft } from './Suggestions';
@@ -118,6 +118,10 @@ export function CheckPlans() {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(Boolean(requestedConnectionId || requestedSnapshotId));
+  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', description: '', checks_yaml: '' });
+  const [saving, setSaving] = useState(false);
   const [importedSuggestions, setImportedSuggestions] = useState<CheckSuggestion[]>([]);
   const [baselineChecksYaml, setBaselineChecksYaml] = useState(DEFAULT_CHECKS_YAML);
   const [baselineReady, setBaselineReady] = useState(!requestedSnapshotId);
@@ -292,6 +296,29 @@ export function CheckPlans() {
     }
   };
 
+  const handleStartEdit = (plan: CheckPlan) => {
+    setEditingPlanId(plan.id);
+    setEditForm({ name: plan.name, description: plan.description || '', checks_yaml: plan.checks_yaml || '' });
+    setExpandedPlanId(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPlanId(null);
+  };
+
+  const handleSavePlan = async (planId: string) => {
+    setSaving(true);
+    try {
+      await updateCheckPlan(planId, editForm);
+      setEditingPlanId(null);
+      load();
+    } catch {
+      alert('Failed to save plan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleExecute = (planId: string) => {
     // Navigate immediately — the Runs page owns the execution call
     navigate(`/runs?planId=${encodeURIComponent(planId)}&autoStart=1`);
@@ -376,37 +403,104 @@ export function CheckPlans() {
       <div className="space-y-3">
         {plans.map((plan, i) => (
           <div key={plan.id} className="card-hover animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
-                  <FileCheck className="w-5 h-5 text-emerald-400" />
+
+            {/* ── edit mode ── */}
+            {editingPlanId === plan.id ? (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-xs font-mono uppercase tracking-wider text-text-muted">Editing plan</p>
+                  <button title="Cancel edit" onClick={handleCancelEdit} className="p-1 rounded-lg hover:bg-white/5"><X className="w-4 h-4 text-text-muted" /></button>
                 </div>
-                <div>
-                  <h3 className="text-sm font-heading font-semibold text-text-primary">{plan.name}</h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-text-secondary">{connName(plan.connection_id)}</span>
-                    {plan.dataset_identifier && (
-                      <span className="text-[10px] text-text-dim font-mono">· {plan.dataset_identifier}</span>
-                    )}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Name</label>
+                    <input className="input" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
                   </div>
-                  {plan.description && <p className="text-xs text-text-muted mt-1">{plan.description}</p>}
+                  <div>
+                    <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Description</label>
+                    <input className="input" value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Checks YAML</label>
+                    <textarea className="input font-mono text-xs" rows={10} value={editForm.checks_yaml} onChange={e => setEditForm(f => ({ ...f, checks_yaml: e.target.value }))} />
+                    <p className="mt-1 text-xs text-text-muted">SodaCL format: <code className="font-mono">checks for &lt;table&gt;:</code> with indented check lines.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <button onClick={() => void handleSavePlan(plan.id)} disabled={saving} className="btn-primary text-xs">
+                    {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    Save changes
+                  </button>
+                  <button onClick={handleCancelEdit} className="btn-secondary text-xs">Cancel</button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`badge ${plan.enabled ? 'badge-success' : 'badge-warning'}`}>
-                  {plan.enabled ? 'Active' : 'Disabled'}
-                </span>
-                <button onClick={() => handleExecute(plan.id)} className="btn-ghost text-xs gap-1">
-                  <Play className="w-3 h-3" />
-                  Execute
-                </button>
-                <button title={`Delete plan ${plan.name}`} onClick={() => handleDelete(plan.id)} className="p-2 rounded-lg transition-all" style={{ color: 'var(--text-3)' }}
-                  onMouseEnter={e => { e.currentTarget.style.color = '#f43f5e'; e.currentTarget.style.background = 'var(--delete-hover-bg)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.background = 'transparent'; }}>
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+            ) : (
+              <>
+                {/* ── normal card row ── */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.1)' }}>
+                      <FileCheck className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-heading font-semibold text-text-primary">{plan.name}</h3>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-text-secondary">{connName(plan.connection_id)}</span>
+                        {plan.dataset_identifier && (
+                          <span className="text-[10px] text-text-dim font-mono">· {plan.dataset_identifier}</span>
+                        )}
+                      </div>
+                      {plan.description && <p className="text-xs text-text-muted mt-1">{plan.description}</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`badge ${plan.enabled ? 'badge-success' : 'badge-warning'}`}>
+                      {plan.enabled ? 'Active' : 'Disabled'}
+                    </span>
+                    <button
+                      title="View/hide YAML checks"
+                      onClick={() => setExpandedPlanId(expandedPlanId === plan.id ? null : plan.id)}
+                      className="btn-secondary text-xs gap-1"
+                    >
+                      {expandedPlanId === plan.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                      Checks
+                    </button>
+                    <button
+                      title="Edit plan"
+                      onClick={() => handleStartEdit(plan)}
+                      className="btn-secondary text-xs gap-1"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Edit
+                    </button>
+                    <button onClick={() => handleExecute(plan.id)} className="btn-ghost text-xs gap-1">
+                      <Play className="w-3 h-3" />
+                      Execute
+                    </button>
+                    <button title={`Delete plan ${plan.name}`} onClick={() => handleDelete(plan.id)} className="p-2 rounded-lg transition-all" style={{ color: 'var(--text-3)' }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#f43f5e'; e.currentTarget.style.background = 'var(--delete-hover-bg)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.background = 'transparent'; }}>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── expanded YAML ── */}
+                {expandedPlanId === plan.id && (
+                  <div className="mt-4 rounded-[16px] border overflow-hidden" style={{ borderColor: 'var(--divider)' }}>
+                    <div className="flex items-center justify-between px-4 py-2" style={{ background: 'var(--glass-border)' }}>
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-text-muted">checks_yaml</span>
+                      <button onClick={() => handleStartEdit(plan)} className="text-xs text-text-muted hover:text-text-primary transition-colors flex items-center gap-1">
+                        <Pencil className="w-3 h-3" /> Edit YAML
+                      </button>
+                    </div>
+                    <pre className="p-4 text-xs font-mono text-text-secondary overflow-x-auto whitespace-pre-wrap break-words" style={{ background: 'var(--input-bg)' }}>
+                      {plan.checks_yaml || '(no checks defined)'}
+                    </pre>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         ))}
       </div>
