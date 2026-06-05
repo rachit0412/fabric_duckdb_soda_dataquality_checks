@@ -49,6 +49,7 @@ class CheckPlan(Base):
     description = Column(Text)
     checks_yaml = Column(Text, nullable=False)
     custom_checks_yaml = Column(Text)
+    check_engine = Column(String(50), default='soda', server_default='soda')
     enabled = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=func.now())
     updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())

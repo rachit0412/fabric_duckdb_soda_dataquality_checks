@@ -134,34 +134,61 @@ class MissingCheckRule(SuggestionRule):
             "suggested_yaml": _render_checks_yaml(f"- missing_count({col_name}) < {max(fail_threshold, 1)}")
         }
 
+# Column-name patterns → (min, max, confidence)
+_RANGE_SEMANTICS: List[tuple] = [
+    (["age"],                        0,   150,   0.90),
+    (["score", "rating"],             0,   100,   0.90),
+    (["percent", "pct", "rate"],       0,   100,   0.90),
+    (["price", "amount", "cost"],      0,   None,  0.80),
+    (["quantity", "qty", "count"],     0,   None,  0.80),
+    (["year"],                        1900, 2100,  0.85),
+    (["month"],                       1,   12,    0.95),
+    (["day"],                         1,   31,    0.95),
+    (["hour"],                        0,   23,    0.95),
+    (["latitude", "lat"],             -90,  90,   0.95),
+    (["longitude", "lon", "lng"],     -180, 180,  0.95),
+]
+
 class RangeCheckNumericRule(SuggestionRule):
-    """Suggest range check for numeric columns."""
+    """Suggest range check for numeric columns with column-name-aware bounds."""
     def __init__(self):
         super().__init__("range_check_numeric", "Validity", "invalid_count")
-    
+
     def can_suggest(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> bool:
         return _type_contains(column.get("type", ""), NUMERIC_TYPE_TOKENS)
-    
+
+    def _get_bounds(self, col_name: str, profile_min: Any, profile_max: Any):
+        """Return (min, max, confidence) using semantic rules then profile data."""
+        lower = col_name.lower()
+        for keywords, sem_min, sem_max, conf in _RANGE_SEMANTICS:
+            if any(kw in lower for kw in keywords):
+                return sem_min, sem_max, conf
+        # Fall back to profile data if available, otherwise skip
+        if profile_min is not None and profile_max is not None:
+            return profile_min, profile_max, 0.70
+        return None, None, 0.0  # Not enough info to suggest a range
+
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         col_name = column["name"]
-        col_min = column.get("min")
-        col_max = column.get("max")
-        if col_min is None:
-            col_min = 0
-        if col_max is None:
-            col_max = 1000000
-        
+        col_min, col_max, conf = self._get_bounds(
+            col_name, column.get("min"), column.get("max")
+        )
+        if col_min is None and col_max is None:
+            return {}  # Skip — no meaningful range to suggest
+
+        range_parts = [f"- invalid_count({col_name}) = 0:"]
+        if col_min is not None:
+            range_parts.append(f"    valid min: {col_min}")
+        if col_max is not None:
+            range_parts.append(f"    valid max: {col_max}")
+
         return {
             "rule_id": self.rule_id,
             "check_name": f"{col_name} within valid range",
             "check_type": self.check_type,
-            "rationale": f"Numeric column should be between {col_min} and {col_max}",
-            "confidence": 0.75,
-            "suggested_yaml": _render_checks_yaml(
-                f"- invalid_count({col_name}) = 0:",
-                f"    valid min: {col_min}",
-                f"    valid max: {col_max}",
-            )
+            "rationale": f"'{col_name}' should be within [{col_min}, {col_max}]",
+            "confidence": conf,
+            "suggested_yaml": _render_checks_yaml(*range_parts),
         }
 
 class PatternCheckEmailRule(SuggestionRule):
@@ -195,8 +222,6 @@ class EnumCheckRule(SuggestionRule):
     def can_suggest(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> bool:
         col_name = column["name"].lower()
         distinct_count = column.get("distinct_count", 0)
-        
-        # Low cardinality + status-like name
         status_keywords = ["status", "state", "type", "kind", "level"]
         return distinct_count < 10 and any(kw in col_name for kw in status_keywords)
     
@@ -206,9 +231,12 @@ class EnumCheckRule(SuggestionRule):
             "rule_id": self.rule_id,
             "check_name": f"{col_name} has valid values",
             "check_type": self.check_type,
-            "rationale": f"'{col_name}' has limited valid values; suggest an enum check",
+            "rationale": f"'{col_name}' has limited valid values; add an allowed-list check",
             "confidence": 0.80,
-            "suggested_yaml": f"checks:\n  - name: '{col_name} valid values'\n    filters:\n      - $table_ident = public.table_name\n    checks:\n      - name: valid {col_name}\n        type: valid_values\n        column: {col_name}\n        valid_values: ['value1', 'value2']  # Fill in actual values"
+            "suggested_yaml": _render_checks_yaml(
+                f"- invalid_count({col_name}) = 0:",
+                "    valid values: []  # TODO: fill in actual values e.g. ['active', 'inactive']",
+            )
         }
 
 class FreshnessCheckRule(SuggestionRule):
@@ -219,42 +247,31 @@ class FreshnessCheckRule(SuggestionRule):
     def can_suggest(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> bool:
         col_name = column["name"].lower()
         col_type = column.get("type", "").upper()
-        
         freshness_keywords = ["created", "updated", "loaded", "ingested", "timestamp"]
-        return any(kw in col_name for kw in freshness_keywords) and "TIMESTAMP" in col_type
+        return any(kw in col_name for kw in freshness_keywords) and _type_contains(col_type, DATE_TYPE_TOKENS)
     
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         col_name = column["name"]
         return {
             "rule_id": self.rule_id,
-            "check_name": f"{col_name} is recent",
+            "check_name": f"{col_name} freshness",
             "check_type": self.check_type,
-            "rationale": f"'{col_name}' should contain recent data; verify freshness",
+            "rationale": f"'{col_name}' should contain recent data; verify data is loaded within 24 hours",
             "confidence": 0.75,
-            "suggested_yaml": f"checks:\n  - name: '{col_name} is recent'\n    type: invalid_count\n    column: {col_name}\n    valid_min_length: 1\n    fail: when > row_count * 0.1"
+            "suggested_yaml": _render_checks_yaml(f"- freshness({col_name}) < 24h")
         }
 
 class DuplicateCheckCompositeRule(SuggestionRule):
-    """Suggest composite key check (simplified)."""
+    """Suggest composite key check — per-column duplicate check on FK-like columns."""
     def __init__(self):
         super().__init__("composite_key_check", "Uniqueness", "duplicate_count")
-    
-    def can_suggest(self, columns: List[Dict[str, Any]]) -> bool:
-        # Simplified: if two columns with high combined distinct count
-        if len(columns) < 2:
-            return False
-        return True
-    
-    def generate_suggestion(self, columns: List[Dict[str, Any]]) -> Dict[str, Any]:
-        col_names = [c["name"] for c in columns[:2]]
-        return {
-            "rule_id": self.rule_id,
-            "check_name": f"Composite key {col_names[0]}, {col_names[1]}",
-            "check_type": self.check_type,
-            "rationale": "These columns form a natural composite key",
-            "confidence": 0.70,
-            "suggested_yaml": f"checks:\n  - name: 'composite key unique'\n    # Requires Soda composite check support"
-        }
+
+    # This rule operates per-column (called like other per-column rules)
+    def can_suggest(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> bool:
+        return False  # Disabled: composite key checks require multi-column Soda syntax not yet supported
+
+    def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
+        return {}
 
 class AnomalyDetectionRule(SuggestionRule):
     """Suggest anomaly detection for numeric columns."""

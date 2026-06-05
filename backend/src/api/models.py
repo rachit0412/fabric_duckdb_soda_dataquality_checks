@@ -107,6 +107,7 @@ class CheckPlanCreate(BaseModel):
     description: Optional[str] = None
     checks_yaml: Optional[str] = None
     custom_checks_yaml: Optional[str] = None
+    check_engine: Optional[str] = 'soda'
     enabled: Optional[bool] = True
 
 class CheckPlanResponse(BaseModel):
@@ -118,6 +119,7 @@ class CheckPlanResponse(BaseModel):
     dataset_identifier: str
     checks_yaml: str
     custom_checks_yaml: Optional[str] = None
+    check_engine: Optional[str] = 'soda'
     enabled: bool
     created_at: datetime
     updated_at: Optional[datetime] = None

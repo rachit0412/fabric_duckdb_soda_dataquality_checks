@@ -73,6 +73,11 @@ async def get_suggestions(
                     column['null_count'] = col_profile.get('null_count', 0)
                     column['null_percent'] = col_profile.get('null_percent', 0)
                     column['distinct_count'] = col_profile.get('distinct_count', 0)
+                    # Pass numeric bounds so range rules can use observed data
+                    if 'min' in col_profile:
+                        column['min'] = col_profile.get('min')
+                    if 'max' in col_profile:
+                        column['max'] = col_profile.get('max')
                 # Normalize type names
                 original_type = column.get('type', '')
                 column['type'] = type_mapping.get(original_type, original_type)

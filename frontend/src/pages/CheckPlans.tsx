@@ -187,6 +187,7 @@ export function CheckPlans() {
     connection_id: requestedConnectionId || undefined,
     metadata_snapshot_id: requestedSnapshotId || undefined,
     description: '',
+    check_engine: 'soda',
     checks_yaml: DEFAULT_CHECKS_YAML,
   });
 
@@ -317,6 +318,7 @@ export function CheckPlans() {
         name: form.name,
         description: form.description,
         checks_yaml: form.checks_yaml,
+        check_engine: form.check_engine || 'soda',
       };
 
       if (form.connection_id) {
@@ -330,7 +332,7 @@ export function CheckPlans() {
       await createCheckPlan(payload);
       await load();
       setShowForm(false);
-      setForm({ name: '', description: '', checks_yaml: baselineChecksYaml });
+      setForm({ name: '', description: '', check_engine: 'soda', checks_yaml: baselineChecksYaml });
       setImportedSuggestions([]);
     } catch (error: any) {
       alert(error?.response?.data?.detail || 'Failed to create check plan');
@@ -440,23 +442,44 @@ export function CheckPlans() {
                 <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Description</label>
                 <input type="text" className="input" placeholder="Describe the scope, owner, or target dataset" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
               </div>
+              <div>
+                <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Check Engine</label>
+                <select className="input" title="Check engine" value={form.check_engine || 'soda'} onChange={e => setForm({ ...form, check_engine: e.target.value })}>
+                  <option value="soda">Soda Core (SodaCL)</option>
+                  <option value="great_expectations">Great Expectations</option>
+                </select>
+              </div>
               <div className="col-span-2">
-                <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Checks (SodaCL YAML)</label>
+                <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">
+                  {form.check_engine === 'great_expectations' ? 'Expectations (GE YAML)' : 'Checks (SodaCL YAML)'}
+                </label>
                 <textarea className="input font-mono text-xs" rows={6}
                   value={form.checks_yaml}
                   onChange={e => {
                     setForm({ ...form, checks_yaml: e.target.value });
-                    triggerValidation(e.target.value, setCreateValidation, createTimerRef);
+                    if (form.check_engine !== 'great_expectations') {
+                      triggerValidation(e.target.value, setCreateValidation, createTimerRef);
+                    }
                   }}
-                  placeholder={"checks for data:\n  - row_count > 0"} required />
-                <YamlValidationPanel v={createValidation} />
-                {createValidation.valid === undefined && !createValidation.loading && (
-                  <p className="mt-1 text-xs text-text-muted">Paste SodaCL YAML — it will be validated automatically as you type.</p>
+                  placeholder={form.check_engine === 'great_expectations'
+                    ? "expectations for data:\n  - type: expect_column_values_to_not_be_null\n    column: customer_id\n  - type: expect_column_values_to_be_between\n    column: age\n    min_value: 0\n    max_value: 150"
+                    : "checks for data:\n  - row_count > 0"
+                  } required />
+                {form.check_engine !== 'great_expectations' && (
+                  <>
+                    <YamlValidationPanel v={createValidation} />
+                    {createValidation.valid === undefined && !createValidation.loading && (
+                      <p className="mt-1 text-xs text-text-muted">Paste SodaCL YAML — it will be validated automatically as you type.</p>
+                    )}
+                  </>
+                )}
+                {form.check_engine === 'great_expectations' && (
+                  <p className="mt-1 text-xs text-text-muted">GE expectations YAML. Validation runs at execution time via the GE runner service.</p>
                 )}
               </div>
             </div>
             <div className="flex gap-3 pt-1">
-              <button type="submit" disabled={createValidation.valid === false} className="btn-primary" title={createValidation.valid === false ? 'Fix YAML errors before creating' : ''}><Plus className="w-4 h-4" />Create Plan</button>
+              <button type="submit" disabled={form.check_engine !== 'great_expectations' && createValidation.valid === false} className="btn-primary" title={createValidation.valid === false ? 'Fix YAML errors before creating' : ''}><Plus className="w-4 h-4" />Create Plan</button>
               <button type="button" onClick={() => { setShowForm(false); setCreateValidation(EMPTY_VALIDATION); }} className="btn-secondary">Cancel</button>
             </div>
           </form>

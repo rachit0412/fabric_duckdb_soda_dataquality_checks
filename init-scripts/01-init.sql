@@ -30,4 +30,18 @@ CREATE INDEX IF NOT EXISTS idx_scan_results_status ON scan_results(status);
 -- Grant permissions (if needed)
 -- GRANT ALL PRIVILEGES ON TABLE scan_results TO postgres;
 
+-- Schema migrations (idempotent) --
+-- Add check_engine to check_plans when the table exists (created by SQLAlchemy on first API start)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'check_plans') THEN
+    IF NOT EXISTS (
+      SELECT FROM information_schema.columns
+      WHERE table_name = 'check_plans' AND column_name = 'check_engine'
+    ) THEN
+      ALTER TABLE check_plans ADD COLUMN check_engine VARCHAR(50) DEFAULT 'soda';
+    END IF;
+  END IF;
+END $$;
+
 SELECT 'Database initialized successfully' AS message;

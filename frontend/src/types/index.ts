@@ -53,6 +53,7 @@ export interface CheckPlan {
   description?: string;
   checks_yaml?: string;
   custom_checks_yaml?: string;
+  check_engine?: string;
   enabled: boolean;
   created_at: string;
   updated_at?: string;
@@ -66,6 +67,7 @@ export interface CreateCheckPlanPayload {
   description?: string;
   checks_yaml?: string;
   custom_checks_yaml?: string;
+  check_engine?: string;
   enabled?: boolean;
 }
 

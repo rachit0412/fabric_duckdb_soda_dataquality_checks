@@ -19,11 +19,15 @@ import json
 from datetime import datetime
 import asyncio
 import yaml
+import os
 
 from src.models.db import Run, CheckResult, CheckPlan, MetadataSnapshot, Connection
 from src.storage.db import get_db
 from src.api.models import RunResponse, RunStatusResponse
 from src.services.soda_runner import SodaCoreRunner
+
+_SODA_RUNNER_URL = os.getenv("SODA_RUNNER_URL", "")
+_GE_RUNNER_URL = os.getenv("GE_RUNNER_URL", "")
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["runs"])
@@ -94,9 +98,30 @@ def _get_total_checks_from_plan(plan: Optional[CheckPlan]) -> int:
     return len(_extract_checks_list(parsed))
 
 
+async def _call_remote_runner(
+    base_url: str,
+    run_id: UUID,
+    connection: Connection,
+    plan: CheckPlan,
+    checks_yaml: str,
+) -> dict:
+    """Delegate execution to a remote runner microservice (soda-runner or ge-runner)."""
+    import httpx
+    payload = {
+        "run_id": str(run_id),
+        "connection_type": connection.type,
+        "remote_url": connection.remote_url or "",
+        "dataset_identifier": plan.dataset_identifier or "",
+        "checks_yaml": checks_yaml,
+    }
+    async with httpx.AsyncClient(timeout=300) as client:
+        resp = await client.post(f"{base_url}/execute", json=payload)
+        resp.raise_for_status()
+        return resp.json()
+
+
 @router.post("/{check_plan_id}/execute")
-async def execute_check_plan(
-    check_plan_id: UUID,
+async def execute_check_plan(    check_plan_id: UUID,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
@@ -217,13 +242,20 @@ async def _execute_checks_background(
             raise ValueError(f"YAML parse error: {str(e)}") from e
 
         runner = SodaCoreRunner()
-        soda_results = runner.execute_checks(
-            connection_id=str(connection.id),
-            connection_type=connection.type,
-            remote_url=connection.remote_url or snapshot.dataset_identifier,
-            dataset_identifier=plan.dataset_identifier or snapshot.dataset_identifier,
-            checks_config=combined_yaml,
-        )
+        engine = getattr(plan, 'check_engine', 'soda') or 'soda'
+
+        if engine == 'great_expectations' and _GE_RUNNER_URL:
+            soda_results = await _call_remote_runner(_GE_RUNNER_URL, run_id, connection, plan, combined_yaml)
+        elif engine == 'soda' and _SODA_RUNNER_URL:
+            soda_results = await _call_remote_runner(_SODA_RUNNER_URL, run_id, connection, plan, combined_yaml)
+        else:
+            soda_results = runner.execute_checks(
+                connection_id=str(connection.id),
+                connection_type=connection.type,
+                remote_url=connection.remote_url or snapshot.dataset_identifier,
+                dataset_identifier=plan.dataset_identifier or snapshot.dataset_identifier,
+                checks_config=combined_yaml,
+            )
 
         passed_count = 0
         failed_count = 0

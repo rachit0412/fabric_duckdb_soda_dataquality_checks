@@ -243,6 +243,7 @@ async def create_check_plan(
             description=request.description,
             checks_yaml=_normalize_checks_yaml(request.checks_yaml),
             custom_checks_yaml=request.custom_checks_yaml,
+            check_engine=request.check_engine or 'soda',
             enabled=request.enabled if request.enabled is not None else True,
         )
         db.add(new_plan)
@@ -260,6 +261,7 @@ async def create_check_plan(
             description=new_plan.description,
             checks_yaml=new_plan.checks_yaml,
             custom_checks_yaml=new_plan.custom_checks_yaml,
+            check_engine=new_plan.check_engine or 'soda',
             enabled=new_plan.enabled,
             created_at=new_plan.created_at,
             updated_at=new_plan.updated_at

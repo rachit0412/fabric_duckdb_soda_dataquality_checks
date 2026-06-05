@@ -5,6 +5,13 @@ import { getConnections, generateSuggestions } from '../api/client';
 import type { Connection, CheckSuggestion } from '../types';
 
 const SUGGESTION_PLAN_DRAFT_KEY = 'dq-suggestion-plan-draft';
+const SUGGESTIONS_CACHE_KEY = 'dq-suggestions-results-cache';
+
+type SuggestionsCache = {
+  connectionId: string;
+  snapshotId: string;
+  suggestions: CheckSuggestion[];
+};
 
 export type SuggestionPlanDraft = {
   connectionId?: string;
@@ -41,6 +48,20 @@ export function Suggestions() {
         setConnections(Array.isArray(data) ? data : []);
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
+
+      // Restore cached suggestions so navigating back doesn't lose results
+      try {
+        const raw = sessionStorage.getItem(SUGGESTIONS_CACHE_KEY);
+        if (raw) {
+          const cache: SuggestionsCache = JSON.parse(raw);
+          if (cache.suggestions?.length) {
+            setSuggestions(cache.suggestions);
+            setSelectedSuggestionIds(cache.suggestions.map((s: CheckSuggestion) => s.id));
+            setCurrentSnapshotId(cache.snapshotId || '');
+            if (cache.connectionId) setSelectedConn(cache.connectionId);
+          }
+        }
+      } catch { /* ignore stale cache */ }
     })();
   }, []);
 
@@ -54,9 +75,13 @@ export function Suggestions() {
         : { connection_id: connectionId };
       const { data } = await generateSuggestions(requestPayload);
       const nextSuggestions = data?.suggestions || [];
-      setCurrentSnapshotId(data?.metadata_snapshot_id || snapshotId || '');
+      const nextSnapshotId = data?.metadata_snapshot_id || snapshotId || '';
+      setCurrentSnapshotId(nextSnapshotId);
       setSuggestions(nextSuggestions);
       setSelectedSuggestionIds(nextSuggestions.map((suggestion: CheckSuggestion) => suggestion.id));
+      // Persist so navigating back doesn't wipe results
+      const cache: SuggestionsCache = { connectionId, snapshotId: nextSnapshotId, suggestions: nextSuggestions };
+      sessionStorage.setItem(SUGGESTIONS_CACHE_KEY, JSON.stringify(cache));
     } catch (e: any) {
       alert(e?.response?.data?.detail || 'Failed to generate suggestions');
     } finally {
@@ -132,6 +157,8 @@ export function Suggestions() {
     } else {
       sessionStorage.removeItem(SUGGESTION_PLAN_DRAFT_KEY);
     }
+    // Clear suggestions cache so they don't reappear after the plan is created
+    sessionStorage.removeItem(SUGGESTIONS_CACHE_KEY);
 
     const params = new URLSearchParams();
     if (selectedConn) {
