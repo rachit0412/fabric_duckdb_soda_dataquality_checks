@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { BarChart2, TrendingUp, PieChart as PieIcon, Activity } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { BarChart2, TrendingUp, PieChart as PieIcon, Activity, ExternalLink } from 'lucide-react';
 import { getCheckPlans, getRuns, getRunMetrics, getPlanTrend } from '../api/client';
 import type { CheckPlan, Run, RunMetrics, TrendDataPoint } from '../types';
 import {
@@ -214,13 +214,14 @@ export function Visualization() {
                 color: metrics.summary.pass_rate >= 80 ? 'text-emerald-400' : 'text-rose-400',
                 icon: <TrendingUp className="w-4 h-4" /> },
             ].map(tile => (
-              <div key={tile.label} className="card text-center">
+              <Link key={tile.label} to={`/results?runId=${selectedRunId}`}
+                className="card text-center hover:ring-1 hover:ring-white/10 transition-all cursor-pointer">
                 <div className="flex items-center justify-center gap-1 text-text-muted mb-1">
                   {tile.icon}
                   <p className="text-[10px] font-mono uppercase tracking-wider">{tile.label}</p>
                 </div>
                 <p className={`text-3xl font-heading font-bold mt-0.5 ${tile.color}`}>{tile.val}</p>
-              </div>
+              </Link>
             ))}
           </div>
 
@@ -369,39 +370,37 @@ export function Visualization() {
             </div>
           </div>
 
-          {/* ══ ROW 5: Heatmap grid ══ */}
+          {/* ══ ROW 5: Check quality scoreboard ══ */}
           {heatChecks.length > 0 && (
             <div className="card animate-fade-up">
-              <SectionLabel icon={<Activity className="w-3.5 h-3.5" />} title="Check health heatmap" />
-              <p className="text-xs text-text-muted mb-4">Each tile represents one check. Colour encodes quality score from red (0%) to green (100%).</p>
-              <div className="flex flex-wrap gap-2">
-                {heatChecks.map((c, i) => (
-                  <div
+              <SectionLabel icon={<Activity className="w-3.5 h-3.5" />} title="Check quality scoreboard" />
+              <div className="space-y-1">
+                {[...heatChecks].sort((a, b) => a.score - b.score).map((c, i) => (
+                  <Link
                     key={i}
-                    title={`${c.name}\nScore: ${c.score.toFixed(1)}%\nPassed: ${c.passed}  Failed: ${c.failed}`}
-                    className="group relative flex flex-col items-center justify-center rounded-[10px] cursor-default transition-transform hover:scale-105"
-                    style={{
-                      width: 110, minHeight: 62,
-                      background: `${heatColor(c.score)}18`,
-                      border: `1.5px solid ${heatColor(c.score)}55`,
-                    }}
+                    to={`/results?runId=${selectedRunId}`}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/5 cursor-pointer group"
                   >
-                    <p className="text-[9px] font-mono text-center px-2 leading-tight" style={{ color: 'rgba(255,255,255,0.65)' }}>
-                      {c.name.length > 24 ? c.name.slice(0, 22) + '…' : c.name}
-                    </p>
-                    <p className="text-base font-bold mt-0.5" style={{ color: heatColor(c.score) }}>
+                    <span className="text-sm font-bold font-mono w-12 text-right shrink-0"
+                      style={{ color: heatColor(c.score) }}>
                       {c.score.toFixed(0)}%
-                    </p>
-                  </div>
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs text-text-primary font-mono truncate">{c.name}</span>
+                        <span className="text-[10px] font-mono shrink-0 ml-2">
+                          {c.passed > 0 && <span className="text-emerald-500">{c.passed}✓</span>}
+                          {c.failed > 0 && <span className="text-rose-500 ml-1">{c.failed}✗</span>}
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                        <div className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${c.score}%`, background: heatColor(c.score) }} />
+                      </div>
+                    </div>
+                    <ExternalLink className="w-3 h-3 text-text-muted opacity-0 group-hover:opacity-50 shrink-0 transition-opacity" />
+                  </Link>
                 ))}
-              </div>
-              {/* Legend */}
-              <div className="mt-4 flex items-center gap-2">
-                <span className="text-[10px] font-mono text-text-muted">0%</span>
-                <div className="h-2 flex-1 rounded-full" style={{
-                  background: `linear-gradient(to right, ${HEAT_COLORS.join(', ')})`
-                }} />
-                <span className="text-[10px] font-mono text-text-muted">100%</span>
               </div>
             </div>
           )}
