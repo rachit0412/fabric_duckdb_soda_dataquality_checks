@@ -17,6 +17,8 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID, uuid4
 import logging
 import json
+import re
+import yaml
 from datetime import datetime
 
 from src.api.models import CheckPlanCreate, CheckPlanResponse, SuggestionsResponse
@@ -27,6 +29,92 @@ from src.services.suggestions import SuggestionEngine
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["checks"])
 
+# ---------------------------------------------------------------------------
+# SodaCL YAML validator
+# ---------------------------------------------------------------------------
+
+_INVALID_TYPE_PATTERNS = [
+    (
+        r'^\s+type:\s*anomaly_detection',
+        "anomaly_detection is not a Soda check type. "
+        "Replace with: invalid_count(col) = 0:\n      valid min: X\n      valid max: Y",
+    ),
+    (
+        r'^\s+type:\s*schema_type',
+        "schema_type is not a Soda check type. "
+        "Replace with: schema:\n      fail:\n        when wrong column type:\n          col_name: expected_type",
+    ),
+    (
+        r'^\s+type:\s*valid_values',
+        "valid_values as 'type:' is not valid SodaCL. "
+        "Replace with: invalid_count(col) = 0:\n      valid values: [val1, val2]",
+    ),
+    (
+        r'^\s+type:\s*row_count',
+        "row_count as 'type:' is not valid SodaCL. "
+        "Use the expression form: row_count between X and Y",
+    ),
+]
+
+
+def _validate_soda_yaml(checks_yaml: str) -> Dict[str, Any]:
+    """Validate SodaCL YAML syntax and patterns. Returns {valid, issues}."""
+    raw = (checks_yaml or "").strip()
+    if not raw:
+        return {"valid": False, "issues": [{"severity": "error", "message": "Checks YAML is empty."}]}
+
+    # 1. YAML syntax
+    try:
+        yaml.safe_load(raw)
+    except yaml.YAMLError as exc:
+        first_line = str(exc).split("\n")[0]
+        return {"valid": False, "issues": [{"severity": "error", "message": f"YAML syntax error: {first_line}"}]}
+
+    issues = []
+
+    # 2. Must start with 'checks for <table>:' or 'checks:'
+    if not (raw.startswith("checks for ") or raw.startswith("checks:")):
+        issues.append({
+            "severity": "warning",
+            "message": "SodaCL should start with 'checks for <table>:' (e.g. 'checks for data:')",
+        })
+
+    # 3. Known unsupported block-mapping 'type:' keys
+    for pattern, message in _INVALID_TYPE_PATTERNS:
+        if re.search(pattern, raw, re.MULTILINE):
+            issues.append({"severity": "error", "message": message})
+
+    # 4. Invalid 'fail: when < X / when > Y' block syntax
+    if re.search(r'fail:\s*\n\s+when\s+[<>=]', raw):
+        issues.append({
+            "severity": "error",
+            "message": "Invalid 'fail: when < X' block syntax. Use 'row_count between X and Y' for range checks.",
+        })
+
+    # 5. Block-mapping check style (- name: / type: / fail:) mixed into a list
+    if re.search(r'^\s+- name:\s+', raw, re.MULTILINE):
+        issues.append({
+            "severity": "error",
+            "message": (
+                "Block-mapping check style ('- name: ... type: ... fail: ...') is not valid SodaCL. "
+                "Use expression syntax, e.g.: - missing_count(col) = 0"
+            ),
+        })
+
+    return {
+        "valid": not any(i["severity"] == "error" for i in issues),
+        "issues": issues,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Validate endpoint  (must appear before any /{check_plan_id} route)
+# ---------------------------------------------------------------------------
+
+@router.post("/validate")
+async def validate_check_plan_yaml(request: Dict[str, Any]):
+    """Validate SodaCL YAML without persisting. Returns {valid, issues}."""
+    return _validate_soda_yaml(request.get("checks_yaml", ""))
 
 def _normalize_checks_yaml(checks_yaml: Optional[str]) -> str:
     raw_yaml = (checks_yaml or "").strip()
@@ -134,7 +222,18 @@ async def create_check_plan(
             )
         
         logger.info(f"Creating check plan: {request.name}")
-        
+
+        # Validate SodaCL YAML before saving
+        if request.checks_yaml:
+            validation = _validate_soda_yaml(request.checks_yaml)
+            if not validation["valid"]:
+                errors = [i["message"] for i in validation["issues"] if i["severity"] == "error"]
+                raise HTTPException(
+                    status_code=422,
+                    detail={"message": "Checks YAML contains errors. Fix them before creating the plan.",
+                            "errors": errors},
+                )
+
         # Create check plan
         new_plan = CheckPlan(
             name=request.name,
@@ -282,6 +381,15 @@ async def update_check_plan(
         if request.description is not None:
             plan.description = request.description
         if request.checks_yaml is not None:
+            # Validate before updating
+            validation = _validate_soda_yaml(request.checks_yaml)
+            if not validation["valid"]:
+                errors = [i["message"] for i in validation["issues"] if i["severity"] == "error"]
+                raise HTTPException(
+                    status_code=422,
+                    detail={"message": "Checks YAML contains errors. Fix them before saving.",
+                            "errors": errors},
+                )
             plan.checks_yaml = request.checks_yaml
         if request.custom_checks_yaml is not None:
             plan.custom_checks_yaml = request.custom_checks_yaml

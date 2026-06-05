@@ -50,6 +50,8 @@ export const createCheckPlan = (data: CreateCheckPlanPayload) => api.post('/api/
 export const getCheckPlan = (id: string) => api.get(`/api/v1/check-plans/${id}`);
 export const updateCheckPlan = (id: string, data: Partial<CreateCheckPlanPayload>) => api.put(`/api/v1/check-plans/${id}`, data);
 export const deleteCheckPlan = (id: string) => api.delete(`/api/v1/check-plans/${id}`);
+export const validateCheckPlanYaml = (checks_yaml: string) =>
+  api.post('/api/v1/check-plans/validate', { checks_yaml });
 
 // Runs
 export const getRuns = () => api.get('/api/v1/runs/');

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { FileCheck, Plus, Trash2, Play, X, ChevronDown, ChevronUp, Pencil, Check, Loader2 } from 'lucide-react';
-import { getCheckPlans, createCheckPlan, deleteCheckPlan, getConnections, getMetadataSnapshot, updateCheckPlan } from '../api/client';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { FileCheck, Plus, Trash2, Play, X, ChevronDown, ChevronUp, Pencil, Check, Loader2, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
+import { getCheckPlans, createCheckPlan, deleteCheckPlan, getConnections, getMetadataSnapshot, updateCheckPlan, validateCheckPlanYaml } from '../api/client';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import type { CheckPlan, CheckSuggestion, Connection, CreateCheckPlanPayload, MetadataProfile, ColumnProfile } from '../types';
 import type { SuggestionPlanDraft } from './Suggestions';
@@ -13,6 +13,39 @@ const SUGGESTION_PLAN_DRAFT_KEY = 'dq-suggestion-plan-draft';
 type CheckPlansLocationState = {
   suggestionDraft?: SuggestionPlanDraft;
 };
+
+type YamlIssue = { severity: 'error' | 'warning'; message: string };
+type YamlValidation = { valid?: boolean; issues: YamlIssue[]; loading: boolean };
+
+const EMPTY_VALIDATION: YamlValidation = { issues: [], loading: false };
+
+function YamlValidationPanel({ v }: { v: YamlValidation }) {
+  if (v.loading) {
+    return <p className="mt-1 flex items-center gap-1 text-xs text-text-muted"><Loader2 className="w-3 h-3 animate-spin" /> Validating…</p>;
+  }
+  if (v.valid === true && v.issues.length === 0) {
+    return <p className="mt-1 flex items-center gap-1 text-xs text-emerald-500"><CheckCircle2 className="w-3 h-3" /> Valid SodaCL — looks good</p>;
+  }
+  if (v.issues.length === 0) return null;
+  const errors   = v.issues.filter(i => i.severity === 'error');
+  const warnings = v.issues.filter(i => i.severity === 'warning');
+  return (
+    <div className="mt-2 space-y-1.5">
+      {errors.map((issue, idx) => (
+        <div key={idx} className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-500">
+          <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+          <span className="leading-relaxed">{issue.message}</span>
+        </div>
+      ))}
+      {warnings.map((issue, idx) => (
+        <div key={idx} className="flex items-start gap-2 rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-500">
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+          <span className="leading-relaxed">{issue.message}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const readDraftFromSession = (): SuggestionPlanDraft | null => {
   const rawDraft = sessionStorage.getItem(SUGGESTION_PLAN_DRAFT_KEY);
@@ -122,6 +155,24 @@ export function CheckPlans() {
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: '', description: '', checks_yaml: '' });
   const [saving, setSaving] = useState(false);
+  const [createValidation, setCreateValidation] = useState<YamlValidation>(EMPTY_VALIDATION);
+  const [editValidation,   setEditValidation]   = useState<YamlValidation>(EMPTY_VALIDATION);
+  const createTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerValidation = useCallback((yaml: string, setter: React.Dispatch<React.SetStateAction<YamlValidation>>, timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (!yaml.trim()) { setter(EMPTY_VALIDATION); return; }
+    setter(prev => ({ ...prev, loading: true }));
+    timerRef.current = setTimeout(async () => {
+      try {
+        const { data } = await validateCheckPlanYaml(yaml);
+        setter({ valid: data.valid, issues: data.issues || [], loading: false });
+      } catch {
+        setter(EMPTY_VALIDATION);
+      }
+    }, 600);
+  }, []);
   const [importedSuggestions, setImportedSuggestions] = useState<CheckSuggestion[]>([]);
   const [baselineChecksYaml, setBaselineChecksYaml] = useState(DEFAULT_CHECKS_YAML);
   const [baselineReady, setBaselineReady] = useState(!requestedSnapshotId);
@@ -300,10 +351,13 @@ export function CheckPlans() {
     setEditingPlanId(plan.id);
     setEditForm({ name: plan.name, description: plan.description || '', checks_yaml: plan.checks_yaml || '' });
     setExpandedPlanId(null);
+    // Validate existing YAML immediately
+    triggerValidation(plan.checks_yaml || '', setEditValidation, editTimerRef);
   };
 
   const handleCancelEdit = () => {
     setEditingPlanId(null);
+    setEditValidation(EMPTY_VALIDATION);
   };
 
   const handleSavePlan = async (planId: string) => {
@@ -388,13 +442,22 @@ export function CheckPlans() {
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Checks (SodaCL YAML)</label>
-                <textarea className="input font-mono text-xs" rows={6} value={form.checks_yaml} onChange={e => setForm({ ...form, checks_yaml: e.target.value })} placeholder={"checks for data:\n  - row_count > 0"} required />
-                <p className="mt-1 text-xs text-text-muted">Paste baseline rules and selected suggestion blocks here. This plan executes as Soda-compatible YAML.</p>
+                <textarea className="input font-mono text-xs" rows={6}
+                  value={form.checks_yaml}
+                  onChange={e => {
+                    setForm({ ...form, checks_yaml: e.target.value });
+                    triggerValidation(e.target.value, setCreateValidation, createTimerRef);
+                  }}
+                  placeholder={"checks for data:\n  - row_count > 0"} required />
+                <YamlValidationPanel v={createValidation} />
+                {createValidation.valid === undefined && !createValidation.loading && (
+                  <p className="mt-1 text-xs text-text-muted">Paste SodaCL YAML — it will be validated automatically as you type.</p>
+                )}
               </div>
             </div>
             <div className="flex gap-3 pt-1">
-              <button type="submit" className="btn-primary"><Plus className="w-4 h-4" />Create Plan</button>
-              <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">Cancel</button>
+              <button type="submit" disabled={createValidation.valid === false} className="btn-primary" title={createValidation.valid === false ? 'Fix YAML errors before creating' : ''}><Plus className="w-4 h-4" />Create Plan</button>
+              <button type="button" onClick={() => { setShowForm(false); setCreateValidation(EMPTY_VALIDATION); }} className="btn-secondary">Cancel</button>
             </div>
           </form>
         </div>
@@ -422,12 +485,19 @@ export function CheckPlans() {
                   </div>
                   <div>
                     <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-1.5">Checks YAML</label>
-                    <textarea className="input font-mono text-xs" rows={10} value={editForm.checks_yaml} onChange={e => setEditForm(f => ({ ...f, checks_yaml: e.target.value }))} />
+                    <textarea className="input font-mono text-xs" rows={10}
+                      placeholder="checks for data:\n  - row_count > 0"
+                      value={editForm.checks_yaml}
+                      onChange={e => {
+                        setEditForm(f => ({ ...f, checks_yaml: e.target.value }));
+                        triggerValidation(e.target.value, setEditValidation, editTimerRef);
+                      }} />
+                    <YamlValidationPanel v={editValidation} />
                     <p className="mt-1 text-xs text-text-muted">SodaCL format: <code className="font-mono">checks for &lt;table&gt;:</code> with indented check lines.</p>
                   </div>
                 </div>
                 <div className="flex gap-2 mt-4">
-                  <button onClick={() => void handleSavePlan(plan.id)} disabled={saving} className="btn-primary text-xs">
+                  <button onClick={() => void handleSavePlan(plan.id)} disabled={saving || editValidation.valid === false} className="btn-primary text-xs" title={editValidation.valid === false ? 'Fix YAML errors before saving' : ''}>
                     {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                     Save changes
                   </button>
