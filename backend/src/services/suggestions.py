@@ -275,19 +275,19 @@ class AnomalyDetectionRule(SuggestionRule):
     
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         col_name = column["name"]
+        min_val = column.get("min", 0)
+        max_val = column.get("max", 1000000)
+        # Valid SodaCL: invalid_count with valid_min/max bounds
         return {
             "rule_id": self.rule_id,
             "check_name": f"{col_name} outlier detection",
             "check_type": self.check_type,
-            "rationale": f"Detect unusual values and statistical outliers in {col_name}",
+            "rationale": f"Detect values outside the expected range for {col_name}",
             "confidence": 0.80,
-            "suggested_yaml": f"""checks:
-  - name: '{col_name} statistical outliers'
-    type: anomaly_detection
-    column: {col_name}
-    method: zscore  # or 'iqr' for robust detection
-    threshold: 3.0
-    fail: when found > 0"""
+            "suggested_yaml": f"""checks for data:
+  - invalid_count({col_name}) = 0:
+      valid min: {min_val}
+      valid max: {max_val}"""
         }
 
 class SchemaConsistencyRule(SuggestionRule):
@@ -302,19 +302,23 @@ class SchemaConsistencyRule(SuggestionRule):
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         col_name = column["name"]
         col_type = column.get("type", "VARCHAR").upper()
-        
+        # Normalise DuckDB types to Soda-compatible names
+        type_map = {"INTEGER": "integer", "BIGINT": "bigint", "FLOAT": "double", "DOUBLE": "double",
+                    "DECIMAL": "decimal", "NUMERIC": "decimal", "VARCHAR": "text", "TEXT": "text",
+                    "BOOLEAN": "boolean", "DATE": "date", "TIMESTAMP": "timestamp"}
+        soda_type = type_map.get(col_type, col_type.lower())
+        # Valid SodaCL schema check
         return {
             "rule_id": self.rule_id,
             "check_name": f"{col_name} type consistency",
             "check_type": self.check_type,
             "rationale": f"Ensure {col_name} maintains correct data type ({col_type})",
             "confidence": 0.90,
-            "suggested_yaml": f"""checks:
-  - name: '{col_name} type is {col_type}'
-    type: schema_type
-    column: {col_name}
-    schema_type: {col_type}
-    fail: when != expected"""
+            "suggested_yaml": f"""checks for data:
+  - schema:
+      fail:
+        when wrong column type:
+          {col_name}: {soda_type}"""
         }
 
 class DistributionAnalysisRule(SuggestionRule):
@@ -336,18 +340,16 @@ class DistributionAnalysisRule(SuggestionRule):
     
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         col_name = column["name"]
+        # Valid SodaCL: invalid_count with valid_values list
         return {
             "rule_id": self.rule_id,
             "check_name": f"{col_name} distribution consistency",
             "check_type": self.check_type,
             "rationale": f"Monitor {col_name} for unexpected distribution changes",
             "confidence": 0.75,
-            "suggested_yaml": f"""checks:
-  - name: '{col_name} expected values only'
-    type: valid_values
-    column: {col_name}
-    valid_values: ['value1', 'value2', 'value3']  # Update with actual values
-    fail: when not in valid set"""
+            "suggested_yaml": f"""checks for data:
+  - invalid_count({col_name}) = 0:
+      valid values: []  # TODO: replace with actual allowed values e.g. ['active', 'inactive']"""
         }
 
 class RowCountConsistencyRule(SuggestionRule):
@@ -362,19 +364,17 @@ class RowCountConsistencyRule(SuggestionRule):
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         table_name = schema.get("table_name", "table") if schema else "table"
         row_count = column.get("row_count", 1000)
-        
+        low  = int(row_count * 0.8)
+        high = int(row_count * 1.5)
+        # Valid SodaCL: row_count between expression
         return {
             "rule_id": self.rule_id,
             "check_name": f"{table_name} row count health",
             "check_type": self.check_type,
-            "rationale": f"Monitor {table_name} for unexpected growth or shrinkage",
+            "rationale": f"Monitor {table_name} for unexpected growth or shrinkage (alert if outside {low}–{high} rows)",
             "confidence": 0.70,
-            "suggested_yaml": f"""checks:
-  - name: '{table_name} row count reasonable'
-    type: row_count
-    fail:
-      when < {int(row_count * 0.8)}    # Alert if 20% drop
-      when > {int(row_count * 1.5)}    # Alert if 50% spike (might be duplicates)"""
+            "suggested_yaml": f"""checks for data:
+  - row_count between {low} and {high}"""
         }
 
 class ReferentialIntegrityPatternRule(SuggestionRule):
