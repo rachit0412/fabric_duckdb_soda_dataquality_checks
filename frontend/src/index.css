@@ -153,7 +153,6 @@
   html {
     min-height: 100%;
     overflow-x: hidden;
-    overscroll-behavior-y: none;
   }
 
   *, *::before, *::after {
@@ -170,7 +169,6 @@
       var(--bg);
     min-height: 100vh;
     overflow-x: hidden;
-    overscroll-behavior-y: none;
     position: relative;
   }
 

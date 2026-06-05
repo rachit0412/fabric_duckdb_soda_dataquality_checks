@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileCheck, Plus, Trash2, Play, X, Loader2 } from 'lucide-react';
-import { getCheckPlans, createCheckPlan, deleteCheckPlan, getConnections, executeCheckPlan, getMetadataSnapshot } from '../api/client';
+import { FileCheck, Plus, Trash2, Play, X } from 'lucide-react';
+import { getCheckPlans, createCheckPlan, deleteCheckPlan, getConnections, getMetadataSnapshot } from '../api/client';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import type { CheckPlan, CheckSuggestion, Connection, CreateCheckPlanPayload, MetadataProfile, ColumnProfile } from '../types';
 import type { SuggestionPlanDraft } from './Suggestions';
@@ -101,6 +101,14 @@ const mergeChecksYaml = (baseYaml: string, importedYaml: string) => {
   return `${normalizedBase}\n${normalizedImported}`;
 };
 
+const sortPlansNewestFirst = (plans: CheckPlan[]) => (
+  [...plans].sort((left, right) => {
+    const rightTime = new Date(right.updated_at || right.created_at || 0).getTime();
+    const leftTime = new Date(left.updated_at || left.created_at || 0).getTime();
+    return rightTime - leftTime;
+  })
+);
+
 export function CheckPlans() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -110,7 +118,6 @@ export function CheckPlans() {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(Boolean(requestedConnectionId || requestedSnapshotId));
-  const [executing, setExecuting] = useState<string | null>(null);
   const [importedSuggestions, setImportedSuggestions] = useState<CheckSuggestion[]>([]);
   const [baselineChecksYaml, setBaselineChecksYaml] = useState(DEFAULT_CHECKS_YAML);
   const [baselineReady, setBaselineReady] = useState(!requestedSnapshotId);
@@ -239,7 +246,7 @@ export function CheckPlans() {
         getCheckPlans().catch(() => ({ data: [] })),
         getConnections().catch(() => ({ data: [] })),
       ]);
-      setPlans(Array.isArray(plansRes.data) ? plansRes.data : []);
+      setPlans(sortPlansNewestFirst(Array.isArray(plansRes.data) ? plansRes.data : []));
       setConnections(Array.isArray(connsRes.data) ? connsRes.data : []);
     } catch (e) {
       console.error('Failed to load:', e);
@@ -265,14 +272,11 @@ export function CheckPlans() {
         payload.metadata_snapshot_id = form.metadata_snapshot_id;
       }
 
-      const { data: createdPlan } = await createCheckPlan(payload);
+      await createCheckPlan(payload);
       await load();
       setShowForm(false);
       setForm({ name: '', description: '', checks_yaml: baselineChecksYaml });
       setImportedSuggestions([]);
-      if (createdPlan?.id) {
-        navigate(`/runs?planId=${encodeURIComponent(createdPlan.id)}&autoStart=1`);
-      }
     } catch (error: any) {
       alert(error?.response?.data?.detail || 'Failed to create check plan');
     }
@@ -288,16 +292,9 @@ export function CheckPlans() {
     }
   };
 
-  const handleExecute = async (planId: string) => {
-    setExecuting(planId);
-    try {
-      const { data } = await executeCheckPlan(planId);
-      navigate(data?.run_id ? `/runs?runId=${encodeURIComponent(data.run_id)}` : '/runs');
-    } catch (error: any) {
-      alert(error?.response?.data?.detail || 'Failed to execute');
-    } finally {
-      setExecuting(null);
-    }
+  const handleExecute = (planId: string) => {
+    // Navigate immediately — the Runs page owns the execution call
+    navigate(`/runs?planId=${encodeURIComponent(planId)}&autoStart=1`);
   };
 
   const connName = (id: string) => connections.find(c => c.id === id)?.name || id?.slice(0, 8) || '—';
@@ -399,8 +396,8 @@ export function CheckPlans() {
                 <span className={`badge ${plan.enabled ? 'badge-success' : 'badge-warning'}`}>
                   {plan.enabled ? 'Active' : 'Disabled'}
                 </span>
-                <button onClick={() => handleExecute(plan.id)} disabled={executing === plan.id} className="btn-ghost text-xs gap-1">
-                  {executing === plan.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                <button onClick={() => handleExecute(plan.id)} className="btn-ghost text-xs gap-1">
+                  <Play className="w-3 h-3" />
                   Execute
                 </button>
                 <button title={`Delete plan ${plan.name}`} onClick={() => handleDelete(plan.id)} className="p-2 rounded-lg transition-all" style={{ color: 'var(--text-3)' }}
