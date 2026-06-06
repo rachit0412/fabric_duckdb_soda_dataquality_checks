@@ -29,6 +29,42 @@ def _render_checks_yaml(*lines: str) -> str:
     return "checks:\n" + "\n".join(f"  {line}" for line in lines if line)
 
 
+def _row_count(column: Dict[str, Any]) -> int:
+    return int(column.get("row_count", 0) or 0)
+
+
+def _distinct_count(column: Dict[str, Any]) -> int:
+    return int(column.get("distinct_count", 0) or 0)
+
+
+def _has_no_nulls(column: Dict[str, Any]) -> bool:
+    row_count = _row_count(column)
+    if row_count <= 0:
+        return False
+
+    if column.get("null_count") is not None:
+        return int(column.get("null_count", 0) or 0) == 0
+
+    if column.get("null_percent") is not None:
+        return float(column.get("null_percent", 0) or 0) == 0
+
+    return not column.get("nullable", True)
+
+
+def _is_key_like(column: Dict[str, Any]) -> bool:
+    col_name = str(column.get("name", "")).lower()
+    row_count = _row_count(column)
+    distinct_count = _distinct_count(column)
+
+    if column.get("is_pk", False):
+        return True
+
+    if col_name in {"id", "pk", "key", "record_id"} or col_name.endswith("_id"):
+        return True
+
+    return row_count > 0 and distinct_count >= 0.99 * row_count
+
+
 class RuleCategory(str, Enum):
     """Data quality rule categories for M3."""
     VOLUME = "volume"
@@ -63,14 +99,7 @@ class NullCheckForPKRule(SuggestionRule):
         super().__init__("null_check_for_pk_like", "Completeness", "missing_count")
     
     def can_suggest(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> bool:
-        is_pk = column.get("is_pk", False)
-        distinct_count = column.get("distinct_count", 0)
-        row_count = column.get("row_count", 1)
-        
-        # PK or highly unique
-        if is_pk or distinct_count > 0.99 * row_count:
-            return not column.get("nullable", True)
-        return False
+        return _is_key_like(column) and _has_no_nulls(column)
     
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         col_name = column["name"]
@@ -82,7 +111,6 @@ class NullCheckForPKRule(SuggestionRule):
             "confidence": 0.95,
             "severity": "critical",
             "rationale": "Column appears to be a key/ID; expect no NULLs",
-            "confidence": 0.95,
             "suggested_yaml": _render_checks_yaml(f"- missing_count({col_name}) = 0")
         }
 
@@ -132,6 +160,39 @@ class MissingCheckRule(SuggestionRule):
             "rationale": f"'{col_name}' is an important field; expect high completion rate",
             "confidence": 0.80,
             "suggested_yaml": _render_checks_yaml(f"- missing_count({col_name}) < {max(fail_threshold, 1)}")
+        }
+
+
+class ObservedCompletenessRule(SuggestionRule):
+    """Suggest strict non-null checks for columns that are fully populated in the profile."""
+
+    def __init__(self):
+        super().__init__("observed_completeness_zero_nulls", "Completeness", "missing_count")
+
+    def can_suggest(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> bool:
+        row_count = _row_count(column)
+        distinct_count = _distinct_count(column)
+
+        if row_count < 100 or not _has_no_nulls(column) or _is_key_like(column):
+            return False
+
+        if _type_contains(column.get("type", ""), NUMERIC_TYPE_TOKENS):
+            return True
+
+        if _type_contains(column.get("type", ""), STRING_TYPE_TOKENS):
+            return 1 < distinct_count <= max(2, min(20, int(row_count * 0.25)))
+
+        return False
+
+    def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
+        col_name = column["name"]
+        return {
+            "rule_id": self.rule_id,
+            "check_name": f"{col_name} has no missing values",
+            "check_type": self.check_type,
+            "rationale": f"Observed no NULLs in {col_name}; preserve that completeness baseline",
+            "confidence": 0.74,
+            "suggested_yaml": _render_checks_yaml(f"- missing_count({col_name}) = 0"),
         }
 
 # Column-name patterns → (min, max, confidence)
@@ -221,18 +282,27 @@ class EnumCheckRule(SuggestionRule):
     
     def can_suggest(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> bool:
         col_name = column["name"].lower()
-        distinct_count = column.get("distinct_count", 0)
-        status_keywords = ["status", "state", "type", "kind", "level"]
-        return distinct_count < 10 and any(kw in col_name for kw in status_keywords)
+        distinct_count = _distinct_count(column)
+        row_count = _row_count(column)
+        categorical_keywords = ["status", "state", "type", "kind", "level", "category", "sex", "gender", "device", "region", "channel"]
+
+        if row_count < 100 or _is_key_like(column) or not _type_contains(column.get("type", ""), STRING_TYPE_TOKENS):
+            return False
+
+        if distinct_count <= 1 or distinct_count > 12:
+            return False
+
+        return any(kw in col_name for kw in categorical_keywords) or distinct_count <= 5
     
     def generate_suggestion(self, column: Dict[str, Any], schema: Dict[str, Any] = None) -> Dict[str, Any]:
         col_name = column["name"]
+        distinct_count = _distinct_count(column)
         return {
             "rule_id": self.rule_id,
             "check_name": f"{col_name} has valid values",
             "check_type": self.check_type,
-            "rationale": f"'{col_name}' has limited valid values; add an allowed-list check",
-            "confidence": 0.80,
+            "rationale": f"'{col_name}' looks categorical with {distinct_count} observed values; add an allowed-list guardrail",
+            "confidence": 0.78,
             "suggested_yaml": _render_checks_yaml(
                 f"- invalid_count({col_name}) = 0:",
                 "    valid values: []  # TODO: fill in actual values e.g. ['active', 'inactive']",
@@ -516,8 +586,10 @@ class SuggestionEngine:
             # Core data quality rules
             NullCheckForPKRule(),
             UniquenessCheckRule(),
+            ObservedCompletenessRule(),
             MissingCheckRule(),
             RangeCheckNumericRule(),
+            EnumCheckRule(),
             PatternCheckEmailRule(),
             FreshnessDateRule(),
             RowCountConsistencyRule(),
